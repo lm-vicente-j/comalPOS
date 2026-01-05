@@ -56,7 +56,7 @@ export default function Sidebar({ userRole }: { userRole: string }){
 
 
   return(
-    <div className='flex flex-col items-center w-20 h-screen bg-white shadow-sm font-rounded py-4'>
+    <div className='z-10 flex flex-col items-center w-20 h-screen bg-white shadow-sm font-rounded py-4'>
 
         {
             allowedModules.map((item) => {

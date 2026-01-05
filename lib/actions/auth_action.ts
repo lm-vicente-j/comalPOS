@@ -10,7 +10,7 @@ export async function login(formData: FormData) {
 
 
   if (email === "admin@local.com" && password === "1234") {
-    const userData = { email, role: 'admin', name: 'owner' }
+    const userData = { email, role: 'admin', name: 'staff' }
     
     const cookieStore = await cookies()
     cookieStore.set('session', JSON.stringify(userData), {
@@ -35,4 +35,16 @@ export async function logout() {
 
   redirect("/login");
   
+}
+
+export async function createUser(prevState: any, formData: FormData) {
+    const name = formData.get("name");
+    const email = formData.get("email");
+
+    console.log("Save to database, user: " + name);
+
+    return {
+        messsage: "USer created from server action",
+    };
+
 }
