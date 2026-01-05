@@ -24,9 +24,11 @@ interface SalesInputProps {
     clientSelected: boolean;
     setClientSelected: (val: boolean) => void;
     onClientSelect: (name: string) => void;
+    tableNumber: number;
+    setTableNumber: (val: number) => void;
 }
 
-export default function SalesInputClient({ query, setQuery, clientSelected, setClientSelected, onClientSelect }: SalesInputProps) {
+export default function SalesInputClient({ query, setQuery, clientSelected, setClientSelected, onClientSelect, tableNumber, setTableNumber }: SalesInputProps) {
 
     const inputRef = useRef<HTMLInputElement>(null);
     useEffect(()=>{
@@ -37,6 +39,7 @@ export default function SalesInputClient({ query, setQuery, clientSelected, setC
 
     const filtered = clientsSample.filter((s) => s.toLowerCase().includes(query.toLowerCase()) && query.length > 0)
 
+    const isAlreadyFreeSale = tableNumber === 0 && !clientSelected && query === "";
 
     return(
 
@@ -58,6 +61,8 @@ export default function SalesInputClient({ query, setQuery, clientSelected, setC
                                         value={item}
                                         onSelect={() => {
                                         onClientSelect(item); 
+                                        setClientSelected(true);
+                                        setTableNumber(0);
                                         setOpen(false);
                                     }}
                                         
@@ -72,11 +77,10 @@ export default function SalesInputClient({ query, setQuery, clientSelected, setC
                         </PopoverContent>
                     </Popover>
                     <ButtonGroup>
-                         {/* <Button disabled={clientSelected} className="cursor-pointer">Venta cliente</Button>  */}
-                        
-                        <Button className="cursor-pointer" disabled={!clientSelected} onClick={() => {
+                        <Button className="cursor-pointer" disabled={!clientSelected && query==="" && tableNumber === 0} onClick={() => {
                             setClientSelected(false);
                             setQuery("");
+                            setTableNumber(0);
                                 
                         }} >Cambiar a venta libre</Button>
 

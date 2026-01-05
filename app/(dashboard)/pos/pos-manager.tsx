@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Tables from "@/components/tables";
+import Seatings from "@/components/Seatings";
 import SalesInputClient from "@/components/Sales-input-client";
 import DataTable, { Product } from "./date-table";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -37,7 +37,7 @@ export default function PosManager({ products }: { products: Product[] }) {
             <div className="p-5 w-[50%] h-full">
                 <div className="flex flex-col rounded-md h-30">
                     <p className="font-bold mb-2">Mesas</p>
-                    <Tables
+                    <Seatings
                         tableNumber={tableNumber}
                         setTableNumber={handleTableSelect}
                     />
@@ -49,6 +49,8 @@ export default function PosManager({ products }: { products: Product[] }) {
                     clientSelected={clientSelected}
                     setClientSelected={setClientSelected}
                     onClientSelect={handleClientSelect}
+                    tableNumber={tableNumber}
+                    setTableNumber ={setTableNumber}
                 />
 
                 <ScrollArea className="h-[50%] w-full rounded-md border p-4">

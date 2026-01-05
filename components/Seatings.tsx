@@ -9,7 +9,7 @@ interface TablesProps {
   setTableNumber: (num: number) => void;
 }
 
-export default function Tables({ tableNumber, setTableNumber }: TablesProps){
+export default function Seatings({ tableNumber, setTableNumber }: TablesProps){
 
     return(
         <>
