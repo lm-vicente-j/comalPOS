@@ -13,6 +13,7 @@ export default function PosManager({ products }: { products: Product[] }) {
     const [tableNumber, setTableNumber] = useState(0);
     const [query, setQuery] = useState("");
     const [clientSelected, setClientSelected] = useState(false);
+    
 
     const handleTableSelect = (num: number) => {
         setTableNumber(num);
@@ -27,6 +28,7 @@ export default function PosManager({ products }: { products: Product[] }) {
         setClientSelected(true);
         setTableNumber(0);
     };
+    const [dialogOpen, setDialogOpen] = useState(false);
 
     return (
         <div className="flex flex-row items-center justify-around z-0 w-screen h-screen">
@@ -40,6 +42,7 @@ export default function PosManager({ products }: { products: Product[] }) {
                     <Seatings
                         tableNumber={tableNumber}
                         setTableNumber={handleTableSelect}
+                        setDialogOpen={setDialogOpen}
                     />
                 </div>
 
@@ -51,6 +54,8 @@ export default function PosManager({ products }: { products: Product[] }) {
                     onClientSelect={handleClientSelect}
                     tableNumber={tableNumber}
                     setTableNumber ={setTableNumber}
+                    setDialogOpen={setDialogOpen}
+                    dialogOpen={dialogOpen}
                 />
 
                 <ScrollArea className="h-[50%] w-full rounded-md border p-4">

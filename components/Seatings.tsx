@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 
 interface TablesProps {
   tableNumber: number;
   setTableNumber: (num: number) => void;
+  setDialogOpen: (val:boolean) => void;
 }
 
-export default function Seatings({ tableNumber, setTableNumber }: TablesProps){
+export default function Seatings({ tableNumber, setTableNumber,setDialogOpen }: TablesProps){
 
     return(
         <>
@@ -40,8 +40,7 @@ export default function Seatings({ tableNumber, setTableNumber }: TablesProps){
         className="cursor-pointer mt-5"
         onClick={()=> {
 
-          setTableNumber(0)  
-
+          setDialogOpen(true)
         }}
       >
         Cerrar Mesa {tableNumber > 0 && `#${tableNumber}`}

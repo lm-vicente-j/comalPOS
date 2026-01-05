@@ -65,7 +65,7 @@ export default function Sidebar({ userRole }: { userRole: string }){
 
                 <Link href={item.href} key={item.href} className={`flex my-1 flex-col items-center justify-center  w-16 h-16 rounded-xl cursor-pointer mb-4 transition-all shadow-md ${
                     isActive
-                    ? 'bg-orange-500'
+                    ? 'bg-orange-400'
                     : 'bg-gray-200'
                 }`}>
                     <item.icon size={25} className='mb-1'/>
