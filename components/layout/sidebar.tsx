@@ -7,7 +7,8 @@ import {
     BanknoteIcon,
     ArchiveIcon,
     HandCoinsIcon,
-    PiggyBankIcon
+    PiggyBankIcon,
+    UserRoundIcon
  } from 'lucide-react';
 
 
@@ -43,6 +44,12 @@ const MODULES = [
     href: '/admin/savings', 
     role: ['admin'], 
     icon: PiggyBankIcon 
+  },
+  { 
+    name: 'CRM', 
+    href: '/admin/crm', 
+    role: ['admin'], 
+    icon:     UserRoundIcon 
   },
 ];
 

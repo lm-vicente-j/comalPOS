@@ -5,6 +5,8 @@ import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge"
+
 
 export type Product = {
     name: string
@@ -41,12 +43,12 @@ export default function DataTable({data}:{data: any[]}){
           <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
             {
                   dataProducts.map((val:any,index:any) => (
-                  <Button key={index} className=" cursor-pointer w-full h-30 flex flex-col items-center justify-center">
+                  <Button variant="outline" key={index} className=" cursor-pointer w-full h-30 flex flex-col items-center justify-center">
                         <div className="w-[80%] h-[50%] text-wrap flex items-center justify-center">
                           <p>{val.name}</p>
                         </div>
 
-                        <p>$ {val.price}</p>
+                                <Badge >${val.price}</Badge>
 
                   </Button>
               ))

@@ -28,6 +28,18 @@ import {
 
 } from "@/components/ui/dialog"
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
 const clientsSample = ["C1 | Cliente 1", "C2 | Cliente 2", "C3 | Cliente 3", "C4 | Cliente 4"]
 interface SalesInputProps {
     query: string;
@@ -101,7 +113,9 @@ export default function SalesInputClient({ query, setQuery, clientSelected, setC
                 }} >Cambiar a venta libre</Button>
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button className="cursor-pointer" disabled={!clientSelected}>Cerrar cuenta {query}</Button>
+
+                        <Button variant="destructive" className="cursor-pointer" disabled={!clientSelected}>Cerrar cuenta {query}</Button>
+
                     </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
@@ -136,8 +150,28 @@ export default function SalesInputClient({ query, setQuery, clientSelected, setC
                         </div>
                     </DialogContent>
                 </Dialog>
-
-
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button className="cursor-pointer bg-amber-500 text-black hover:bg-amber-400"  disabled={!clientSelected}>A deuda {query}</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete your
+                                account and remove your data from our servers.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel asChild>
+                                <Button className="cursor-pointer" variant={"outline"}>Cancelar</Button>
+                            </AlertDialogCancel>
+                            <AlertDialogAction asChild>
+                                <Button className="cursor-pointer">Aceptar</Button>
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </ButtonGroup>
 
         </div>

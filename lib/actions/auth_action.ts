@@ -8,7 +8,7 @@ export async function login(formData: FormData) {
   const email = formData.get('email')
   const password = formData.get('password')
 
-
+// admin, staff roles
   if (email === "admin@local.com" && password === "1234") {
     const userData = { email, role: 'admin', name: 'staff' }
     
