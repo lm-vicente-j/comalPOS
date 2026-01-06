@@ -25,13 +25,13 @@ export default async function DashboardLayout({
 
 
   return (
-    <div className="flex-column m-0 p-0 overflow-hidden max-w max-h content-center items-start h-screen bg-gray-50 text-gray-900">
+    <div className="flex flex-col overflow-hidden h-screen bg-gray-50 text-gray-900">
         <Topbar userName={user.name} />
 
-        <main className="flex w-screen overflow-y-auto ">
+        <main className="flex flex-1 w-full overflow-hidden ">
         <Sidebar userRole={String(user.role)} />
 
-          <div className="max-w-7xl mx-auto flex items-center content-center">
+          <div className="flex-1 w-full mx-auto flex items-center content-center">
             {children}
           </div>
         </main>

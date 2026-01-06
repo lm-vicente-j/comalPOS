@@ -58,7 +58,7 @@ export default function PosManager({ products }: { products: Product[] }) {
     const [dialogOpen, setDialogOpen] = useState(false);
 
     return (
-        <div className="flex flex-row items-center justify-around z-0 w-screen h-screen">
+        <div className="flex flex-row items-center justify-around z-0 w-full h-full">
             <div className="flex items-center justify-center w-[50%] h-full">
                 <DataTable data={products} />
             </div>
