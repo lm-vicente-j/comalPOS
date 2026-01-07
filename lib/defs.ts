@@ -7,3 +7,4 @@ export type Customer = {
     outstandingBalance: number
     registeredDate: Date
 }
+

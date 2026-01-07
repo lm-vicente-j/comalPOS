@@ -1,16 +1,15 @@
 import DebtorsTable from "@/app/(dashboard)/debtors/debts-table";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Customer } from "@/lib/defs";
 import { debtsColumns } from "./debts-columns";
 
-async function getDebtors():Promise<Customer[]> {
+async function getDebtors(): Promise<Customer[]> {
     const data: Customer[] = [
         {
             id: 1,
             customerName: "Juan Pérez",
             alias: "juanp",
-            lastConsumption: new Date("2025-08-09"),
+            lastConsumption: new Date("2025-12-25"),
             outstandingBalance: 15.13,
             registeredDate: new Date("2024-01-15")
         },
@@ -197,9 +196,7 @@ export default async function Home() {
             </div>
 
             <div className="flex flex-row items-start justify-center w-[100%] h-[70%]">
-                <ScrollArea className="h-[80%] w-[95%] rounded-md border p-4">
-                    <DebtorsTable columns={debtsColumns} data={data} />
-                </ScrollArea>
+                <DebtorsTable columns={debtsColumns} data={data} />
             </div>
         </div>
 
