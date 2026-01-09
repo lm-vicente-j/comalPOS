@@ -100,7 +100,7 @@ export default function PosManager({ products }: { products: Product[] }) {
                         <TableBody>
                             {
                                 Array.from({ length: 200 }).map((_, index) => {
-                                    return <ProductRow />
+                                    return <ProductRow key={index} />
                                 })
                             }
 

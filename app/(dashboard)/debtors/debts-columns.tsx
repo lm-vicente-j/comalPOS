@@ -6,8 +6,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal } from "lucide-react"
@@ -36,6 +34,16 @@ import {
 } from "@/components/ui/select"
 
 import { ButtonGroup } from "@/components/ui/button-group";
+
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 export const debtsColumns: ColumnDef<Customer>[] = [
   {
@@ -79,6 +87,17 @@ export const debtsColumns: ColumnDef<Customer>[] = [
       const diffDays = Math.floor(dateDiff / (1000 * 60 * 60 * 24))
 
       const status = diffDays >= 15 ? "destructive" : "default";
+      if (row.getValue("outstandingBalance") == 0) {
+
+        return (
+          <div className="flex items-center justify-center">
+            <Badge>
+              Pagado
+            </Badge>
+          </div>
+        )
+      }
+
 
       return (
         <div className="flex items-center justify-center">
@@ -150,10 +169,29 @@ export const debtsColumns: ColumnDef<Customer>[] = [
                     <DialogHeader>
                       <DialogTitle>Detalles de consumo de {customerName}</DialogTitle>
                       <DialogDescription>
-                        ConsumptionTable here
+
                       </DialogDescription>
                     </DialogHeader>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[100px]">Recibo</TableHead>
+                          <TableHead>Cantidad</TableHead>
+                          <TableHead>Producto</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium">INV001</TableCell>
+                          <TableCell>Efectivo</TableCell>
+                          <TableCell>Agua</TableCell>
+                          <TableCell className="text-right">$250.00</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
                   </DialogContent>
+
                 </Dialog>
               </DropdownMenuItem>
             </DropdownMenuContent>
