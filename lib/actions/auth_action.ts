@@ -4,7 +4,7 @@ import { signIn } from "../auth"
 import { signOut } from "../auth"
 import { AuthError } from "next-auth"
 
-export async function login(formData: FormData) {
+export async function login(prevState: any,formData: FormData) {
   const email = formData.get('email')
   const password = formData.get('password')
   const name = formData.get("name");

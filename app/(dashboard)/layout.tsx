@@ -14,6 +14,7 @@ export default async function DashboardLayout({
   const session = await auth();
   const user = session?.user;
   const staffName = user?.name || "NONE";
+  console.log(user)
   const role = user?.role || "NONE";
 
    

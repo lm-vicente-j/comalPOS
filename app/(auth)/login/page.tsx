@@ -1,4 +1,6 @@
 "use client"
+import { useActionState } from "react";
+
 import { login } from "@/lib/actions/auth_action";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -32,13 +34,17 @@ import { CheckIcon, ChevronsUpDownIcon } from "lucide-react"
 
 import { useEffect } from "react";
 
+
+
 export default function LoginPage() {
 
   const [pin, setPin] = useState("");
   const [open, setOpen] = useState(false)
-  const [value, setValue] = useState("")
   const [selectedUser, setSelectedUser] = useState("");
   const [staffList, setStaffList] = useState<{ id: string, name: string | null }[]>([]);
+  const [state, formAction, isPending] = useActionState(login, null);
+
+
 
   useEffect(() => {
     async function loadUsers() {
@@ -65,7 +71,7 @@ export default function LoginPage() {
             <h1 className=" flex justify-center items-center text-2xl font-bold text-center m-6">COMAL | Login</h1>
           </div>
 
-          <form action={login} className="space-y-4">
+          <form action={formAction} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Email</label>
               <input
@@ -99,7 +105,7 @@ export default function LoginPage() {
             <h1 className=" flex justify-center items-center text-2xl font-bold text-center m-6">COMAL | Login</h1>
           </div>
 
-          <form action={login} className="space-y-4">
+          <form action={formAction} className="space-y-4">
 
             <div className="flex gap-2  flex-col flex-1 items-center justify-center">
               <div className="flex flex-1 flex-row items-center gap-3 justify-center">
