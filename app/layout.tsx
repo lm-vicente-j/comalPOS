@@ -24,11 +24,13 @@ export const metadata: Metadata = {
   description: "POS by starsux",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+  
   return (
     <html lang="en">
       <body

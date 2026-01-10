@@ -34,7 +34,6 @@ import { useEffect } from "react";
 
 export default function LoginPage() {
 
-
   const [pin, setPin] = useState("");
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState("")
@@ -43,11 +42,15 @@ export default function LoginPage() {
 
   useEffect(() => {
     async function loadUsers() {
+      
       const users = await GetAllStaffUsers();
+    
       setStaffList(users);
+    
     }
     loadUsers();
   }, []);
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 font-rounded">
@@ -104,7 +107,7 @@ export default function LoginPage() {
               <input type="hidden" name="name" value={selectedUser} />
               <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-60 justify-between">
+                  <Button variant="outline" className="w-60 justify-between cursor-pointer">
                     {selectedUser
                       ? staffList.find((u) => u.name === selectedUser)?.name
                       : "Seleccionar personal..."}
