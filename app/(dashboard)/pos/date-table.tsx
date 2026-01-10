@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge"
 
 
 export type Product = {
-  name: string
-  price: number
+  name: string;
+  price: number;
 
 }
 
@@ -47,7 +47,6 @@ export default function DataTable({ data }: { data: any[] }) {
                 <div className="w-[80%] h-[50%] text-wrap flex items-center justify-center">
                   <p>{val.name}</p>
                 </div>
-
                 <Badge >${val.price}</Badge>
 
               </Button>

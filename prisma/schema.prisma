@@ -1,0 +1,17 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique // only admin
+  password      String?   @unique// hash pass for admin
+  pin           String?   // pin for  staff
+  role          String    @default("STAFF") // ADMIN | STAFF
+}

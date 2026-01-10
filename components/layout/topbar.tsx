@@ -22,9 +22,9 @@ export default function Topbar({ userName }: { userName: string }){
           <Image className='m-5 w-10 h-10' width="50" height="50" src="/favicon.ico" alt='Tacos al comal logo' />
           <h1 className='flex items-center justify-center '>Comal</h1>
         </div>
-        <div className='flex items-center justify-around w-30 cursor-pointer m-5'>
+        <div className='flex items-center justify-around w-fit cursor-pointer m-5'>
           <DropdownMenu >
-            <DropdownMenuTrigger className='flex w-30 h-10 items-center justify-around bg-white cursor-pointer outline-0 '>
+            <DropdownMenuTrigger className='flex gap-2 w-fit h-10 items-center justify-around bg-white cursor-pointer outline-0 '>
               <div className='flex items-center justify-center rounded-lg w-7 h-7 outline-0 bg-amber-300'>
                 <UserIcon className='w-5 h-5' />
               </div>

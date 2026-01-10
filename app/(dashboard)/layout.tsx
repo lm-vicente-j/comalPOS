@@ -1,35 +1,30 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+
 
 import Sidebar from '@/components/layout/sidebar';
 import Topbar from '@/components/layout/topbar';
+
+import { auth } from '@/lib/auth';
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session');
-
-  if (!sessionCookie) {
-    redirect('/login');
-  }
   
+  const session = await auth();
+  const user = session?.user;
+  const staffName = user?.name || "NONE";
+  const role = user?.role || "NONE";
 
-  const user = JSON.parse(sessionCookie.value);
-
-
-
-
+   
 
 
   return (
     <div className="flex flex-col overflow-hidden h-screen bg-gray-50 text-gray-900">
-        <Topbar userName={user.name} />
+        <Topbar userName={staffName} />
 
         <main className="flex flex-1 w-full overflow-hidden ">
-        <Sidebar userRole={String(user.role)} />
+        <Sidebar userRole={role} />
 
           <div className="flex-1 w-full mx-auto flex items-center content-center">
             {children}

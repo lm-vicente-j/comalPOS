@@ -6,7 +6,7 @@ async function getProductsData(): Promise<Product[]>{
 
     // Sample data
 return [
-  { name: "Tacos al Pastor", price: 28.5 },
+  { name: "Tacos al Pastor", price: 28.5},
   { name: "Enchiladas Verdes", price: 45.0 },
   { name: "Quesadilla de Queso", price: 22.0 },
   { name: "Pozole Rojo", price: 65.0 },

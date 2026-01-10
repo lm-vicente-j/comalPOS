@@ -17,38 +17,38 @@ const MODULES = [
     {
         name: 'Ventas',
         href: '/pos',
-        role: ['admin', 'staff'],
+        role: ['ADMIN', 'STAFF'],
         icon: CalculatorIcon
     },
 
     { 
     name: 'Deudores', 
     href: '/debtors', 
-    role: ['admin', 'staff'], 
+    role: ['ADMIN', 'STAFF'], 
     icon: BanknoteIcon 
   },
   { 
     name: 'Inventario', 
     href: '/admin/inventory', 
-    role: ['admin'], 
+    role: ['ADMIN'], 
     icon: ArchiveIcon 
   },
   { 
     name: 'Salarios', 
     href: '/admin/roster', 
-    role: ['admin'], 
+    role: ['ADMIN'], 
     icon: HandCoinsIcon 
   },
   { 
     name: 'Ahorros', 
     href: '/admin/savings', 
-    role: ['admin'], 
+    role: ['ADMIN'], 
     icon: PiggyBankIcon 
   },
   { 
     name: 'CRM', 
     href: '/admin/crm', 
-    role: ['admin'], 
+    role: ['ADMIN'], 
     icon:     UserRoundIcon 
   },
 ];
@@ -56,6 +56,7 @@ const MODULES = [
 
 
 export default function Sidebar({ userRole }: { userRole: string }){
+
 
     const pathname = usePathname();
 
