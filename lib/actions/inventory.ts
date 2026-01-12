@@ -1,94 +1,57 @@
 "use server"
 import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
+import { success, z } from "zod";
 import { auth } from "../auth";
 
-const ProductSchema = z.object({
-    id: z.number().optional(),
-    name: z.string().min(3, "3 characters min."),
-    price: z.number().positive("The price must be greater than zero."),
-    sale_items: z.array(z.object({
-        id: z.number().int(),
-        saleID: z.number().int(),
-        productID: z.number().int(),
-        quantity: z.number().int(),
-        unitPrice: z.number(),
-        subtotal: z.number(),
-    })).optional()
-})
+const SupplySchema = z.object({
+  id: z.number().int().optional(),
+  
+  name: z.string().nullable(),
+  
+  measureUnit: z.string().nullable(),
+  
+  currentStock: z.number(),
+  
+  unitCost: z.number(),
 
-export type Product = z.infer<typeof ProductSchema>;
+  recipes: z.array(
+    z.object({
+      productID: z.number().int(),
+      supplyID: z.number().int(),
+      quantityUsed: z.number().nullable(), 
+    })
+  ).optional(),
+});
 
-export async function saveProduct(data: any) {
+export type Supply = z.infer<typeof SupplySchema>;
 
-    // Check role
+export async function saveSupply(data: Supply) {
     const session = await auth();
-    const role = session?.user?.role || "NONE";
+    if (session?.user?.role !== "ADMIN") return { success: false,error: "PERMISSION DENIED" };
 
-    if (role != "ADMIN") {
-        return {
-            error: "PERMISSION DENIED"
-        }
-    }
+    const result = SupplySchema.safeParse(data);
+    if (!result.success) return {  success: false, error: "INVALID DATA" };
 
-    const result = ProductSchema.safeParse(data);
+    const { id, name, measureUnit, currentStock, unitCost } = result.data;
 
-    if (!result.success) {
-        return { success: false, error: z.treeifyError(result.error) };
-    }
-
-    const { id, name, price } = result.data;
     try {
-        await prisma.products.upsert({
+        await prisma.supplies.upsert({
             where: { id: id ?? -1 },
-            update: { name, price },
-            create: { name, price },
+            update: { name, measureUnit, currentStock, unitCost },
+            create: { name, measureUnit, currentStock, unitCost },
         });
-
-        revalidatePath("/pos")
-        revalidatePath("/admin/inventory")
-        return { success: true }
+        revalidatePath("/admin/inventory");
+        return { success: true };
     } catch (e) {
-        return { success: false, error: "ERROR IN UPSERT OPERATION" }
+        return {  success: false, error: "INTERNAL ERROR" };
     }
-
 }
 
-export async function deleteProduct(id: number) {
-    // Check role
-    const session = await auth();
-    const role = session?.user?.role || "NONE";
-
-    if (role != "ADMIN") {
-        return {
-            error: "PERMISSION DENIED"
-        }
-    }
-
+export async function getSuppliesData() {
     try {
-        await prisma.products.delete({ where: { id } })
-        revalidatePath("/pos")
-        revalidatePath("/pos/inventory")
-        return { success: true }
+        return await prisma.supplies.findMany({ orderBy: { name: 'asc' } });
     } catch (e) {
-        return { success: false, error: "ERROR, ASSOCIATED RECIPE    " }
+        return [];
     }
-
 }
-
-export async function getProductsData() {
-
-    try {
-        const products = await prisma.products.findMany({
-            orderBy: { name: 'asc' }
-        });
-
-        return products
-    
-    }catch(e){
-        return {success: false, error: "ERROR IN DB"}
-    }
-
-
-} 

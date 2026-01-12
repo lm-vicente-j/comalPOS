@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge"
 import { createSale, Sale } from "@/lib/actions/sales";
-import { Product } from "@/lib/actions/inventory";
+import { Product } from "@/lib/actions/products";
 import { useUserStore } from "@/lib/store";
 
 interface DataTableProps {

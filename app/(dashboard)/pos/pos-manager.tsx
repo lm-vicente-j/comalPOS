@@ -7,7 +7,7 @@ import DataTable from "./date-table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import { Product } from "@/lib/actions/inventory";
+import { Product } from "@/lib/actions/products";
 import { Sale } from "@/lib/actions/sales";
 import { SalesRow } from "./saleRow";
 import { Debtor } from "@/lib/actions/debts";

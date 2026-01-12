@@ -96,6 +96,7 @@ model supplies {
   name         String?   @db.VarChar
   measureUnit  String?   @db.VarChar
   currentStock Float
+  unitCost     Float     @default(0)
   recipes      recipes[]
 }
 

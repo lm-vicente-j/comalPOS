@@ -1,7 +1,7 @@
 
 import { getTodaySalesHistory } from "@/lib/actions/sales";
 import PosManager from "./pos-manager";
-import { getProductsData } from "@/lib/actions/inventory";
+import { getProductsData } from "@/lib/actions/products";
 import { getAllDebtors } from "@/lib/actions/debts";
 
 export default async function Home(){
