@@ -6,8 +6,8 @@ import bcrypt from "bcryptjs";
 import { authConfig } from "@/app/auth.config";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  
-  ...authConfig, // Traemos la configuración base (pages, authorized, etc.)
+
+  ...authConfig,
   providers: [
     Credentials({
       async authorize(credentials) {
@@ -15,15 +15,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Lógica para ADMIN
         if (credentials.role === "ADMIN") {
-          const user = await prisma.user.findUnique({
+          const user = await prisma.user.findFirst({
             where: { email: credentials.email as string }
           });
+
           if (user && user.password) {
             const isPassCorrect = await bcrypt.compare(
               credentials.password as string,
               user.password
             );
-            if (isPassCorrect) return user;
+            if (isPassCorrect) {
+
+              return {
+                id: user.id.toString(),
+                name: user.name,
+                email: user.email,
+                role: user.role ?? undefined, // Si es null, asigna un valor por defecto o undefined
+              };
+            }
           }
         }
 
@@ -37,7 +46,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               credentials.pin as string,
               user.pin
             );
-            if (isPinCorrect) return user;
+            if (isPinCorrect) {
+              return {
+                id: user.id.toString(),
+                name: user.name,
+                email: undefined,
+                role: user.role ?? undefined, 
+              };
+            }
           }
         }
         return null;
@@ -47,15 +63,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
 
     async jwt({ token, user }) {
-      // El objeto 'user' solo está disponible cuando se inicia sesión
       if (user) {
         token.role = user.role;
+        token.id = user.id;
       }
       return token;
     },
     async session({ session, token }) {
       // Pasamos el rol del token a la sesión
       if (token.role && session.user) {
+        session.user.id = token.id as string;
         session.user.role = token.role as string;
       }
       return session;

@@ -19,7 +19,7 @@ import { useState } from 'react';
 import { GetAllStaffUsers } from '@/lib/actions/users';
 
 export default function Topbar({ userName }: { userName: string }) {
-  const [staffList, setStaffList] = useState<{ id: string, name: string | null }[]>([]);
+  const [staffList, setStaffList] = useState<{ id: number, name: string | null }[]>([]);
 
   useEffect(() => {
     async function loadUsers() {

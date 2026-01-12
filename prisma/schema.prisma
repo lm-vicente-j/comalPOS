@@ -7,11 +7,108 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique // only admin
-  password      String?   @unique// hash pass for admin
-  pin           String?   // pin for  staff
-  role          String    @default("STAFF") // ADMIN | STAFF
+model bill {
+  id            Int       @id @default(autoincrement())
+  description   String?
+  amount        Float
+  category      String?   @db.VarChar
+  date          DateTime? @db.Date
+  registered_by Int?
+  user          user?     @relation(fields: [registered_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model customer {
+  id              Int       @id @default(autoincrement())
+  customerName    String?   @db.VarChar
+  phone           String?   @db.VarChar
+  alias           String?   @db.VarChar
+  lastConsumption DateTime? @db.Date
+  currentBalance  Float
+  registeredDate  DateTime? @db.Date
+  debtors         debtors[]
+  sales           sales[]
+}
+
+model debtors {
+  id         Int       @id
+  saleID     Int?
+  customerID Int?
+  amount     Float
+  status     String?   @db.VarChar
+  customer   customer? @relation(fields: [customerID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales      sales?    @relation(fields: [saleID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model products {
+  id         Int          @id @default(autoincrement())
+  name       String       @db.VarChar
+  price      Float      
+  recipes    recipes[]
+  sale_items sale_items[]
+}
+
+model recipes {
+  productID    Int
+  supplyID     Int
+  quantityUsed Decimal? @db.Decimal
+  products     products @relation(fields: [productID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  supplies     supplies @relation(fields: [supplyID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([productID, supplyID])
+}
+
+model salary {
+  id      Int       @id @default(autoincrement())
+  userID  Int?
+  amount  Float
+  payDate DateTime? @db.Date
+  period  String?   @db.VarChar
+  user    user?     @relation(fields: [userID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model sale_items {
+  id        Int       @id @default(autoincrement())
+  saleID    Int?
+  productID Int?
+  quantity  Int?
+  unitPrice Float
+  subtotal  Float
+  products  products? @relation(fields: [productID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales     sales?    @relation(fields: [saleID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model sales {
+  id          Int          @id @default(autoincrement())
+  total       Decimal?     @db.Decimal
+  status      String?      @db.VarChar
+  source_type String?      @db.VarChar
+  customerID  Int?
+  placedBy    Int?
+  createdAt   DateTime?    @default(now()) @db.Timestamp(6)
+  debtors     debtors[]
+  sale_items  sale_items[]
+  customer    customer?    @relation(fields: [customerID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user        user?        @relation(fields: [placedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model supplies {
+  id           Int       @id @default(autoincrement())
+  name         String?   @db.VarChar
+  measureUnit  String?   @db.VarChar
+  currentStock Float
+  recipes      recipes[]
+}
+
+model user {
+  id       Int      @id @default(autoincrement())
+  email    String?  @db.VarChar
+  name     String?  @db.VarChar
+  username String?  @db.VarChar
+  pin      String?  @db.VarChar
+  password String?  @db.VarChar
+  role     String?  @db.VarChar
+  active   Boolean?
+  bill     bill[]
+  salary   salary[]
+  sales    sales[]
 }

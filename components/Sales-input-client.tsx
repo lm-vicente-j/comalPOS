@@ -10,6 +10,7 @@ import {
     CommandGroup,
     CommandItem,
     CommandList,
+    CommandEmpty
 } from "@/components/ui/command"
 import {
     Popover,
@@ -39,8 +40,9 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Debtor } from "@/lib/actions/debts";
+import { closeAccountAction } from "@/lib/actions/sales";
 
-const clientsSample = ["C1 | Cliente 1", "C2 | Cliente 2", "C3 | Cliente 3", "C4 | Cliente 4"]
 interface SalesInputProps {
     query: string;
     setQuery: (val: string) => void;
@@ -51,11 +53,12 @@ interface SalesInputProps {
     setTableNumber: (val: number) => void;
     setDialogOpen: (val: boolean) => void;
     dialogOpen: boolean;
+    debtorsList: Debtor[]
 }
 
 
 
-export default function SalesInputClient({ query, setQuery, clientSelected, setClientSelected, onClientSelect, tableNumber, setTableNumber, dialogOpen, setDialogOpen }: SalesInputProps) {
+export default function SalesInputClient({ query, setQuery, clientSelected, setClientSelected, onClientSelect, tableNumber, setTableNumber, dialogOpen, setDialogOpen, debtorsList }: SalesInputProps) {
 
     const inputRef = useRef<HTMLInputElement>(null);
     useEffect(() => {
@@ -64,42 +67,59 @@ export default function SalesInputClient({ query, setQuery, clientSelected, setC
 
     const [open, setOpen] = useState(false);
 
-    const filtered = clientsSample.filter((s) => s.toLowerCase().includes(query.toLowerCase()) && query.length > 0)
 
     const isAlreadyFreeSale = tableNumber === 0 && !clientSelected && query === "";
+    const hasDebtors = Array.isArray(debtorsList) && debtorsList.length > 0;
+    const isInputDisabled = !hasDebtors;
 
+    const handleCloseAccount = async () => {
+        const sourceType = tableNumber !== 0 ? `MESA-${tableNumber}` : `CL- ${query}`;
+
+        const result = await closeAccountAction(sourceType);
+
+        if (result.success) {
+            setClientSelected(false);
+            setQuery("");
+            setTableNumber(0);
+            setDialogOpen(false);
+        }
+    };
 
     return (
 
         <div className=" h-20 flex flex-col items-start justify-between my-5">
-            <Popover open={open && filtered.length > 0} onOpenChange={setOpen}>
+            <Popover open={open} onOpenChange={setOpen}>
                 <PopoverAnchor asChild>
-                    <Input ref={inputRef} type="text" placeholder="Nombre de cliente" value={query} onChange={(e) => {
-                        setQuery(e.target.value);
-                        setOpen(true);
-                    }} className="max-w" />
+                    <Input ref={inputRef} type="text"
+                        placeholder={isInputDisabled ? "No hay deudores registrados" : "Nombre de cliente"}
+                        disabled={isInputDisabled} value={query} onChange={(e) => {
+                            setQuery(e.target.value);
+                            setOpen(true);
+                        }} className="max-w" />
                 </PopoverAnchor>
                 <PopoverContent className="p-0 w-(--radix-popover-trigger-width)" onOpenAutoFocus={(e) => e.preventDefault()} >
                     <Command>
                         <CommandList>
+                            <CommandEmpty>No se encontraron deudores.</CommandEmpty>
                             <CommandGroup>
-                                {filtered.map((item) => (
-                                    <CommandItem
-                                        key={item}
-                                        value={item}
-                                        onSelect={() => {
-                                            onClientSelect(item);
-                                            setClientSelected(true);
-                                            setTableNumber(0);
-                                            setOpen(false);
-                                        }}
 
-                                        className="cursor-pointer"
-                                    >
-                                        {item}
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
+                                {Array.isArray(debtorsList) && debtorsList.length > 0 ? (
+                                    debtorsList.map((item) => (
+                                        <CommandItem
+                                            key={item.id}
+                                            value={item.customer?.customerName || ""}
+                                            onSelect={() => {
+                                                onClientSelect(item.customer?.customerName || "NONAME");
+                                                setClientSelected(true);
+                                                setTableNumber(0);
+                                                setOpen(false);
+                                            }}
+                                            className="cursor-pointer"
+                                        >
+                                            {item.customer?.alias} | {item.customer?.customerName}
+                                        </CommandItem>
+                                    ))
+                                ) : null}                            </CommandGroup>
                         </CommandList>
                     </Command>
                 </PopoverContent>
@@ -138,9 +158,7 @@ export default function SalesInputClient({ query, setQuery, clientSelected, setC
                                 <Button
                                     className="cursor-pointer"
                                     onClick={() => {
-                                        setClientSelected(false);
-                                        setQuery("");
-                                        setTableNumber(0);
+                                        handleCloseAccount()
                                     }}
                                 >
                                     Confirmar y Cerrar
@@ -152,7 +170,7 @@ export default function SalesInputClient({ query, setQuery, clientSelected, setC
                 </Dialog>
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button className="cursor-pointer bg-amber-500 text-black hover:bg-amber-400"  disabled={!clientSelected}>A deuda {query}</Button>
+                        <Button className="cursor-pointer bg-amber-500 text-black hover:bg-amber-400" disabled={!clientSelected}>A deuda {query}</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>

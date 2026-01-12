@@ -48,14 +48,14 @@ export default function DebtorsTable<TData, TValue>({ columns, data }: DebtorsTa
 
 
     return (
-                        <ScrollArea className="h-[80%] w-[95%] rounded-md border p-4">
-        
+        <ScrollArea className=" h-[80%] w-[95%] rounded-md border p-4 bg-white">
+
             <div className="flex items-center py-4 w-full ">
                 <Input
-                    placeholder="Filtrar alias"
-                    value={(table.getColumn("alias")?.getFilterValue() as string) ?? ""}
+                    placeholder="Buscar por nombre o alias..."
+                    value={(table.getColumn("customer")?.getFilterValue() as string) ?? ""}
                     onChange={(event) =>
-                        table.getColumn("alias")?.setFilterValue(event.target.value)
+                        table.getColumn("customer")?.setFilterValue(event.target.value)
                     }
                     className="w-full"
                 />
@@ -103,7 +103,7 @@ export default function DebtorsTable<TData, TValue>({ columns, data }: DebtorsTa
                     )}
                 </TableBody>
             </Table>
-                </ScrollArea>
-        
+        </ScrollArea>
+
     )
 }

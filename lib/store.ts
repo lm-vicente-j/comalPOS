@@ -10,6 +10,19 @@ interface AppState {
   reset: () => void;
 }
 
+type userState = {
+  id: number | null
+}
+
+type userAction = {
+    updateID :(id: number)=> void
+}
+
+export const useUserStore = create<userState & userAction>((set)=>({
+    id: null,
+    updateID: (newID: number) => set(()=>({id: newID}))
+}))
+
 export const useStore = create<AppState>((set) => ({
   // Initial State
   count: 0,

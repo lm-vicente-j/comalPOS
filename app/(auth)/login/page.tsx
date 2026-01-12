@@ -41,7 +41,7 @@ export default function LoginPage() {
   const [pin, setPin] = useState("");
   const [open, setOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState("");
-  const [staffList, setStaffList] = useState<{ id: string, name: string | null }[]>([]);
+  const [staffList, setStaffList] = useState<{ id: number, name: string | null }[]>([]);
   const [state, formAction, isPending] = useActionState(login, null);
 
 
