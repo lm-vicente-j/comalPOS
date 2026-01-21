@@ -17,11 +17,28 @@
       LineChartIcon,
       TargetIcon,
       ClipboardListIcon,
-      CpuIcon,PiggyBankIcon,HandCoinsIcon
+      CpuIcon,PiggyBankIcon,HandCoinsIcon,
+      LucideIcon
     } from 'lucide-react';
 
+    interface SubModule{ 
+      name: string;
+      href: string | null;
+      role: string[]; 
+      icon: LucideIcon;
+      flag?: string;
+    }
 
-    const MODULES = [
+    interface NavModule{
+      name: string;
+      href: string | null;
+      role: string[];
+      icon: LucideIcon;
+      sub?: SubModule[];
+      flag?: string;
+    }
+
+    const MODULES: NavModule[] = [
       {
         name: 'Ventas',
         href: '/pos',
@@ -36,7 +53,7 @@
         sub: [
           { name: 'Deudores', href: '/debtors', role: ['ADMIN', 'STAFF'], icon: BanknoteIcon },
           { name: 'Inventario', href: '/admin/inventory', role: ['ADMIN'], icon: ArchiveIcon },
-          { name: 'Proveedores', href: '/admin/suppliers', role: ['ADMIN'], icon: TruckIcon },
+          { name: 'Proveedores', href: '/admin/suppliers', role: ['ADMIN'], icon: TruckIcon,flag: "BETA" },
           { name: 'Menu', href: '/admin/menu', role: ['ADMIN'], icon: UtensilsIcon },
           { name: 'CRM', href: '/admin/crm', role: ['ADMIN'], icon: UserRoundIcon },
         ]
@@ -51,7 +68,9 @@
           { name: 'Predicciones', href: '/admin/analysis/predictions', role: ['ADMIN'], icon: LineChartIcon }, // Resultados del modelo
           { name: 'Validación', href: '/admin/analysis/accuracy', role: ['ADMIN'], icon: TargetIcon }, // Comparativa Real vs Predicción
           { name: 'Suministro Sugerido', href: '/admin/analysis/supply', role: ['ADMIN'], icon: PackageCheckIcon }, // Aplicación práctica
-        ]
+        ],
+        flag: "BETA"
+        
       },
       {
         name: 'Finanzas',
@@ -61,7 +80,7 @@
         sub: [
           { name: 'Salarios', href: '/admin/roster', role: ['ADMIN'], icon: HandCoinsIcon },
           { name: 'Ahorros', href: '/admin/savings', role: ['ADMIN'], icon: PiggyBankIcon },
-          { name: 'Estadísticas', href: '/admin/statistics', role: ['ADMIN'], icon: ChartBarIcon },
+          { name: 'Estadísticas', href: '/admin/statistics', role: ['ADMIN'], icon: ChartBarIcon, flag: "BETA" },
         ]
       }
     ];
@@ -98,6 +117,8 @@
               );
             }
 
+            if(item.flag == "BETA") return null;
+
             return (
               <Button
                 key={i}
@@ -114,6 +135,8 @@
             <>
               {activeParent.sub?.filter(subItem => subItem.role.includes(userRole)).map((subItem) => {
                 const isActive = pathname === subItem.href;
+              if(subItem.flag == "BETA") return null;
+              
                 return (
                   <Link
                     href={subItem.href || "#"}
