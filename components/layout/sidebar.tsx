@@ -18,7 +18,8 @@
       TargetIcon,
       ClipboardListIcon,
       CpuIcon,PiggyBankIcon,HandCoinsIcon,
-      LucideIcon
+      LucideIcon,
+      BanknoteArrowDownIcon
     } from 'lucide-react';
 
     interface SubModule{ 
@@ -75,11 +76,12 @@
       {
         name: 'Finanzas',
         href: null,
-        role: ["ADMIN"],
+        role: ["ADMIN", "STAFF"],
         icon: WalletIcon,
         sub: [
           { name: 'Salarios', href: '/admin/roster', role: ['ADMIN'], icon: HandCoinsIcon },
           { name: 'Ahorros', href: '/admin/savings', role: ['ADMIN'], icon: PiggyBankIcon },
+          { name: 'Egresos', href: '/expenses', role: ['ADMIN', 'STAFF'], icon: BanknoteArrowDownIcon },
           { name: 'Estadísticas', href: '/admin/statistics', role: ['ADMIN'], icon: ChartBarIcon, flag: "BETA" },
         ]
       }
