@@ -20,7 +20,7 @@ const ProductSchema = z.object({
 
 export type Product = z.infer<typeof ProductSchema>;
 
-export async function saveProduct(data: any) {
+export async function saveProduct(data: Product) {
 
     // Check role
     const session = await auth();
