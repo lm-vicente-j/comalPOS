@@ -17,7 +17,7 @@ import { ButtonGroup } from "@/components/ui/button-group"
 import { ArrowUpDown, ChevronsUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { saveSupply, Supply } from "@/lib/actions/inventory"
+import { saveSupply } from "@/lib/actions/inventory"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
@@ -74,13 +74,15 @@ export const customerColumns: ColumnDef<Customer>[] = [
 ]
 
 
-export default function CRMMAngaer({ data }: { data: Supply[] }) {
+export default function CRMMAngaer({ customers, staff }: { customers: Customer[], staff: User[] }) {
 
-    const [listEditing, setListEditing] = useState("CUSTOMERS");
+    const [listEditing, setListEditing] = useState<"CUSTOMERS" | "STAFF">("CUSTOMERS");
+    const currentData = listEditing === "CUSTOMERS" ? customers : staff;
+
     const [sorting, setSorting] = useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
     const [rowSelection, setRowSelection] = useState({});
-    const [currentItem, setCurrentItem] = useState<Supply | null>(null);
+    const [currentItem, setCurrentItem] = useState<any>(null);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -89,9 +91,11 @@ export default function CRMMAngaer({ data }: { data: Supply[] }) {
         measureUnit: ""
     });
 
+    const currentColumns = listEditing === "CUSTOMERS" ? customerColumns : staffColumns;
+
     const table = useReactTable({
-        data,
-        staffColumns,
+        data: currentData as any[],
+        columns:currentColumns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         getCoreRowModel: getCoreRowModel(),
@@ -157,8 +161,8 @@ export default function CRMMAngaer({ data }: { data: Supply[] }) {
                         <div className="flex w-full items-center py-4">
                             <Input
                                 placeholder="Buscar cliente..."
-                                value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-                                onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
+                                value={(table.getColumn("customerName")?.getFilterValue() as string) ?? ""}
+                                onChange={(event) => table.getColumn("customerName")?.setFilterValue(event.target.value)}
                                 className="max-w-sm"
                             />
                         </div>

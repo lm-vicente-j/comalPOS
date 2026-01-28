@@ -4,10 +4,13 @@ import { getSuppliesData } from "@/lib/actions/inventory";
 export default async function(){
 
 
-        const raw = await getSuppliesData();
-    
-        const data = JSON.parse(JSON.stringify(raw))
+        const rawCustomers = await getSuppliesData();
+        const dataCustomers = JSON.parse(JSON.stringify(rawCustomers))
+
+        const rawUsers = await getSuppliesData();
+        const dataUsers = JSON.parse(JSON.stringify(rawUsers))
+
     return(
-        <CRMMAngaer data={data} />
+        <CRMMAngaer staff={dataUsers} customers={dataCustomers} />
     );
 }
