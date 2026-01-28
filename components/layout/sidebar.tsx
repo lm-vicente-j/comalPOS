@@ -80,7 +80,7 @@
         icon: WalletIcon,
         sub: [
           { name: 'Salarios', href: '/admin/roster', role: ['ADMIN'], icon: HandCoinsIcon },
-          { name: 'Ahorros', href: '/admin/savings', role: ['ADMIN'], icon: PiggyBankIcon },
+          { name: 'Ahorros', href: '/admin/savings', role: ['ADMIN'], icon: PiggyBankIcon, flag:"BETA" },
           { name: 'Egresos', href: '/expenses', role: ['ADMIN', 'STAFF'], icon: BanknoteArrowDownIcon },
           { name: 'Estadísticas', href: '/admin/statistics', role: ['ADMIN'], icon: ChartBarIcon, flag: "BETA" },
         ]
