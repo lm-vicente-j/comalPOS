@@ -28,65 +28,50 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import {
-    Command,
-    CommandGroup,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { User } from "@/lib/actions/users";
+import { Customer } from "@/lib/actions/customers";
 
-const measureUnits = [
-    { value: "kg", label: "KILOG" },
-    { value: "Lt", label: "LITRO" },
-    { value: "piece", label: "PAQU./PIEZA" },
-]
 
-export const columns: ColumnDef<Supply>[] = [
-    {
-        id: "select",
-        header: () => <div className="pl-1 text-xs font-bold text-muted-foreground">Sel.</div>,
-        cell: ({ row }) => (
-            <Checkbox
-                checked={row.getIsSelected()}
-                onCheckedChange={(value) => row.toggleSelected(!!value)}
-                aria-label="Select row"
-                className="rounded-full"
-            />
-        ),
-        enableSorting: false,
-        enableHiding: false,
-    },
+export const staffColumns: ColumnDef<User>[] = [
     {
         accessorKey: "name",
-        header: "Insumo",
-        cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
+        header: "Nombre",
     },
     {
-        accessorKey: "measureUnit",
-        header: "Unidad",
-        cell: ({ row }) => <Badge variant="outline">{row.getValue("measureUnit")}</Badge>,
+        accessorKey: "role",
+        header: "Rol",
+        cell: ({ row }) => <Badge variant="secondary">{row.getValue("role")}</Badge>,
     },
     {
-        accessorKey: "unitCost",
-        header: "Costo Unitario",
-        cell: ({ row }) => {
-            const cost = parseFloat(row.getValue("unitCost") || "0");
-            return <div className="text-right font-mono">${cost.toFixed(2)}</div>;
-        },
-    },
-    {
-        accessorKey: "currentStock",
-        header: "Stock Actual",
-        cell: ({ row }) => <div className="text-right font-bold">{row.getValue("currentStock")}</div>,
+        accessorKey: "active",
+        header: "Estado",
+        cell: ({ row }) => (row.getValue("active") ? "Activo" : "Inactivo"),
     },
 ]
 
+export const customerColumns: ColumnDef<Customer>[] = [
+    {
+        accessorKey: "customerName",
+        header: "Cliente",
+        cell: ({ row }) => <div className="font-medium">{row.getValue("customerName") || "Sin nombre"}</div>,
+    },
+    {
+        accessorKey: "phone",
+        header: "Teléfono",
+    },
+    {
+        accessorKey: "currentBalance",
+        header: "Saldo",
+        cell: ({ row }) => {
+            const balance = parseFloat(row.getValue("currentBalance") || "0");
+            return <div className={`text-right font-mono ${balance > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                ${balance.toFixed(2)}
+            </div>;
+        },
+    },
+]
 
 
 export default function CRMMAngaer({ data }: { data: Supply[] }) {
@@ -106,7 +91,7 @@ export default function CRMMAngaer({ data }: { data: Supply[] }) {
 
     const table = useReactTable({
         data,
-        columns,
+        staffColumns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         getCoreRowModel: getCoreRowModel(),
@@ -367,7 +352,7 @@ export default function CRMMAngaer({ data }: { data: Supply[] }) {
                             <div className="space-y-4 flex-1">
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Nombre</label>
-                                    <Input name="name"   placeholder="Nombre Completo" />
+                                    <Input name="name" placeholder="Nombre Completo" />
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Rol</label>
@@ -384,7 +369,7 @@ export default function CRMMAngaer({ data }: { data: Supply[] }) {
 
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Constraseña</label>
-                                    <Input name="pass" type="text"  placeholder="Contraseña..." />
+                                    <Input name="pass" type="text" placeholder="Contraseña..." />
                                 </div>
                             </div>
                             <ButtonGroup className="mt-6 flex gap-2 w-full">
