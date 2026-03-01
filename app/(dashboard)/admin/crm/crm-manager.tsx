@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/table"
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User } from "@/lib/actions/users";
+import { User } from "@/lib/actions/schemas";
 import { Customer } from "@/lib/actions/customers";
 
 
