@@ -63,7 +63,7 @@ export async function getDebtsSummary() {
             where: { status: "UNPAID" }
         });
 
-        const totalAmount = allDebts.reduce((acc, curr) => acc + curr.amount, 0);
+        const totalAmount = allDebts.reduce((acc, curr) => acc + curr.amount.toNumber(), 0);
         const activeDebtors = new Set(allDebts.map(d => d.customerID)).size;
         
         return {

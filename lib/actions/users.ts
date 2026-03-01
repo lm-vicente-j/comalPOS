@@ -1,6 +1,5 @@
 "use server";
 import prisma from "../prisma";
-import { User } from "./schemas";
 
 export async function   GetAllStaffUsers(){
     try{
