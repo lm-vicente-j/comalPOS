@@ -5,8 +5,3 @@
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![C++](https://img.shields.io/badge/C++-Engine-blue)
 ![Tailwind](https://img.shields.io/badge/Tailwind-CSS-38B2AC)
-
-## Colaboradores
-
-El desarrollo de **Comal POS** es un proyecto enfocado en la eficiencia técnica y la escalabilidad de datos.
-
