@@ -10,7 +10,6 @@ import { GetAllStaffUsers } from "@/lib/actions/users";
 import {
   InputOTP,
   InputOTPGroup,
-  InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp"
 import { useState } from "react";
@@ -50,7 +49,6 @@ export default function LoginPage() {
     async function loadUsers() {
       
       const users = await GetAllStaffUsers();
-    
       setStaffList(users);
     
     }

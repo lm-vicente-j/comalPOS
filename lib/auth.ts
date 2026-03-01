@@ -15,7 +15,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Lógica para ADMIN
         if (credentials.role === "ADMIN") {
-          const user = await prisma.user.findFirst({
+          const user = await prisma.users.findFirst({
             where: { email: credentials.email as string }
           });
 
@@ -38,7 +38,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Lógica para STAFF
         if (credentials.role === "STAFF") {
-          const user = await prisma.user.findFirst({
+          const user = await prisma.users.findFirst({
             where: { name: credentials.name as string }
           });
           if (user && user.pin) {
