@@ -9,12 +9,17 @@ export default async function Home(){
     const rawProducts = await getProductsData();
     const products = Array.isArray(rawProducts) ? rawProducts : [];
 
+    const serialized_products = products.map(product => ({
+  ...product,
+  price: product.price.toNumber(),
+  name: product.name ?? "UNNAMED",
+}));
     const rawSales = await getTodaySalesHistory();
     const sales = JSON.parse(JSON.stringify(rawSales));
 
     const debtorsList = JSON.parse(JSON.stringify(getAllDebtors()));
 
     return(
-       <PosManager products={products} sales={sales} debtorsList={debtorsList}/>
+       <PosManager products={serialized_products} sales={sales} debtorsList={debtorsList}/>
     );
 }

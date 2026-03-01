@@ -88,12 +88,12 @@ model sales {
   total       Decimal?     @db.Decimal
   status      String?      @db.VarChar(20)
   source_type String?      @db.VarChar(30)
-  customerID  Int
+  customerID  Int?
   placedBy    Int
   createdAt   DateTime     @default(now()) @db.Timestamp
   debtors     debtors[]
   sale_items  sale_items[]
-  customer    customer     @relation(fields: [customerID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customer    customer?     @relation(fields: [customerID], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users       users        @relation(fields: [placedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([customerID, createdAt])

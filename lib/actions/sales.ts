@@ -47,7 +47,7 @@ export async function createSale(sale_items: { productID: number, quantity: numb
 
                 if (!product) throw new Error("PRODUCT ID" + item.productID + " NOT FOUND");
 
-                const subtotal = product.price * item.quantity;
+                const subtotal = product.price.toNumber() * item.quantity;
                 totalSale += subtotal;
 
                 itemsToInsert.push({
@@ -76,7 +76,7 @@ export async function createSale(sale_items: { productID: number, quantity: numb
                     total: totalSale,
                     status: status,
                     source_type: source_type,
-                    customerID: (customerID === -1 || !customerID) ? null : customerID,
+                    customerID: (customerID === -1 || !customerID) ? undefined : customerID,
                     placedBy: placedBy,
                     sale_items: {
                         create: itemsToInsert
@@ -102,7 +102,6 @@ export async function createSale(sale_items: { productID: number, quantity: numb
 
         })
     } catch (e) {
-        console.log(placedBy)
         return { success: false, message: "INTERNAL ERROR" }
     }
 }
@@ -131,7 +130,7 @@ export async function getSalesHistory() {
     const sales = await prisma.sales.findMany({
         include: {
             customer: true,
-            user: true,
+            users: true,
             sale_items: {
                 include: { products: true }
             }
@@ -159,7 +158,7 @@ export async function getTodaySalesHistory() {
         },
         include: {
             customer: true,
-            user: true,
+            users: true,
             sale_items: {
                 include: { products: true }
             }
@@ -240,7 +239,7 @@ export async function updateSaleQuantity(saleId: number, quantity: number, produ
                 }
             }
 
-            const newSubtotal = currentItem.unitPrice * quantity;
+            const newSubtotal = currentItem.unitPrice.toNumber() * quantity;
             await tx.sale_items.updateMany({
                 where: { saleID: saleId, productID: productId },
                 data: {
