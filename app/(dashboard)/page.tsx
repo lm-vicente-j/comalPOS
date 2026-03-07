@@ -49,7 +49,6 @@ export default function HomePage() {
             <h2 className="font-semibold text-lg text-slate-900">Optimización PyME</h2>
           </div>
           <ul className="text-sm text-slate-600 space-y-2">
-            <li>• Revisa el **Stock Sugerido** para evitar faltantes.</li>
             <li>• Gestiona deudores en la sección de CRM.</li>
             <li>• Exporta estadísticas para toma de decisiones.</li>
           </ul>
