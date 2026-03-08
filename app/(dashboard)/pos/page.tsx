@@ -2,7 +2,7 @@
 import { getTodaySalesHistory } from "@/lib/actions/sales";
 import PosManager from "./pos-manager";
 import { getProductsData } from "@/lib/actions/products";
-import { getAllDebtors } from "@/lib/actions/debts";
+import { getAllCustomers } from "@/lib/actions/customers";
 
 export default async function Home(){
     
@@ -17,9 +17,11 @@ export default async function Home(){
     const rawSales = await getTodaySalesHistory();
     const sales = JSON.parse(JSON.stringify(rawSales));
 
-    const debtorsList = JSON.parse(JSON.stringify(getAllDebtors()));
+    const rawCustomerList = await getAllCustomers();
+    const customerList = JSON.parse(JSON.stringify(rawCustomerList));
+
 
     return(
-       <PosManager products={serialized_products} sales={sales} debtorsList={debtorsList}/>
+       <PosManager products={serialized_products} sales={sales} customerList={customerList}/>
     );
 }

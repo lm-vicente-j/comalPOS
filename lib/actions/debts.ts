@@ -93,3 +93,9 @@ export async function getDebtorHistory(id: any) {
 
 
 }
+
+export async function toDebt(customerId: any, saleID: any){
+
+    console.log("HERE: " + customerId)
+        
+}

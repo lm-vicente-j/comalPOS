@@ -81,7 +81,7 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
     header: "Monto pendiente",
     cell: ({ row }) => {
       const amount = row.original.amount;
-      return <div className="font-bold text-red-600">${amount.toFixed(2)}</div>
+      return <div className="font-bold text-red-600">${amount}</div>
     }
   },
   {
@@ -102,7 +102,8 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
     id: "status",
     cell: ({ row }) => {
       const lastConsumptionVal = row.original.customer?.lastConsumption;
-      if (!lastConsumptionVal) return <Badge variant="outline">Sin registro</Badge>;
+      
+      if (!lastConsumptionVal) return <Badge variant="outline">--</Badge>;
 
       const currentDate = new Date();
       const lastConsumption = new Date(lastConsumptionVal);
@@ -221,13 +222,24 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {row.original.sales?.map((sale) => (
-                        <TableRow key={sale.id}>
-                          <TableCell>{new Date(sale.createdAt!).toLocaleDateString()}</TableCell>
-                          <TableCell>{sale.source_type}</TableCell>
-                          <TableCell className="text-right">${Number(sale.total).toFixed(2)}</TableCell>
+                      {Array.isArray(row.original.sales) ? 
+                      (
+                        row.original.sales.map((sale) => (
+                          <TableRow key={sale.id}>
+                            <TableCell>{new Date(sale.createdAt!).toLocaleDateString()}</TableCell>
+                            <TableCell>{sale.source_type}</TableCell>
+                            <TableCell className="text-right">
+                              ${Number(sale.total).toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">
+                            Sin cobros pendientes.
+                          </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                 </DialogContent>
