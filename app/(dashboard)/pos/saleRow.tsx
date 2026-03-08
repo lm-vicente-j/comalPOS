@@ -14,13 +14,15 @@ export function SalesRow({ sales }: { sales: Sale[] }) {
         await updateSaleQuantity(id,quant,productId)
     }
 
+    
+
     return (
         <>
             {sales.map((sale) => 
                 sale.sale_items.map((item, k) => (
                     <TableRow key={`${sale.id}-${k}`}>
                         <TableCell className="font-medium">
-                            {sale.customerID ?? sale.source_type}
+                            {sale.source_type}
                         </TableCell>
 
                         <TableCell>{item.quantity}</TableCell>

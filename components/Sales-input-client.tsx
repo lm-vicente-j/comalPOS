@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 
+import { toDebt } from "@/lib/actions/debts";
+
 import {
     Command,
     CommandGroup,
@@ -40,10 +42,11 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Debtor } from "@/lib/actions/debts";
 import { closeAccountAction } from "@/lib/actions/sales";
+import { Customer } from "@/lib/actions/customers";
 
 interface SalesInputProps {
+    setSalesFilter: (val: string) => void;
     query: string;
     setQuery: (val: string) => void;
     clientSelected: boolean;
@@ -53,24 +56,25 @@ interface SalesInputProps {
     setTableNumber: (val: number) => void;
     setDialogOpen: (val: boolean) => void;
     dialogOpen: boolean;
-    debtorsList: Debtor[]
+    customerList: Customer[]
 }
 
 
 
-export default function SalesInputClient({ query, setQuery, clientSelected, setClientSelected, onClientSelect, tableNumber, setTableNumber, dialogOpen, setDialogOpen, debtorsList }: SalesInputProps) {
+export default function SalesInputClient({ setSalesFilter,query, setQuery, clientSelected, setClientSelected, onClientSelect, tableNumber, setTableNumber, dialogOpen, setDialogOpen, customerList }: SalesInputProps) {
 
     const inputRef = useRef<HTMLInputElement>(null);
     useEffect(() => {
         inputRef.current?.focus();
     }, []);
-
     const [open, setOpen] = useState(false);
 
 
+    const [currentCustomerID, setCurrentCustomerID]  = useState(-1);
+
     const isAlreadyFreeSale = tableNumber === 0 && !clientSelected && query === "";
-    const hasDebtors = Array.isArray(debtorsList) && debtorsList.length > 0;
-    const isInputDisabled = !hasDebtors;
+    const hasCustomers = Array.isArray(customerList) && customerList.length > 0;
+    const isInputDisabled = !hasCustomers;
 
     const handleCloseAccount = async () => {
         const sourceType = tableNumber !== 0 ? `MESA-${tableNumber}` : `CL- ${query}`;
@@ -85,13 +89,17 @@ export default function SalesInputClient({ query, setQuery, clientSelected, setC
         }
     };
 
+    const handleToDebt = async (idCustomer: number, idSale: number) => {
+        await toDebt(idCustomer, idSale);
+    }
+
     return (
 
         <div className=" h-20 flex flex-col items-start justify-between my-5">
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverAnchor asChild>
                     <Input ref={inputRef} type="text"
-                        placeholder={isInputDisabled ? "No hay deudores registrados" : "Nombre de cliente"}
+                        placeholder={isInputDisabled ? "No hay clientes registrados" : "Nombre de cliente"}
                         disabled={isInputDisabled} value={query} onChange={(e) => {
                             setQuery(e.target.value);
                             setOpen(true);
@@ -100,26 +108,29 @@ export default function SalesInputClient({ query, setQuery, clientSelected, setC
                 <PopoverContent className="p-0 w-(--radix-popover-trigger-width)" onOpenAutoFocus={(e) => e.preventDefault()} >
                     <Command>
                         <CommandList>
-                            <CommandEmpty>No se encontraron deudores.</CommandEmpty>
+                            <CommandEmpty>No se encontraron clientes.</CommandEmpty>
                             <CommandGroup>
 
-                                {Array.isArray(debtorsList) && debtorsList.length > 0 ? (
-                                    debtorsList.map((item) => (
+                                {Array.isArray(customerList) && customerList.length > 0 ? (
+                                    customerList.map((item) => (
                                         <CommandItem
                                             key={item.id}
-                                            value={item.customer?.customerName || ""}
+                                            value={item?.customerName || ""}
                                             onSelect={() => {
-                                                onClientSelect(item.customer?.customerName || "NONAME");
+                                                onClientSelect(item?.customerName || "NONAME");
                                                 setClientSelected(true);
                                                 setTableNumber(0);
                                                 setOpen(false);
+                                                setCurrentCustomerID(item.id);
+                                                setSalesFilter("CL- " + item?.customerName)
                                             }}
                                             className="cursor-pointer"
                                         >
-                                            {item.customer?.alias} | {item.customer?.customerName}
+                                            {item?.alias} | {item?.customerName}
                                         </CommandItem>
                                     ))
-                                ) : null}                            </CommandGroup>
+                                ) : null}
+                            </CommandGroup>
                         </CommandList>
                     </Command>
                 </PopoverContent>
@@ -129,7 +140,8 @@ export default function SalesInputClient({ query, setQuery, clientSelected, setC
                     setClientSelected(false);
                     setQuery("");
                     setTableNumber(0);
-
+                    setSalesFilter("VENTA_LIBRE");
+                    
                 }} >Cambiar a venta libre</Button>
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
@@ -174,18 +186,18 @@ export default function SalesInputClient({ query, setQuery, clientSelected, setC
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
+                            <AlertDialogTitle>¿Desea enviar la cuenta de #Nombre de lciente# a deuda?</AlertDialogTitle>
+                            {/* <AlertDialogDescription>
                                 This action cannot be undone. This will permanently delete your
                                 account and remove your data from our servers.
-                            </AlertDialogDescription>
+                            </AlertDialogDescription> */}
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel asChild>
                                 <Button className="cursor-pointer" variant={"outline"}>Cancelar</Button>
                             </AlertDialogCancel>
                             <AlertDialogAction asChild>
-                                <Button className="cursor-pointer">Aceptar</Button>
+                                <Button onClick={() => handleToDebt(currentCustomerID, 0)}  className="cursor-pointer">Aceptar</Button>
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>

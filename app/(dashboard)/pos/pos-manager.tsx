@@ -10,20 +10,29 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Product } from "@/lib/actions/products";
 import { Sale } from "@/lib/actions/sales";
 import { SalesRow } from "./saleRow";
-import { Debtor } from "@/lib/actions/debts";
+import { Customer } from "@/lib/actions/customers";
 
 interface PosManagerProps {
     products: Product[];
     sales: Sale[];
-    debtorsList: Debtor[]
+    customerList: Customer[]
 }
 
-export default function PosManager({ products, sales, debtorsList }: PosManagerProps) {
+function FilterSales(sales:Sale[], src:string):Sale[]{
+    return sales.filter(s => s.source_type == src);
+}
+
+export default function PosManager({ products, sales, customerList }: PosManagerProps) {
+
     const [salesHistory, setSalesHistory] = useState<{ productID: number; quantity: number; name: string; price: number }[]>([]);
     const [tableNumber, setTableNumber] = useState(0);
     const [query, setQuery] = useState("");
     const [clientSelected, setClientSelected] = useState(false);
 
+
+    // Filter sales
+    const [salesFilter, setSalesFilter] = useState("VENTA_LIBRE");
+    sales = FilterSales(sales, salesFilter);
 
     const addToHistory = (product: Product)=>{
         setSalesHistory((prev) => {
@@ -67,6 +76,7 @@ export default function PosManager({ products, sales, debtorsList }: PosManagerP
                 <div className="flex flex-col rounded-md h-30">
                     <p className="font-bold mb-2">Mesas</p>
                     <Seatings
+                        setSalesFilter={setSalesFilter}
                         tableNumber={tableNumber}
                         setTableNumber={handleTableSelect}
                         setDialogOpen={setDialogOpen}
@@ -74,6 +84,7 @@ export default function PosManager({ products, sales, debtorsList }: PosManagerP
                 </div>
 
                 <SalesInputClient
+                    setSalesFilter={setSalesFilter}
                     query={query}
                     setQuery={setQuery}
                     clientSelected={clientSelected}
@@ -83,7 +94,7 @@ export default function PosManager({ products, sales, debtorsList }: PosManagerP
                     setTableNumber={setTableNumber}
                     setDialogOpen={setDialogOpen}
                     dialogOpen={dialogOpen}
-                    debtorsList={debtorsList}
+                    customerList={customerList}
                 />
 
                 <ScrollArea className="h-[50%] w-full rounded-md border p-4">

@@ -42,7 +42,7 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
     }];
 
     const isTable = tableNumber > 0;
-    const sourceType = isTable ? `MESA_${tableNumber}` : (clientSelected ? `CLIENTE: ${clientName}` : "VENTA_LIBRE");
+    const sourceType = isTable ? `MESA_${tableNumber}` : (clientSelected ? `CL- ${clientName}` : "VENTA_LIBRE");
     const initialStatus = isTable ? "UNPAID" : "PAID";
 
 

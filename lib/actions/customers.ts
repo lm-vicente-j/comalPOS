@@ -1,6 +1,10 @@
-import { z } from "zod";
+"use server";
 
-export const CustomerSchema = z.object({
+import { z } from "zod";
+import prisma from "../prisma"
+
+
+const CustomerSchema = z.object({
   id: z.number().int(),
   customerName: z.string().nullable(),
   phone: z.string().nullable(),
@@ -30,3 +34,19 @@ export const CustomerSchema = z.object({
 });
 
 export type Customer = z.infer<typeof CustomerSchema>;
+
+export async function getAllCustomers() {
+
+    try {
+        const customers = await prisma.customer.findMany({
+            orderBy: {
+                customerName: 'desc'
+            }
+        });
+        return customers;
+    } catch (e) {
+        console.error(e);
+        return [];
+    }
+
+}
