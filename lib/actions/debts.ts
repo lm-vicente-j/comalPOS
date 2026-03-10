@@ -2,6 +2,7 @@
 import z from "zod"
 import prisma from "../prisma"
 import { Sale } from "./sales";
+import { revalidatePath } from "next/cache";
 
 const DebtorSchema = z.object({
     id: z.number(),
@@ -101,23 +102,41 @@ export async function toDebt(customerId: number, sales: Sale[]) {
 
     try {
 
-        const operation = sales.map((s) => {
-            const data = {
+        const operations: any[] = [];
+
+        sales.forEach((s)=>{
+            const debtorData = {
                 saleID: s.id,
                 customerID: customerId,
                 amount: s.total,
-                status: "DEBT"
+                status: "DEBT",
             };
 
-            return prisma.debtors.upsert({
-                where: {saleID: s.id},
-                update: data,
-                create: data,
-            })
-        })
-        await prisma.$transaction(operation)
+            operations.push(
+                prisma.debtors.upsert({
+                    where: {saleID: s.id},
+                    update: debtorData,
+                    create: debtorData,
+                })
+            );
 
+            operations.push(
+                prisma.sales.update({
+                    where: {id: s.id},
+                    data: {
+                        status: "DEBT",
+                        customerID: customerId
+                    }
+                })
+            );
+
+        })
+
+        await prisma.$transaction(operations)
+        revalidatePath("/pos")
+        revalidatePath("/debtors")
         return { msg: "SUCCESS" }
+        
 
     } catch (e) {
         console.error(e);
