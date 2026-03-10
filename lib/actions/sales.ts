@@ -8,7 +8,7 @@ const SaleSchema = z.object({
     id: z.number().int(),
     customerID: z.number().int(),
     placedBy: z.number().int(),
-    status: z.enum(["PAID", "DEBT", "CANCELLED"]),
+    status: z.enum(["UNPAID", "PAID", "DEBT", "CANCELLED"]),
     source_type: z.string(),
 
     total: z.number().or(z.string()),
@@ -31,7 +31,7 @@ const SaleSchema = z.object({
 
 export type Sale = z.infer<typeof SaleSchema>;
 
-export async function createSale(sale_items: { productID: number, quantity: number }[], status: any, source_type: any, customerID: number, placedBy: number) {
+export async function createSale(sale_items: { productID: number, quantity: number }[], status: "UNPAID" | "PAID" | "DEBT", source_type: string, customerID: number, placedBy: number) {
     try {
         return await prisma.$transaction(async (tx) => {
             let totalSale = 0;
@@ -150,11 +150,8 @@ export async function getSalesHistory() {
 export async function getTodaySalesHistory() {
     const sales = await prisma.sales.findMany({
         where: {
-            NOT: {
-                status: {
-                    equals: "CANCELLED"
-                }
-            }
+            status: "UNPAID"
+
         },
         include: {
             customer: true,
