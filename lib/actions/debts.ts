@@ -1,6 +1,7 @@
 "use server"
 import z from "zod"
 import prisma from "../prisma"
+import { Sale } from "./sales";
 
 const DebtorSchema = z.object({
     id: z.number(),
@@ -39,7 +40,7 @@ export async function getAllDebtors() {
     try {
         const debts = await prisma.debtors.findMany({
             where: {
-                status: "UNPAID"
+                status: "DEBT"
             },
             include: {
                 customer: true,
@@ -60,19 +61,19 @@ export async function getAllDebtors() {
 export async function getDebtsSummary() {
     try {
         const allDebts = await prisma.debtors.findMany({
-            where: { status: "UNPAID" }
+            where: { status: "DEBT" }
         });
 
         const totalAmount = allDebts.reduce((acc, curr) => acc + curr.amount.toNumber(), 0);
         const activeDebtors = new Set(allDebts.map(d => d.customerID)).size;
-        
+
         return {
             totalAmount,
             activeDebtors,
             todayPayments: 0
         };
     } catch (e) {
-        return { totalAmount: 0, activeDebtors:0, todayPayments: 0};
+        return { totalAmount: 0, activeDebtors: 0, todayPayments: 0 };
     }
 }
 
@@ -94,8 +95,33 @@ export async function getDebtorHistory(id: any) {
 
 }
 
-export async function toDebt(customerId: any, saleID: any){
+export async function toDebt(customerId: number, sales: Sale[]) {
 
-    console.log("HERE: " + customerId)
-        
+
+
+    try {
+
+        const operation = sales.map((s) => {
+            const data = {
+                saleID: s.id,
+                customerID: customerId,
+                amount: s.total,
+                status: "DEBT"
+            };
+
+            return prisma.debtors.upsert({
+                where: {saleID: s.id},
+                update: data,
+                create: data,
+            })
+        })
+        await prisma.$transaction(operation)
+
+        return { msg: "SUCCESS" }
+
+    } catch (e) {
+        console.error(e);
+        return { msg: "INTERNAL ERROR", error: e };
+    }
+
 }

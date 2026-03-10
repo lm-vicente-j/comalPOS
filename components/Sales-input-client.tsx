@@ -44,8 +44,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { closeAccountAction } from "@/lib/actions/sales";
 import { Customer } from "@/lib/actions/customers";
+import { Sale } from "@/lib/actions/sales";
 
 interface SalesInputProps {
+    currentCustomerSales: Sale[];
     setSalesFilter: (val: string) => void;
     query: string;
     setQuery: (val: string) => void;
@@ -61,7 +63,7 @@ interface SalesInputProps {
 
 
 
-export default function SalesInputClient({ setSalesFilter,query, setQuery, clientSelected, setClientSelected, onClientSelect, tableNumber, setTableNumber, dialogOpen, setDialogOpen, customerList }: SalesInputProps) {
+export default function SalesInputClient({ currentCustomerSales, setSalesFilter,query, setQuery, clientSelected, setClientSelected, onClientSelect, tableNumber, setTableNumber, dialogOpen, setDialogOpen, customerList }: SalesInputProps) {
 
     const inputRef = useRef<HTMLInputElement>(null);
     useEffect(() => {
@@ -89,8 +91,8 @@ export default function SalesInputClient({ setSalesFilter,query, setQuery, clien
         }
     };
 
-    const handleToDebt = async (idCustomer: number, idSale: number) => {
-        await toDebt(idCustomer, idSale);
+    const handleToDebt = async (idCustomer: number, sales: Sale[]) => {
+        await toDebt(idCustomer, sales);
     }
 
     return (
@@ -193,7 +195,7 @@ export default function SalesInputClient({ setSalesFilter,query, setQuery, clien
                                 <Button className="cursor-pointer" variant={"outline"}>Cancelar</Button>
                             </AlertDialogCancel>
                             <AlertDialogAction asChild>
-                                <Button onClick={() => handleToDebt(currentCustomerID, 0)}  className="cursor-pointer">Aceptar</Button>
+                                <Button onClick={() => handleToDebt(currentCustomerID, currentCustomerSales)}  className="cursor-pointer">Aceptar</Button>
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
