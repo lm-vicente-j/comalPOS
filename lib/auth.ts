@@ -30,7 +30,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 id: user.id.toString(),
                 name: user.name,
                 email: user.email,
-                role: user.role ?? undefined, // Si es null, asigna un valor por defecto o undefined
+                role: user.role ?? "STAFF", 
               };
             }
           }
@@ -39,7 +39,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // Lógica para STAFF
         if (credentials.role === "STAFF") {
           const user = await prisma.users.findFirst({
-            where: { name: credentials.name as string }
+            where: { username: credentials.username as string }
           });
           if (user && user.pin) {
             const isPinCorrect = await bcrypt.compare(
@@ -51,7 +51,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 id: user.id.toString(),
                 name: user.name,
                 email: undefined,
-                role: user.role ?? undefined, 
+                role: user.role ?? "STAFF", 
               };
             }
           }
