@@ -186,11 +186,7 @@ export default function SalesInputClient({ setSalesFilter,query, setQuery, clien
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>¿Desea enviar la cuenta de #Nombre de lciente# a deuda?</AlertDialogTitle>
-                            {/* <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete your
-                                account and remove your data from our servers.
-                            </AlertDialogDescription> */}
+                            <AlertDialogTitle>¿Desea enviar la cuenta de "{query}" a deuda?</AlertDialogTitle>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel asChild>
