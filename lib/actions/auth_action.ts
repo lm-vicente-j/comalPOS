@@ -7,7 +7,7 @@ import { AuthError } from "next-auth"
 export async function login(prevState: any,formData: FormData) {
   const email = formData.get('email')
   const password = formData.get('password')
-  const name = formData.get("name");
+  const username = formData.get("username");
   const pin = formData.get("pin")
   
 const role = email ? "ADMIN" : "STAFF";
@@ -16,7 +16,7 @@ const role = email ? "ADMIN" : "STAFF";
     await signIn("credentials", {
       email,
       password,
-      name: name,
+      username: username,
       pin,
       role,
       redirectTo: "/pos",

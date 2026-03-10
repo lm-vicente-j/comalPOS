@@ -32,6 +32,7 @@ import {
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react"
 
 import { useEffect } from "react";
+import { Input } from "@/components/ui/input";
 
 
 
@@ -47,10 +48,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     async function loadUsers() {
-      
+
       const users = await GetAllStaffUsers();
       setStaffList(users);
-    
+
     }
     loadUsers();
   }, []);
@@ -107,44 +108,12 @@ export default function LoginPage() {
 
             <div className="flex gap-2  flex-col flex-1 items-center justify-center">
               <div className="flex flex-1 flex-row items-center gap-3 justify-center">
-                              <label className="block text-sm font-medium text-gray-700">Nombre</label>
-              <input type="hidden" name="name" value={selectedUser} />
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-60 justify-between cursor-pointer">
-                    {selectedUser
-                      ? staffList.find((u) => u.name === selectedUser)?.name
-                      : "Seleccionar personal..."}
-                    <ChevronsUpDownIcon className="ml-2 h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-60 p-0">
-                  <Command>
-                    <CommandList>
-                      <CommandGroup>
-                        <CommandGroup>
-                          {staffList.map((user) => (
-                            <CommandItem
-                              key={user.id}
-                              value={user.name ? user.name : ""}
-                              onSelect={(currentValue) => {
-                                setSelectedUser(currentValue);
-                                setOpen(false);
-                              }}
-                            >
-                              <CheckIcon className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedUser === user.name ? "opacity-100" : "opacity-0"
-                              )} />
-                              {user.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                <label className="block text-sm font-medium text-gray-700">Usuario</label>
+                <input                 required
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" 
+                name="username" />
+
+
               </div>
 
               <div className="flex flex-1 flex-row items-center gap-3 justify-center">
@@ -161,10 +130,7 @@ export default function LoginPage() {
                 </InputOTP>
               </div>
             </div>
-            <button
-              type="submit"
-              className="mt-5 w-full cursor-pointer bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-lg transition-colors"
-            >
+            <button type="submit" className="mt-5 w-full cursor-pointer bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-lg transition-colors">
               Entrar al Sistema
             </button>
           </form>
