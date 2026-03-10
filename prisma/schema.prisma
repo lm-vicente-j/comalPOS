@@ -35,7 +35,7 @@ model debtors {
   saleID     Int      @unique
   customerID Int
   amount     Decimal  @db.Decimal
-  status     String?  @db.VarChar(20)
+  status     SaleStatus @default(UNPAID)
   customer   customer @relation(fields: [customerID], references: [id], onDelete: NoAction, onUpdate: NoAction)
   sales      sales    @relation(fields: [saleID], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -86,7 +86,7 @@ model sale_items {
 model sales {
   id          Int          @id @default(autoincrement())
   total       Decimal?     @db.Decimal
-  status      String?      @db.VarChar(20)
+  status      SaleStatus   @default(UNPAID)
   source_type String?      @db.VarChar(30)
   customerID  Int?
   placedBy    Int
@@ -120,4 +120,11 @@ model users {
   bill     bill[]
   salary   salary[]
   sales    sales[]
+}
+
+enum SaleStatus {
+  UNPAID
+  PAID
+  DEBT
+  CANCELLED
 }
