@@ -114,11 +114,11 @@ async function main() {
 
   // 8. DEBTORS (5 filas)
   const debtorsData = [
-    { id: 1, saleID: 2, customerID: 2, amount: 150.50, status: 'PENDING' },
-    { id: 2, saleID: 4, customerID: 4, amount: 300.00, status: 'PENDING' },
-    { id: 3, saleID: 5, customerID: 5, amount: 50.00, status: 'PARTIAL' },
-    { id: 4, saleID: 1, customerID: 1, amount: 0.00, status: 'SETTLED' },
-    { id: 5, saleID: 3, customerID: 3, amount: 0.00, status: 'SETTLED' },
+    { id: 1, saleID: 2, customerID: 2, amount: 150.50, status: 'DEBT' },
+    { id: 2, saleID: 4, customerID: 4, amount: 300.00, status: 'DEBT' },
+    { id: 3, saleID: 5, customerID: 5, amount: 50.00, status: 'DEBT' },
+    { id: 4, saleID: 1, customerID: 1, amount: 0.00, status: 'PAID' },
+    { id: 5, saleID: 3, customerID: 3, amount: 0.00, status: 'PAID' },
   ];
 
   for (const d of debtorsData) {

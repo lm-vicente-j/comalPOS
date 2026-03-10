@@ -22,6 +22,10 @@ function FilterSales(sales:Sale[], src:string):Sale[]{
     return sales.filter(s => s.source_type == src);
 }
 
+function GetCurrentCustomerSales(sales:Sale[], src:string):Sale[]{
+    return sales.filter(s => s.source_type == src);
+}
+
 export default function PosManager({ products, sales, customerList }: PosManagerProps) {
 
     const [salesHistory, setSalesHistory] = useState<{ productID: number; quantity: number; name: string; price: number }[]>([]);
@@ -84,6 +88,7 @@ export default function PosManager({ products, sales, customerList }: PosManager
                 </div>
 
                 <SalesInputClient
+                    currentCustomerSales={GetCurrentCustomerSales(sales,salesFilter)}
                     setSalesFilter={setSalesFilter}
                     query={query}
                     setQuery={setQuery}

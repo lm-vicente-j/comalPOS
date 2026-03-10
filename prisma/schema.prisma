@@ -32,7 +32,7 @@ model customer {
 
 model debtors {
   id         Int      @id @default(autoincrement())
-  saleID     Int
+  saleID     Int      @unique
   customerID Int
   amount     Decimal  @db.Decimal
   status     String?  @db.VarChar(20)
