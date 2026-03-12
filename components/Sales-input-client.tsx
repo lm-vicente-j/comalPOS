@@ -59,20 +59,19 @@ interface SalesInputProps {
     setDialogOpen: (val: boolean) => void;
     dialogOpen: boolean;
     customerList: Customer[]
+    setCurrentCustomerID: (val: number) => void;
+    currentCustomerID: number;
 }
 
 
 
-export default function SalesInputClient({ currentCustomerSales, setSalesFilter,query, setQuery, clientSelected, setClientSelected, onClientSelect, tableNumber, setTableNumber, dialogOpen, setDialogOpen, customerList }: SalesInputProps) {
+export default function SalesInputClient({ currentCustomerSales, setSalesFilter,query, setQuery, clientSelected, setClientSelected, onClientSelect, tableNumber, setTableNumber, dialogOpen, setDialogOpen, customerList,setCurrentCustomerID,currentCustomerID}: SalesInputProps) {
 
     const inputRef = useRef<HTMLInputElement>(null);
     useEffect(() => {
         inputRef.current?.focus();
     }, []);
     const [open, setOpen] = useState(false);
-
-
-    const [currentCustomerID, setCurrentCustomerID]  = useState(-1);
 
     const isAlreadyFreeSale = tableNumber === 0 && !clientSelected && query === "";
     const hasCustomers = Array.isArray(customerList) && customerList.length > 0;

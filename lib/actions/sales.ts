@@ -32,6 +32,8 @@ const SaleSchema = z.object({
 export type Sale = z.infer<typeof SaleSchema>;
 
 export async function createSale(sale_items: { productID: number, quantity: number }[], status: "UNPAID" | "PAID" | "DEBT", source_type: string, customerID: number, placedBy: number) {
+
+
     try {
         return await prisma.$transaction(async (tx) => {
             let totalSale = 0;
@@ -95,13 +97,26 @@ export async function createSale(sale_items: { productID: number, quantity: numb
                         status: "UNPAID"
                     }
                 });
+
+
             }
+
+            // Update consumption date
+            let currentDate: Date = new Date();
+
+            let s = await tx.customer.update({
+                where: { id: customerID },
+                data: { lastConsumption: currentDate.toISOString()}
+            })
+
+
             revalidatePath("/pos")
             revalidatePath("/debtors")
             return { success: true, saleId: newSale.id };
 
         })
     } catch (e) {
+        console.log(e);
         return { success: false, message: "INTERNAL ERROR" }
     }
 }
@@ -208,6 +223,7 @@ export async function cancelSaleAction(saleId: number) {
 }
 
 export async function updateSaleQuantity(saleId: number, quantity: number, productId: number) {
+
     try {
         // CANCELL SALE
         if (quantity < 1) {

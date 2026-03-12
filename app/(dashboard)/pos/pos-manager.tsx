@@ -30,6 +30,7 @@ export default function PosManager({ products, sales, customerList }: PosManager
     const [query, setQuery] = useState("");
     const [clientSelected, setClientSelected] = useState(false);
 
+    const [currentCustomerID, setCurrentCustomerID] = useState(0);
 
     // Filter sales
     const [salesFilter, setSalesFilter] = useState("VENTA_LIBRE");
@@ -70,7 +71,7 @@ export default function PosManager({ products, sales, customerList }: PosManager
     return (
         <div className="flex flex-row items-center justify-around z-0 w-full h-full">
             <div className="flex items-center justify-center w-[40%] h-full">
-                <DataTable data={products} onSelect={addToHistory} tableNumber={tableNumber} clientName={query} clientSelected={clientSelected}/>
+                <DataTable data={products} onSelect={addToHistory} tableNumber={tableNumber} clientName={query} clientSelected={clientSelected} customerID={currentCustomerID} />
             </div>
 
             <div className="p-5 w-[60%] h-full">
@@ -97,6 +98,8 @@ export default function PosManager({ products, sales, customerList }: PosManager
                     setDialogOpen={setDialogOpen}
                     dialogOpen={dialogOpen}
                     customerList={customerList}
+                    setCurrentCustomerID={setCurrentCustomerID}
+                    currentCustomerID={currentCustomerID}
                 />
 
                 <ScrollArea className="h-[50%] w-full rounded-md border p-4">
