@@ -16,9 +16,10 @@ interface DataTableProps {
   tableNumber: number;
   clientName: string;
   clientSelected: boolean;
+  customerID: number;
 }
 
-export default function DataTable({ data, onSelect, tableNumber, clientSelected, clientName }: DataTableProps) {
+export default function DataTable({ data, onSelect, tableNumber, clientSelected, clientName, customerID }: DataTableProps) {
 
   const [dataProducts, setDataProducts] = useState(data);
 
@@ -35,7 +36,9 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
 
   const placedBy = useUserStore((state) => state.id)
 
-  const handleAddSale = async (productId: number, status: any, customerID: any) => {
+  const handleAddSale = async (productId: number, status: any, customerID: number) => {
+
+
     const items = [{
       productID: productId,
       quantity: 1
@@ -43,8 +46,7 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
 
     const isTable = tableNumber > 0;
     const sourceType = isTable ? `MESA_${tableNumber}` : (clientSelected ? `CL- ${clientName}` : "VENTA_LIBRE");
-    const initialStatus = isTable ? "UNPAID" : "PAID";
-
+const initialStatus = (isTable || clientSelected) ? "UNPAID" : "PAID";
 
     await createSale(
       items,
@@ -69,7 +71,7 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
           {
             dataProducts.map((val: Product, index: any) => (
               <Button onClick={() => {
-                handleAddSale(val.id ?? -1, "PAID", -1); // Pasamos val.id en lugar de val.sale_items
+                handleAddSale(val.id ?? -1, "PAID", customerID);
                 onSelect(val);
               }} variant="outline" key={index} className=" cursor-pointer w-full h-30 flex flex-col items-center justify-center">
                 <div className="w-[80%] h-[50%] text-wrap flex items-center justify-center">
