@@ -85,19 +85,6 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
     }
   },
   {
-    accessorKey: 'customer.currentBalance',
-    header: 'Saldo Total',
-    cell: ({ row }) => {
-      const amount = row.original.customer?.currentBalance || 0;
-      const formatted = new Intl.NumberFormat("es-MX", {
-        style: "currency",
-        currency: "MXN",
-      }).format(amount)
-
-      return <div className="font-medium">{formatted}</div>
-    },
-  },
-  {
     header: () => <div className="flex items-center justify-center">Estado</div>,
     id: "status",
     cell: ({ row }) => {
@@ -138,14 +125,15 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
             <DropdownMenuContent align="end">
               <Dialog>
                 <DialogTrigger className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground w-full">
-                  Abonar
+                  Cobrar
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Abono a cuenta de {customerName}</DialogTitle>
+                    <DialogTitle>Cobrar cuenta de {customerName}</DialogTitle>
                   </DialogHeader>
-                  <div className="flex items-center gap-2 py-4">
-                    <Input placeholder="$0.00" type="number" />
+                  <div className="flex items-center justify-between gap-2 py-4">
+                    <label>Total: </label>
+                    <p>${Number(row.original.customer?.currentBalance)?.toFixed(2)}</p>
                     <Select>
                       <SelectTrigger className="w-45">
                         <SelectValue placeholder="Tipo de pago" />
