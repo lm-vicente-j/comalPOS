@@ -9,7 +9,8 @@ const DebtorSchema = z.object({
     saleID: z.number().nullable(),
     customerID: z.number().nullable(),
     amount: z.number(),
-    status: z.string().nullable(),
+    status: z.enum(["UNPAID", "PAID", "DEBT", "CANCELLED"]),
+
 
     customer: z.object({
         id: z.number(),
@@ -25,7 +26,8 @@ const DebtorSchema = z.object({
         z.object({
             id: z.number(),
             total: z.number().nullable(),
-            status: z.string().nullable(),
+            status: z.enum(["UNPAID", "PAID", "DEBT", "CANCELLED"]),
+
             source_type: z.string().nullable(),
             customerID: z.number().nullable(),
             placedBy: z.number().nullable(),
@@ -104,7 +106,7 @@ export async function toDebt(customerId: number, sales: Sale[]) {
 
         const operations: any[] = [];
 
-        sales.forEach((s)=>{
+        sales.forEach((s) => {
             const debtorData = {
                 saleID: s.id,
                 customerID: customerId,
@@ -112,9 +114,10 @@ export async function toDebt(customerId: number, sales: Sale[]) {
                 status: "DEBT",
             };
 
+
             operations.push(
                 prisma.debtors.upsert({
-                    where: {saleID: s.id},
+                    where: { saleID: s.id },
                     update: debtorData,
                     create: debtorData,
                 })
@@ -122,7 +125,7 @@ export async function toDebt(customerId: number, sales: Sale[]) {
 
             operations.push(
                 prisma.sales.update({
-                    where: {id: s.id},
+                    where: { id: s.id },
                     data: {
                         status: "DEBT",
                         customerID: customerId
@@ -136,7 +139,7 @@ export async function toDebt(customerId: number, sales: Sale[]) {
         revalidatePath("/pos")
         revalidatePath("/debtors")
         return { msg: "SUCCESS" }
-        
+
 
     } catch (e) {
         console.error(e);
