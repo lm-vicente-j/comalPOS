@@ -32,6 +32,8 @@ export async function saveSupply(data: Supply) {
     if (session?.user?.role !== "ADMIN") return { success: false,error: "PERMISSION DENIED" };
 
     data.unitCost = Number(data.unitCost)
+    data.currentStock = Number(data.currentStock)
+    
     const result = SupplySchema.safeParse(data);
     console.log(result);
     if (!result.success) return {  success: false, error: "INVALID DATA" };
