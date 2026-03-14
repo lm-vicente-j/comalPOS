@@ -43,6 +43,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+import { Sale } from "@/lib/actions/sales";
+
+import { payAccount } from "@/lib/actions/debts"
+
+
 export const debtsColumns: ColumnDef<Debtor>[] = [
   {
     id: "customer",
@@ -89,7 +94,7 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
     id: "status",
     cell: ({ row }) => {
       const lastConsumptionVal = row.original.customer?.lastConsumption;
-      
+
       if (!lastConsumptionVal) return <Badge variant="outline">--</Badge>;
 
       const currentDate = new Date();
@@ -113,6 +118,10 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
     id: "actions",
     cell: ({ row }) => {
       const customerName = row.original.customer?.customerName || "Cliente";
+
+      const handlePayAccount = async (customerID: number, sales: Sale[]) => {
+        await payAccount(customerID, sales);
+      }
 
       return (
         <div className="flex items-center justify-center">
@@ -148,7 +157,7 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                     <DialogClose asChild>
                       <div className="flex w-full gap-2">
                         <Button variant="outline" className="flex-1">Cancelar</Button>
-                        <Button className="flex-1">Registrar Cobro</Button>
+                        <Button onClick={() => handlePayAccount(row.original.customerID || -1, (row.original.sales as unknown as Sale[]) || [])} className="flex-1">Registrar Cobro</Button>
                       </div>
                     </DialogClose>
                   </DialogFooter>
@@ -164,7 +173,7 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                     <DialogTitle>Historial de {customerName}</DialogTitle>
                   </DialogHeader>
                   <TableBody>
-                    {row.original.sales && row.original.sales.length > 0 ? (
+                    {row.original.sales ? (
                       row.original.sales.map((sale) => (
                         <TableRow key={sale.id}>
                           <TableCell className="font-medium">
@@ -201,7 +210,8 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                         </TableCell>
                       </TableRow>
                     )}
-                  </TableBody>                  <Table>
+                  </TableBody>
+                  <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Fecha</TableHead>
@@ -210,24 +220,24 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {Array.isArray(row.original.sales) ? 
-                      (
-                        row.original.sales.map((sale) => (
-                          <TableRow key={sale.id}>
-                            <TableCell>{new Date(sale.createdAt!).toLocaleDateString()}</TableCell>
-                            <TableCell>{sale.source_type}</TableCell>
-                            <TableCell className="text-right">
-                              ${Number(sale.total).toFixed(2)}
+                      {Array.isArray(row.original.sales) ?
+                        (
+                          row.original.sales.map((sale) => (
+                            <TableRow key={sale.id}>
+                              <TableCell>{new Date(sale.createdAt!).toLocaleDateString()}</TableCell>
+                              <TableCell>{sale.source_type}</TableCell>
+                              <TableCell className="text-right">
+                                ${Number(sale.total).toFixed(2)}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">
+                              Sin cobros pendientes.
                             </TableCell>
                           </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">
-                            Sin cobros pendientes.
-                          </TableCell>
-                        </TableRow>
-                      )}
+                        )}
                     </TableBody>
                   </Table>
                 </DialogContent>

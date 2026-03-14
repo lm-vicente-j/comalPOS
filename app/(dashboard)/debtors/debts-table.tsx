@@ -22,7 +22,6 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 
-
 interface DebtorsTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
