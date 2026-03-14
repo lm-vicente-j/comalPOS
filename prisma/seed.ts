@@ -2,6 +2,7 @@ import { PrismaClient } from "@/app/generated/prisma/client"
 import { PrismaPg } from '@prisma/adapter-pg'
 import 'dotenv/config'
 import bcrypt from 'bcryptjs';
+import { SaleStatus } from "@/app/generated/prisma/client";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL as string,
@@ -88,11 +89,11 @@ async function main() {
 
   // 6. SALES (5 filas)
   const salesData = [
-    { id: 1, total: 175.00, status: 'PAID', source_type: 'DINE_IN', customerID: 1, placedBy: 2, createdAt: new Date('2026-02-10T14:00:00Z') },
-    { id: 2, total: 245.50, status: 'UNPAID', source_type: 'TAKE_AWAY', customerID: 2, placedBy: 3, createdAt: new Date('2026-02-11T15:00:00Z') },
-    { id: 3, total: 110.00, status: 'PAID', source_type: 'DINE_IN', customerID: 3, placedBy: 2, createdAt: new Date('2026-02-12T16:30:00Z') },
-    { id: 4, total: 300.00, status: 'UNPAID', source_type: 'DELIVERY', customerID: 4, placedBy: 4, createdAt: new Date('2026-02-13T19:00:00Z') },
-    { id: 5, total: 95.00, status: 'PAID', source_type: 'DINE_IN', customerID: 5, placedBy: 3, createdAt: new Date('2026-02-14T20:00:00Z') },
+    { id: 1, total: 175.00, status: SaleStatus.PAID, source_type: 'VENTA_LIBRE', customerID: 1, placedBy: 2, createdAt: new Date('2026-02-10T14:00:00Z') },
+    { id: 2, total: 245.50, status: SaleStatus.UNPAID, source_type: 'VENTA_LIBRE', customerID: 2, placedBy: 3, createdAt: new Date('2026-02-11T15:00:00Z') },
+    { id: 3, total: 110.00, status: SaleStatus.PAID, source_type: 'MESA_1', customerID: 3, placedBy: 2, createdAt: new Date('2026-02-12T16:30:00Z') },
+    { id: 4, total: 300.00, status: SaleStatus.UNPAID, source_type: 'MESA_1', customerID: 4, placedBy: 4, createdAt: new Date('2026-02-13T19:00:00Z') },
+    { id: 5, total: 95.00, status: SaleStatus.PAID, source_type: 'MESA_4', customerID: 5, placedBy: 3, createdAt: new Date('2026-02-14T20:00:00Z') },
   ];
 
   for (const sa of salesData) {
@@ -114,11 +115,11 @@ async function main() {
 
   // 8. DEBTORS (5 filas)
   const debtorsData = [
-    { id: 1, saleID: 2, customerID: 2, amount: 150.50, status: 'DEBT' },
-    { id: 2, saleID: 4, customerID: 4, amount: 300.00, status: 'DEBT' },
-    { id: 3, saleID: 5, customerID: 5, amount: 50.00, status: 'DEBT' },
-    { id: 4, saleID: 1, customerID: 1, amount: 0.00, status: 'PAID' },
-    { id: 5, saleID: 3, customerID: 3, amount: 0.00, status: 'PAID' },
+    { id: 1, saleID: 2, customerID: 2, amount: 150.50, status: SaleStatus.DEBT },
+    { id: 2, saleID: 4, customerID: 4, amount: 300.00, status: SaleStatus.DEBT },
+    { id: 3, saleID: 5, customerID: 5, amount: 50.00, status: SaleStatus.DEBT },
+    { id: 4, saleID: 1, customerID: 1, amount: 0.00, status: SaleStatus.PAID },
+    { id: 5, saleID: 3, customerID: 3, amount: 0.00, status: SaleStatus.PAID },
   ];
 
   for (const d of debtorsData) {
