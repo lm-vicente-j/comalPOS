@@ -202,9 +202,11 @@ export async function payAccount(customerID: number, sales: Sale[], paymentMetho
             operations.push(
                 prisma.sales.update({
                     where: { id: s.id },
-                    data: { status: SaleStatus.PAID, payment_method: paymentMethod }
+                    data: { status: SaleStatus.PAID,payment_method: paymentMethod }
                 })
             )
+
+
         })
         const totalNewDebt = sales.reduce((sum, s) => sum + Number(s.total), 0);
 

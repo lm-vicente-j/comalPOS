@@ -147,13 +147,13 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                   <div className="flex items-center justify-between gap-2 py-4">
                     <label>Total: </label>
                     <p>${Number(row.original.customer?.currentBalance)?.toFixed(2)}</p>
-                    <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as "TRANSFER" | "CASH")}>
+                    <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
                       <SelectTrigger className="w-45">
                         <SelectValue placeholder="Tipo de pago" />
                       </SelectTrigger>
                       <SelectContent>
-                       <SelectItem value="TRANSFER">Transferencia</SelectItem>
-                        <SelectItem value="CASH">Efectivo</SelectItem>
+                       <SelectItem value={PaymentMethod.TRANSFER}>Transferencia</SelectItem>
+                        <SelectItem value={PaymentMethod.CASH}>Efectivo</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
