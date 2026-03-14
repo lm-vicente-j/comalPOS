@@ -88,6 +88,7 @@ model sales {
   total       Decimal?     @db.Decimal
   status      SaleStatus   @default(UNPAID)
   source_type String?      @db.VarChar(30)
+  payment_method String?   @db.VarChar(30)
   customerID  Int?
   placedBy    Int
   createdAt   DateTime     @default(now()) @db.Timestamp
@@ -128,3 +129,8 @@ enum SaleStatus {
   DEBT
   CANCELLED
 }
+
+enum PaymentMethod {
+  TRANSFER
+  CASH
+} 
