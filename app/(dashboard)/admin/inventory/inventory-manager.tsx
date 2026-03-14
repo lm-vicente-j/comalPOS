@@ -38,11 +38,15 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 
+import { ScrollArea } from "@/components/ui/scroll-area"
+
 const measureUnits = [
     { value: "kg", label: "KILOG" },
     { value: "Lt", label: "LITRO" },
     { value: "piece", label: "PAQU./PIEZA" },
 ]
+
+
 
 export const columns: ColumnDef<Supply>[] = [
     {
@@ -97,13 +101,12 @@ export function InventoryManager({ data }: { data: Supply[] }) {
         measureUnit: ""
     });
 
-    const table = useReactTable({
+const table = useReactTable({
         data,
         columns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         onRowSelectionChange: setRowSelection,
@@ -162,7 +165,7 @@ export function InventoryManager({ data }: { data: Supply[] }) {
                         className="max-w-sm"
                     />
                 </div>
-                <div className="rounded-md border overflow-hidden">
+                <div className="rounded-md border flex-1 overflow-y-auto min-h-0">
                     <Table>
                         <TableHeader>
                             {table.getHeaderGroups().map(hg => (
@@ -175,7 +178,9 @@ export function InventoryManager({ data }: { data: Supply[] }) {
                                 </TableRow>
                             ))}
                         </TableHeader>
+
                         <TableBody>
+                            
                             {table.getRowModel().rows.map(row => (
                                 <TableRow 
                                     key={row.id} 
@@ -196,6 +201,7 @@ export function InventoryManager({ data }: { data: Supply[] }) {
                                 </TableRow>
                             ))}
                         </TableBody>
+                        
                     </Table>
                 </div>
             </div>
