@@ -27,11 +27,17 @@ const SupplySchema = z.object({
 export type Supply = z.infer<typeof SupplySchema>;
 
 export async function saveSupply(data: Supply) {
+
     const session = await auth();
     if (session?.user?.role !== "ADMIN") return { success: false,error: "PERMISSION DENIED" };
 
+    data.unitCost = Number(data.unitCost)
     const result = SupplySchema.safeParse(data);
+    console.log(result);
     if (!result.success) return {  success: false, error: "INVALID DATA" };
+        
+
+    
 
     const { id, name, measureUnit, currentStock, unitCost } = result.data;
 
@@ -44,6 +50,7 @@ export async function saveSupply(data: Supply) {
         revalidatePath("/admin/inventory");
         return { success: true };
     } catch (e) {
+
         return {  success: false, error: "INTERNAL ERROR" };
     }
 }
