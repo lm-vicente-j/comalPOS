@@ -3,6 +3,7 @@ import z from "zod"
 import prisma from "../prisma"
 import { Sale } from "./sales";
 import { revalidatePath } from "next/cache";
+import { SaleStatus } from "@/app/generated/prisma/enums";
 
 const DebtorSchema = z.object({
     id: z.number(),
@@ -43,7 +44,7 @@ export async function getAllDebtors() {
     try {
         const debts = await prisma.debtors.findMany({
             where: {
-                status: "DEBT"
+                status: SaleStatus.DEBT
             },
             include: {
                 customer: true,
@@ -111,7 +112,7 @@ export async function toDebt(customerId: number, sales: Sale[]) {
                 saleID: s.id,
                 customerID: customerId,
                 amount: s.total,
-                status: "DEBT",
+                status: SaleStatus.DEBT,
             };
 
 
