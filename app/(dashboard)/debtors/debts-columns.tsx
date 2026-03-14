@@ -46,7 +46,8 @@ import {
 import { Sale } from "@/lib/actions/sales";
 
 import { payAccount } from "@/lib/actions/debts"
-
+import { useState } from "react";
+import { PaymentMethod } from "@/app/generated/prisma/enums";
 
 export const debtsColumns: ColumnDef<Debtor>[] = [
   {
@@ -117,10 +118,13 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
     header: () => <div className="flex items-center justify-center">Operaciones</div>,
     id: "actions",
     cell: ({ row }) => {
+      
+      const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
+
       const customerName = row.original.customer?.customerName || "Cliente";
 
       const handlePayAccount = async (customerID: number, sales: Sale[]) => {
-        await payAccount(customerID, sales);
+        await payAccount(customerID, sales, paymentMethod);
       }
 
       return (
@@ -143,13 +147,13 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                   <div className="flex items-center justify-between gap-2 py-4">
                     <label>Total: </label>
                     <p>${Number(row.original.customer?.currentBalance)?.toFixed(2)}</p>
-                    <Select>
+                    <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as "TRANSFER" | "CASH")}>
                       <SelectTrigger className="w-45">
                         <SelectValue placeholder="Tipo de pago" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="transferencia">Transferencia</SelectItem>
-                        <SelectItem value="efectivo">Efectivo</SelectItem>
+                       <SelectItem value="TRANSFER">Transferencia</SelectItem>
+                        <SelectItem value="CASH">Efectivo</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -3,7 +3,7 @@ import z from "zod"
 import prisma from "../prisma"
 import { Sale } from "./sales";
 import { revalidatePath } from "next/cache";
-import { SaleStatus } from "@/app/generated/prisma/enums";
+import { PaymentMethod, SaleStatus } from "@/app/generated/prisma/enums";
 
 const DebtorSchema = z.object({
     id: z.number(),
@@ -180,7 +180,7 @@ export async function toDebt(customerId: number, sales: Sale[]) {
 
 }
 
-export async function payAccount(customerID: number, sales: Sale[]) {
+export async function payAccount(customerID: number, sales: Sale[], paymentMethod: PaymentMethod) {
     try {
 
         const operations: any[] = []
@@ -202,7 +202,7 @@ export async function payAccount(customerID: number, sales: Sale[]) {
             operations.push(
                 prisma.sales.update({
                     where: { id: s.id },
-                    data: { status: SaleStatus.PAID }
+                    data: { status: SaleStatus.PAID, payment_method: paymentMethod }
                 })
             )
         })
