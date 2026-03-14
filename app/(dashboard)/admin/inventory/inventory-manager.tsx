@@ -146,8 +146,6 @@ export function InventoryManager({ data }: { data: Supply[] }) {
 
         if (response.success) {
             resetForm();
-        } else {
-            alert(response.error || "Error al guardar");
         }
     };
 
