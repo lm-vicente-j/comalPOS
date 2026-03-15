@@ -10,6 +10,6 @@ export default async function Home() {
     const hasSupplies = false;
 
     return (
-        <MenuManager data={data} hasSupplies={hasSupplies}/>
+        <MenuManager supplies={data} hasSupplies={hasSupplies}/>
     );
 }

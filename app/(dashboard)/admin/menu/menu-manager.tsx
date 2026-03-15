@@ -12,13 +12,18 @@ import {
     type SortingState,
 } from "@tanstack/react-table"
 import { ButtonGroup } from "@/components/ui/button-group"
-import { ArrowUpDown, ChevronsUpDown } from "lucide-react"
+import { ArrowUpDown, ChevronsUpDown, HamIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { saveSupply, Supply } from "@/lib/actions/inventory"
 import { saveProduct, Product } from "@/lib/actions/products"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import {
+    CommandInput,
+    CommandSeparator,
+    CommandShortcut,
+} from "@/components/ui/command"
 import {
     Dialog,
     DialogContent,
@@ -51,12 +56,7 @@ import {
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-
-const measureUnits = [
-    { value: "kg", label: "KILOG" },
-    { value: "Lt", label: "LITRO" },
-    { value: "piece", label: "PAQU./PIEZA" },
-]
+import { PlusIcon, MinusIcon } from "lucide-react"
 
 import {
     PopoverAnchor,
@@ -64,6 +64,10 @@ import {
 
 import { useState, useRef, useEffect } from "react"
 
+import clsx from "clsx"
+
+
+type SupplyWithQuantity = Supply & { quantity?: number };
 
 export const columns: ColumnDef<Supply>[] = [
     {
@@ -113,15 +117,155 @@ export const columns: ColumnDef<Supply>[] = [
 
 interface MenuProps {
     hasSupplies: boolean;
-    data: Supply[];
+    supplies: Supply[];
 }
 
 
-export function MenuManager({hasSupplies,data}: MenuProps) {
+function InputSupply({
+    supplyList,
+    currentSupplies,
+    setCurrentSupplies
+}: {
+    supplyList: Supply[],
+    currentSupplies: SupplyWithQuantity[],
+    setCurrentSupplies: React.Dispatch<React.SetStateAction<SupplyWithQuantity[]>>
+}) {
+    const [visible, setVisible] = useState(false);
+    const [value, setValue] = useState("");
+    const [selectedFromList, setSelectedFromList] = useState<Supply | null>(null);
+
+    const handleAddSupply = () => {
+        if (!selectedFromList) return;
+
+        const exists = currentSupplies.find(s => s.id === selectedFromList.id);
+        if (!exists) {
+            setCurrentSupplies([...currentSupplies, { ...selectedFromList, quantity: 1 }]);
+        }
+
+        setValue("");
+        setSelectedFromList(null);
+        setVisible(false);
+    };
+
+    const handleRemoveSupply = (id: number) => {
+        setCurrentSupplies(currentSupplies.filter(s => s.id !== id));
+    };
+
+    const handleUpdateQuantity = (id: number, qty: string) => {
+        const numQty = parseFloat(qty) || 0;
+        if (numQty == 0) {
+
+            setCurrentSupplies(currentSupplies.filter(s => s.id !== id));
+        } else {
+            setCurrentSupplies(currentSupplies.map(s =>
+                s.id === id ? { ...s, quantity: numQty } : s
+            ));
+        }
+
+    };
+
+    return (
+        <>
+            <div className="flex row gap-2 justify-center align-middle">
+                <Command className="max-w-sm rounded-lg border">
+                    <CommandInput
+                        customIcon={<HamIcon />}
+                        placeholder="Escriba un insumo..."
+                        value={value}
+                        onValueChange={(val) => {
+                            setValue(val);
+                            setVisible(true);
+                            if (val == "") setVisible(false);
+                        }}
+                    />
+                    <CommandList className={clsx(!visible && "hidden")}>
+                        <CommandEmpty>Insumo no encontrado...</CommandEmpty>
+                        <CommandGroup>
+                            {supplyList.map((s) => (
+                                <CommandItem
+                                    key={s.id}
+                                    onSelect={() => {
+                                        setValue(s.name ?? "");
+                                        setSelectedFromList(s);
+                                        setVisible(false);
+                                    }}
+                                >
+                                    <span>{s.name}</span>
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+
+                <Button
+                    type="button"
+                    size="icon-sm"
+                    aria-label="Submit"
+                    className="cursor-pointer"
+                    onClick={handleAddSupply}
+                    disabled={!selectedFromList}
+                >
+                    <PlusIcon />
+                </Button>
+            </div>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Insumo</TableHead>
+                        <TableHead>Cantidad</TableHead>
+                        <TableHead>Unidad</TableHead>
+                        <TableHead className="text-right">Acción</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {currentSupplies.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
+                                No hay insumos seleccionados
+                            </TableCell>
+                        </TableRow>
+                    ) : (
+                        currentSupplies.map((item) => (
+                            <TableRow key={item.id}>
+                                <TableCell className="font-medium">{item.name}</TableCell>
+                                <TableCell>
+                                    <Input
+                                        type="number"
+                                        className="h-8 w-20"
+                                        value={item.quantity}
+                                        onChange={(e) => handleUpdateQuantity(item.id ?? -1, e.target.value)}
+                                    />
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <Badge variant="secondary">{item.measureUnit || "U"}</Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <Button
+                                        size="xs"
+                                        variant="outline"
+                                        className="cursor-pointer text-destructive hover:bg-destructive/10"
+                                        onClick={() => handleRemoveSupply(item.id ?? -1)}
+                                    >
+                                        <MinusIcon className="h-3 w-3" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    )}
+                </TableBody>
+            </Table>
+        </>
+    );
+}
+
+export function MenuManager({ hasSupplies, supplies }: MenuProps) {
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
     const [rowSelection, setRowSelection] = React.useState({});
     const [currentItem, setCurrentItem] = React.useState<Supply | null>(null);
+
+    // This state holds the supplies for the product being created/edited
+    const [currentSupplies, setCurrentSupplies] = useState<SupplyWithQuantity[]>([]);
 
     const [formData, setFormData] = React.useState({
         name: "",
@@ -131,7 +275,7 @@ export function MenuManager({hasSupplies,data}: MenuProps) {
     });
 
     const table = useReactTable({
-        data,
+        data: supplies,
         columns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
@@ -143,6 +287,11 @@ export function MenuManager({hasSupplies,data}: MenuProps) {
         enableMultiRowSelection: false,
         state: { sorting, columnFilters, rowSelection },
     });
+
+    // Calculate base cost based on selected supplies
+    const totalBaseCost = currentSupplies.reduce((acc, item) => {
+        return acc + ((item.unitCost || 0) * (item.quantity || 0));
+    }, 0);
 
     React.useEffect(() => {
         if (currentItem) {
@@ -161,20 +310,26 @@ export function MenuManager({hasSupplies,data}: MenuProps) {
         setCurrentItem(null);
         table.toggleAllRowsSelected(false);
         setFormData({ name: "", unitCost: 0, currentStock: 0, measureUnit: "" });
+        setCurrentSupplies([]);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
+        const finalValue = name === "name"
+            ? value
+            : Math.max(0, parseFloat(value) || 0);
+
         setFormData(prev => ({
             ...prev,
-            [name]: name === "name" ? value : parseFloat(value) || 0
+            [name]: finalValue
         }));
     };
 
     const handleSave = async () => {
         const response = await saveProduct({
             ...formData,
-            id: currentItem?.id
+            id: currentItem?.id,
+            supplies: currentSupplies // Sending the supplies list to the action
         } as any);
 
         if (response.success) {
@@ -190,13 +345,6 @@ export function MenuManager({hasSupplies,data}: MenuProps) {
     useEffect(() => {
         inputRef.current?.focus();
     }, []);
-    const isInputDisabled = !hasSupplies;
-
-    const query= "";
-
-    function setQuery(q:string){
-
-    }
 
     return (
         <div className="flex flex-row items-center justify-around w-full h-full gap-4 p-4">
@@ -283,7 +431,7 @@ export function MenuManager({hasSupplies,data}: MenuProps) {
 
                 <form hidden={isRowSelected} className="h-full w-full flex-col flex flex-1 justify-between">
                     <div className="mb-6">
-                        <h2 className="text-xl font-bold">Agregar Producto</h2>
+                        <h2 className="text-xl font-bold">Agregar producto al menú</h2>
                         <p className="text-xs text-muted-foreground">Ingrese los datos del nuevo producto.</p>
                     </div>
                     <div className="space-y-4 flex-1">
@@ -294,48 +442,28 @@ export function MenuManager({hasSupplies,data}: MenuProps) {
                         <div className="flex flex-col gap-2">
                             <label className="text-xs font-semibold uppercase">Insumos</label>
                             <Dialog>
-                                <DialogTrigger className="relative  flex select-none items-center justify-center font-bold cursor-pointer rounded-sm px-2 py-1.5 text-sm outline transition-colors hover:bg-accent hover:text-accent-foreground w-full">
-                                    Editar lista insumos
+                                <DialogTrigger asChild>
+                                    <Button variant="outline" className="w-full justify-start font-normal">
+                                        {currentSupplies.length > 0
+                                            ? `${currentSupplies.length} insumos seleccionados`
+                                            : "Editar lista insumos"}
+                                    </Button>
                                 </DialogTrigger>
-                                <DialogContent>
+                                <DialogContent className="max-w-2xl">
                                     <DialogHeader>
-                                        <DialogTitle>Editar lista de insumos de </DialogTitle>
+                                        <DialogTitle>Editar lista de insumos</DialogTitle>
                                     </DialogHeader>
-                                    <ScrollArea>
+                                    <ScrollArea className="max-h-[60vh]">
                                         <Popover open={open} onOpenChange={setOpen}>
                                             <PopoverAnchor asChild>
-                                                <Input ref={inputRef} type="text"
-                                                    placeholder={isInputDisabled ? "No hay insumos registrados" : "Nombre del insumo"}
-                                                    disabled={isInputDisabled} value={query} onChange={(e) => {
-                                                        setQuery(e.target.value);
-                                                        setOpen(true);
-                                                    }} className="max-w" />
+                                                <InputSupply
+                                                    supplyList={supplies}
+                                                    currentSupplies={currentSupplies}
+                                                    setCurrentSupplies={setCurrentSupplies}
+                                                />
                                             </PopoverAnchor>
-                                            <PopoverContent className="p-0 w-(--radix-popover-trigger-width)" onOpenAutoFocus={(e) => e.preventDefault()} >
-                                                <Command>
-                                                    <CommandList>
-                                                        <CommandEmpty>No se encontraron insumos.</CommandEmpty>
-                                                        <CommandGroup>
-
-                                                            {/* {Array.isArray(debtorsList) && debtorsList.length > 0 ? (
-                                                                debtorsList.map((item) => (
-                                                                    <CommandItem
-                                                                        key={item.id}
-                                                                        value={item.customer?.customerName || ""}
-
-                                                                        className="cursor-pointer"
-                                                                    >
-                                                                        {item.customer?.alias} | {item.customer?.customerName}
-                                                                    </CommandItem>
-                                                                ))
-                                                            ) : null}    */}
-                                                                                     </CommandGroup>
-                                                    </CommandList>
-                                                </Command>
-                                            </PopoverContent>
                                         </Popover>
                                     </ScrollArea>
-                                    <Button className="cursor-pointer">Agregar insumo</Button>
                                     <DialogFooter>
                                         <DialogClose asChild>
                                             <Button className="cursor-pointer">Cerrar</Button>
@@ -344,13 +472,12 @@ export function MenuManager({hasSupplies,data}: MenuProps) {
                                 </DialogContent>
                             </Dialog>
                         </div>
-                        <div className="flex flex-row items-center justify-between">
+                        <div className="flex flex-row items-center justify-between border-y py-2">
                             <label className="text-xs font-semibold uppercase">Costo base: </label>
-                            <p>$ 0.00</p>
-
+                            <p className="font-mono font-bold">${totalBaseCost.toFixed(2)}</p>
                         </div>
                         <div>
-                            <label className="text-xs font-semibold uppercase">Costo de Venta</label>
+                            <label className="text-xs font-semibold uppercase">Precio de Venta</label>
                             <Input name="unitCost" type="number" value={formData.unitCost} onChange={handleInputChange} placeholder="0.00" />
                         </div>
                     </div>

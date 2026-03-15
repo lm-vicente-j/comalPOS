@@ -44,7 +44,7 @@ model debtors {
 
 model products {
   id         Int          @id @default(autoincrement())
-  name       String?      @db.VarChar(40)
+  name       String?      @db.VarChar(40) @unique
   price      Decimal      @db.Decimal
   recipes    recipes[]
   sale_items sale_items[]
