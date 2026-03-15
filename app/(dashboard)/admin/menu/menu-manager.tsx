@@ -72,7 +72,7 @@ type RecipeItem = {
     quantityUsed: number;
 };
 
-export const columns: ColumnDef<Supply>[] = [
+export const columns: ColumnDef<any>[] = [
     {
         id: "select",
         header: () => <div className="pl-1 text-xs font-bold text-muted-foreground">Sel.</div>,
@@ -96,7 +96,13 @@ export const columns: ColumnDef<Supply>[] = [
         accessorKey: "baseCost",
         header: "Costo base",
         cell: ({ row }) => {
-            const cost = parseFloat("0");
+            const recipes = row.original.recipes;
+            const cost = recipes.reduce((acc: number, r: any) => {
+                const unitCost = Number(r.supplies?.unitCost);
+                const qty = Number(r.quantityUsed);
+                return acc + (unitCost * qty);
+            }, 0);
+
             return <div className="text-right font-mono">${cost.toFixed(2)}</div>;
         },
     },
@@ -104,29 +110,36 @@ export const columns: ColumnDef<Supply>[] = [
         accessorKey: "finalPrice",
         header: "Precio venta",
         cell: ({ row }) => {
-            const cost = parseFloat("0");
-            return <div className="text-right font-mono">${cost.toFixed(2)}</div>;
+            const price = Number(row.original.price) || 0;
+            return <div className="text-right font-mono">${price.toFixed(2)}</div>;
         },
     },
     {
         accessorKey: "profit",
         header: "Utilidad",
         cell: ({ row }) => {
-            const cost = parseFloat("0");
-            return <div className="text-right font-mono">${cost.toFixed(2)}</div>;
+            const price = Number(row.original.price) || 0;
+            const recipes = row.original.recipes || [];
+            const baseCost = recipes.reduce((acc: number, r: any) => {
+                const unitCost = Number(r.supplies?.unitCost) || 0;
+                const qty = Number(r.quantityUsed) || 0;
+                return acc + (unitCost * qty);
+            }, 0);
+            const profit = price - baseCost;
+            return <div className="text-right font-mono">${profit.toFixed(2)}</div>;
         },
     },
 ]
 
 interface MenuProps {
-    hasSupplies: boolean;
+    products: any[];
     supplies: Supply[];
 }
 
 
 function InputSupply({
     supplyList,
-    recipeItems, 
+    recipeItems,
     setRecipeItems
 }: {
     supplyList: Supply[],
@@ -156,13 +169,11 @@ function InputSupply({
 
     const handleUpdateQuantity = (id: number, qty: string) => {
         const numQty = parseFloat(qty) || 0;
-        if (numQty === 0) {
-            setRecipeItems(recipeItems.filter(r => r.supply.id !== id));
-        } else {
+        if (numQty != 0) {
             setRecipeItems(recipeItems.map(r =>
                 r.supply.id === id ? { ...r, quantityUsed: numQty } : r
             ));
-        }
+        } 
     };
 
     return (
@@ -259,11 +270,11 @@ function InputSupply({
     );
 }
 
-export function MenuManager({ hasSupplies, supplies }: MenuProps) {
+export function MenuManager({ products, supplies }: MenuProps) {
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
     const [rowSelection, setRowSelection] = React.useState({});
-    const [currentItem, setCurrentItem] = React.useState<Supply | null>(null);
+    const [currentItem, setCurrentItem] = React.useState<any | null>(null);
 
     const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
 
@@ -276,7 +287,7 @@ export function MenuManager({ hasSupplies, supplies }: MenuProps) {
     });
 
     const table = useReactTable({
-        data: supplies,
+        data: products,
         columns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
@@ -298,21 +309,35 @@ export function MenuManager({ hasSupplies, supplies }: MenuProps) {
         if (currentItem) {
             setFormData({
                 name: currentItem.name || "",
-                price: 0, 
+                price: Number(currentItem.price) || 0,
                 unitCost: currentItem.unitCost || 0,
-                currentStock: currentItem.currentStock || 0,
-                measureUnit: currentItem.measureUnit || ""
+                currentStock: 0,
+                measureUnit: ""
             });
+            const existingRecipes = currentItem.recipes?.map((r: any) => ({
+                supply: r.supplies,
+                quantityUsed: Number(r.quantityUsed)
+            })) || [];
+            setRecipeItems(existingRecipes);
         } else {
-            setFormData({ name: "", price: 0, unitCost: 0, currentStock: 0, measureUnit: "" });
+            setFormData({
+                name: "",
+                price: 0,
+                unitCost: 0,
+                currentStock: 0,
+                measureUnit: ""
+            });
+            setRecipeItems([]);
         }
     }, [currentItem]);
+
+
 
     const resetForm = () => {
         setCurrentItem(null);
         table.toggleAllRowsSelected(false);
         setFormData({ name: "", price: 0, unitCost: 0, currentStock: 0, measureUnit: "" });
-        setRecipeItems([]); 
+        setRecipeItems([]);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
