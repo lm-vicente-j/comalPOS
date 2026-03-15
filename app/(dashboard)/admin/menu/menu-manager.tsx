@@ -67,7 +67,10 @@ import { useState, useRef, useEffect } from "react"
 import clsx from "clsx"
 
 
-type SupplyWithQuantity = Supply & { quantity?: number };
+type RecipeItem = {
+    supply: Supply;
+    quantityUsed: number;
+};
 
 export const columns: ColumnDef<Supply>[] = [
     {
@@ -123,12 +126,12 @@ interface MenuProps {
 
 function InputSupply({
     supplyList,
-    currentSupplies,
-    setCurrentSupplies
+    recipeItems, 
+    setRecipeItems
 }: {
     supplyList: Supply[],
-    currentSupplies: SupplyWithQuantity[],
-    setCurrentSupplies: React.Dispatch<React.SetStateAction<SupplyWithQuantity[]>>
+    recipeItems: RecipeItem[],
+    setRecipeItems: React.Dispatch<React.SetStateAction<RecipeItem[]>>
 }) {
     const [visible, setVisible] = useState(false);
     const [value, setValue] = useState("");
@@ -137,9 +140,9 @@ function InputSupply({
     const handleAddSupply = () => {
         if (!selectedFromList) return;
 
-        const exists = currentSupplies.find(s => s.id === selectedFromList.id);
+        const exists = recipeItems.find(r => r.supply.id === selectedFromList.id);
         if (!exists) {
-            setCurrentSupplies([...currentSupplies, { ...selectedFromList, quantity: 1 }]);
+            setRecipeItems([...recipeItems, { supply: selectedFromList, quantityUsed: 1 }]);
         }
 
         setValue("");
@@ -148,20 +151,18 @@ function InputSupply({
     };
 
     const handleRemoveSupply = (id: number) => {
-        setCurrentSupplies(currentSupplies.filter(s => s.id !== id));
+        setRecipeItems(recipeItems.filter(r => r.supply.id !== id));
     };
 
     const handleUpdateQuantity = (id: number, qty: string) => {
         const numQty = parseFloat(qty) || 0;
-        if (numQty == 0) {
-
-            setCurrentSupplies(currentSupplies.filter(s => s.id !== id));
+        if (numQty === 0) {
+            setRecipeItems(recipeItems.filter(r => r.supply.id !== id));
         } else {
-            setCurrentSupplies(currentSupplies.map(s =>
-                s.id === id ? { ...s, quantity: numQty } : s
+            setRecipeItems(recipeItems.map(r =>
+                r.supply.id === id ? { ...r, quantityUsed: numQty } : r
             ));
         }
-
     };
 
     return (
@@ -218,33 +219,33 @@ function InputSupply({
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {currentSupplies.length === 0 ? (
+                    {recipeItems.length === 0 ? (
                         <TableRow>
                             <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
                                 No hay insumos seleccionados
                             </TableCell>
                         </TableRow>
                     ) : (
-                        currentSupplies.map((item) => (
-                            <TableRow key={item.id}>
-                                <TableCell className="font-medium">{item.name}</TableCell>
+                        recipeItems.map((item) => (
+                            <TableRow key={item.supply.id}>
+                                <TableCell className="font-medium">{item.supply.name}</TableCell>
                                 <TableCell>
                                     <Input
                                         type="number"
                                         className="h-8 w-20"
-                                        value={item.quantity}
-                                        onChange={(e) => handleUpdateQuantity(item.id ?? -1, e.target.value)}
+                                        value={item.quantityUsed}
+                                        onChange={(e) => handleUpdateQuantity(item.supply.id ?? -1, e.target.value)}
                                     />
                                 </TableCell>
                                 <TableCell className="text-center">
-                                    <Badge variant="secondary">{item.measureUnit || "U"}</Badge>
+                                    <Badge variant="secondary">{item.supply.measureUnit || "U"}</Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <Button
                                         size="xs"
                                         variant="outline"
                                         className="cursor-pointer text-destructive hover:bg-destructive/10"
-                                        onClick={() => handleRemoveSupply(item.id ?? -1)}
+                                        onClick={() => handleRemoveSupply(item.supply.id ?? -1)}
                                     >
                                         <MinusIcon className="h-3 w-3" />
                                     </Button>
@@ -264,11 +265,11 @@ export function MenuManager({ hasSupplies, supplies }: MenuProps) {
     const [rowSelection, setRowSelection] = React.useState({});
     const [currentItem, setCurrentItem] = React.useState<Supply | null>(null);
 
-    // This state holds the supplies for the product being created/edited
-    const [currentSupplies, setCurrentSupplies] = useState<SupplyWithQuantity[]>([]);
+    const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
 
     const [formData, setFormData] = React.useState({
         name: "",
+        price: 0,
         unitCost: 0,
         currentStock: 0,
         measureUnit: ""
@@ -289,28 +290,29 @@ export function MenuManager({ hasSupplies, supplies }: MenuProps) {
     });
 
     // Calculate base cost based on selected supplies
-    const totalBaseCost = currentSupplies.reduce((acc, item) => {
-        return acc + ((item.unitCost || 0) * (item.quantity || 0));
+    const totalBaseCost = recipeItems.reduce((acc, item) => {
+        return acc + ((item.supply.unitCost || 0) * item.quantityUsed);
     }, 0);
 
     React.useEffect(() => {
         if (currentItem) {
             setFormData({
                 name: currentItem.name || "",
+                price: 0, 
                 unitCost: currentItem.unitCost || 0,
                 currentStock: currentItem.currentStock || 0,
                 measureUnit: currentItem.measureUnit || ""
             });
         } else {
-            setFormData({ name: "", unitCost: 0, currentStock: 0, measureUnit: "" });
+            setFormData({ name: "", price: 0, unitCost: 0, currentStock: 0, measureUnit: "" });
         }
     }, [currentItem]);
 
     const resetForm = () => {
         setCurrentItem(null);
         table.toggleAllRowsSelected(false);
-        setFormData({ name: "", unitCost: 0, currentStock: 0, measureUnit: "" });
-        setCurrentSupplies([]);
+        setFormData({ name: "", price: 0, unitCost: 0, currentStock: 0, measureUnit: "" });
+        setRecipeItems([]); 
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -326,16 +328,37 @@ export function MenuManager({ hasSupplies, supplies }: MenuProps) {
     };
 
     const handleSave = async () => {
-        const response = await saveProduct({
-            ...formData,
-            id: currentItem?.id,
-            supplies: currentSupplies // Sending the supplies list to the action
-        } as any);
+        if (currentItem) {
+            // EDIT
+            const response = await saveSupply({
+                id: currentItem.id,
+                name: formData.name,
+                unitCost: formData.unitCost,
+                currentStock: formData.currentStock,
+                measureUnit: formData.measureUnit
+            });
 
-        if (response.success) {
-            resetForm();
+            if (response.success) {
+                resetForm();
+            } else {
+                alert(response.error || "Error al actualizar insumo");
+            }
         } else {
-            alert(response.error || "Error al guardar");
+            // CREATE
+            const response = await saveProduct({
+                name: formData.name,
+                price: formData.price,
+                recipes: recipeItems.map(item => ({
+                    supplyID: item.supply.id!,
+                    quantityUsed: item.quantityUsed
+                }))
+            });
+
+            if (response.success) {
+                resetForm();
+            } else {
+                alert(response.error || "Error al guardar producto");
+            }
         }
     };
 
@@ -444,8 +467,8 @@ export function MenuManager({ hasSupplies, supplies }: MenuProps) {
                             <Dialog>
                                 <DialogTrigger asChild>
                                     <Button variant="outline" className="w-full justify-start font-normal">
-                                        {currentSupplies.length > 0
-                                            ? `${currentSupplies.length} insumos seleccionados`
+                                        {recipeItems.length > 0
+                                            ? `${recipeItems.length} insumos seleccionados`
                                             : "Editar lista insumos"}
                                     </Button>
                                 </DialogTrigger>
@@ -458,8 +481,8 @@ export function MenuManager({ hasSupplies, supplies }: MenuProps) {
                                             <PopoverAnchor asChild>
                                                 <InputSupply
                                                     supplyList={supplies}
-                                                    currentSupplies={currentSupplies}
-                                                    setCurrentSupplies={setCurrentSupplies}
+                                                    recipeItems={recipeItems}
+                                                    setRecipeItems={setRecipeItems}
                                                 />
                                             </PopoverAnchor>
                                         </Popover>
