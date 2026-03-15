@@ -1,15 +1,17 @@
 import { getSuppliesData } from "@/lib/actions/inventory";
+import { getProductsData } from "@/lib/actions/products"; //
 import { MenuManager } from "./menu-manager";
 
 export default async function Home() {
     
     const raw = await getSuppliesData();
+    const productsRaw = await getProductsData(); 
 
     const data = JSON.parse(JSON.stringify(raw))
+    const products = JSON.parse(JSON.stringify(productsRaw));
 
-    const hasSupplies = false;
 
     return (
-        <MenuManager supplies={data} hasSupplies={hasSupplies}/>
+        <MenuManager supplies={data} products={products}/>
     );
 }
