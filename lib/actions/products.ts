@@ -3,18 +3,15 @@ import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "../auth";
+import { ReceiptEuroIcon } from "lucide-react";
 
 const ProductSchema = z.object({
     id: z.number().optional(),
     name: z.string().min(3, "3 characters min."),
     price: z.number().positive("The price must be greater than zero."),
-    sale_items: z.array(z.object({
-        id: z.number().int(),
-        saleID: z.number().int(),
-        productID: z.number().int(),
-        quantity: z.number().int(),
-        unitPrice: z.number(),
-        subtotal: z.number(),
+    recipes: z.array(z.object({
+        supplyID: z.number().int(),
+        quantityUsed: z.number().nullable(),
     })).optional()
 })
 
@@ -33,17 +30,36 @@ export async function saveProduct(data: Product) {
     }
 
     const result = ProductSchema.safeParse(data);
-
+    
     if (!result.success) {
         return { success: false, error: z.treeifyError(result.error) };
     }
 
-    const { id, name, price } = result.data;
+const { id, name, price, recipes } = result.data;
     try {
         await prisma.products.upsert({
             where: { id: id ?? -1 },
-            update: { name, price },
-            create: { name, price },
+            update: {
+                name,
+                price,
+                recipes: {
+                    deleteMany: {},
+                    create: recipes?.map(r => ({
+                        supplyID: r.supplyID,
+                        quantityUsed: r.quantityUsed
+                    }))
+                }
+            },
+            create: {
+                name, 
+                price,
+                recipes: {
+                    create: recipes?.map(r => ({
+                        supplyID: r.supplyID,
+                        quantityUsed: r.quantityUsed
+                    }))
+                }
+            },
         });
 
         revalidatePath("/pos")
@@ -80,14 +96,18 @@ export async function deleteProduct(id: number) {
 export async function getProductsData() {
 
     try {
-        const products = await prisma.products.findMany({
+         return await prisma.products.findMany({
+            include: {
+                recipes: {
+                    include: { supplies: true }
+                }
+            },
             orderBy: { name: 'asc' }
         });
 
-        return products
-    
-    }catch(e){
-        return {success: false, error: "ERROR IN DB"}
+
+    } catch (e) {
+        return { success: false, error: "ERROR IN DB" }
     }
 
 
