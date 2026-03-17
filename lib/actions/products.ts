@@ -18,7 +18,6 @@ const ProductSchema = z.object({
 export type Product = z.infer<typeof ProductSchema>;
 
 export async function saveProduct(data: Product) {
-
     // Check role
     const session = await auth();
     const role = session?.user?.role || "NONE";
@@ -29,16 +28,13 @@ export async function saveProduct(data: Product) {
         }
     }
 
-    const result = ProductSchema.safeParse(data);
-    
-    if (!result.success) {
-        return { success: false, error: z.treeifyError(result.error) };
-    }
 
-const { id, name, price, recipes } = result.data;
+    let { id, name, price, recipes } = data;
+    id = id == undefined ? -1 : id;
+
     try {
         await prisma.products.upsert({
-            where: { id: id ?? -1 },
+            where: { id: id},
             update: {
                 name,
                 price,
@@ -62,10 +58,12 @@ const { id, name, price, recipes } = result.data;
             },
         });
 
+
         revalidatePath("/pos")
         revalidatePath("/admin/inventory")
         return { success: true }
     } catch (e) {
+
         return { success: false, error: "ERROR IN UPSERT OPERATION" }
     }
 

@@ -354,19 +354,17 @@ export function MenuManager({ products, supplies }: MenuProps) {
 
     const handleSave = async () => {
         if (currentItem) {
+            
             // EDIT
-            const response = await saveSupply({
+            const response = await saveProduct({
                 id: currentItem.id,
+                price: formData.price,
                 name: formData.name,
-                unitCost: formData.unitCost,
-                currentStock: formData.currentStock,
-                measureUnit: formData.measureUnit
+                
             });
 
             if (response.success) {
                 resetForm();
-            } else {
-                alert(response.error || "Error al actualizar insumo");
             }
         } else {
             // CREATE
@@ -381,9 +379,7 @@ export function MenuManager({ products, supplies }: MenuProps) {
 
             if (response.success) {
                 resetForm();
-            } else {
-                alert(response.error || "Error al guardar producto");
-            }
+            } 
         }
     };
 
