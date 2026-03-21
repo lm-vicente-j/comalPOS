@@ -166,9 +166,19 @@ export async function getSalesHistory() {
 }
 
 export async function getTodaySalesHistory() {
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
     const sales = await prisma.sales.findMany({
         where: {
-            status: "UNPAID"
+            createdAt: {
+                gte: startOfDay, 
+                lte: endOfDay,   
+            },
 
         },
         include: {
