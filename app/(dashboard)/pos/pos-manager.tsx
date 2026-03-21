@@ -19,7 +19,7 @@ interface PosManagerProps {
 }
 
 function FilterSales(sales:Sale[], src:string):Sale[]{
-    return sales.filter(s => s.source_type == src && s.status == "UNPAID");
+    return sales.filter(s => s.source_type == src);
 }
 
 

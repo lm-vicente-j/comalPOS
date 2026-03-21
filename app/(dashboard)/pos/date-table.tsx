@@ -38,7 +38,6 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
 
   const handleAddSale = async (productId: number, status: any, customerID: number) => {
 
-
     const items = [{
       productID: productId,
       quantity: 1
@@ -46,7 +45,8 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
 
     const isTable = tableNumber > 0;
     const sourceType = isTable ? `MESA_${tableNumber}` : (clientSelected ? `CL- ${clientName}` : "VENTA_LIBRE");
-const initialStatus = (isTable || clientSelected) ? "UNPAID" : "PAID";
+    const initialStatus = (isTable || clientSelected) ? "UNPAID" : "PAID";
+
 
     await createSale(
       items,
