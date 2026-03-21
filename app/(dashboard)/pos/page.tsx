@@ -7,13 +7,9 @@ import { getAllCustomers } from "@/lib/actions/customers";
 export default async function Home(){
     
     const rawProducts = await getProductsData();
-    const products = Array.isArray(rawProducts) ? rawProducts : [];
+    const products = JSON.parse(JSON.stringify(rawProducts));
 
-    const serialized_products = products.map(product => ({
-  ...product,
-  price: product.price.toNumber(),
-  name: product.name ?? "UNNAMED",
-}));
+
     const rawSales = await getTodaySalesHistory();
     const sales = JSON.parse(JSON.stringify(rawSales));
 
@@ -22,6 +18,6 @@ export default async function Home(){
 
 
     return(
-       <PosManager products={serialized_products} sales={sales} customerList={customerList}/>
+       <PosManager products={products} sales={sales} customerList={customerList}/>
     );
 }

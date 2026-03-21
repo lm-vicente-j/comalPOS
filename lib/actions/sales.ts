@@ -72,11 +72,12 @@ export async function createSale(sale_items: { productID: number, quantity: numb
                 }
             }
 
+
             // REGISTER SALE
             const newSale = await tx.sales.create({
                 data: {
                     total: totalSale,
-                    status: status,
+                    status: "PAID",
                     source_type: source_type,
                     customerID: (customerID === -1 || !customerID) ? undefined : customerID,
                     placedBy: placedBy,
@@ -104,10 +105,12 @@ export async function createSale(sale_items: { productID: number, quantity: numb
             // Update consumption date
             let currentDate: Date = new Date();
 
-            let s = await tx.customer.update({
-                where: { id: customerID },
-                data: { lastConsumption: currentDate.toISOString()}
-            })
+            if (customerID && customerID !== -1) {
+                await tx.customer.update({
+                    where: { id: customerID },
+                    data: { lastConsumption: currentDate.toISOString() }
+                });
+            }
 
 
             revalidatePath("/pos")

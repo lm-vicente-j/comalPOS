@@ -93,6 +93,11 @@ export const columns: ColumnDef<any>[] = [
         cell: ({ row }) => <div className="font-medium">{row.original.name}</div>,
     },
     {
+        accessorKey: "stock",
+        header: "Stock",
+        cell: ({row}) => <div className="font-medium text-center">0</div>,
+    },
+    {
         accessorKey: "baseCost",
         header: "Costo base",
         cell: ({ row }) => {
@@ -246,6 +251,7 @@ function InputSupply({
                                         className="h-8 w-20"
                                         value={item.quantityUsed}
                                         onChange={(e) => handleUpdateQuantity(item.supply.id ?? -1, e.target.value)}
+                                        
                                     />
                                 </TableCell>
                                 <TableCell className="text-center">
@@ -340,19 +346,34 @@ export function MenuManager({ products, supplies }: MenuProps) {
         setRecipeItems([]);
     };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+    const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        const finalValue = name === "name"
-            ? value
-            : Math.max(0, parseFloat(value) || 0);
+        if (name === "unitCost" || name === "price") {
+        const numericValue = parseFloat(value) || 0;
+        const clampedValue = Math.max(totalBaseCost, numericValue);
 
         setFormData(prev => ({
             ...prev,
-            [name]: finalValue
+            [name]: clampedValue
+        }));
+    }
+    }
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+
+
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
         }));
     };
 
     const handleSave = async () => {
+        
+
+
         if (currentItem) {
             
             // EDIT
@@ -451,17 +472,17 @@ export function MenuManager({ products, supplies }: MenuProps) {
                     </div>
                     <div className="space-y-4 mt-6 flex-1">
                         <div>
-                            <label className="text-xs font-semibold uppercase">Costo de produccion</label>
+                            <label className="text-xs font-semibold uppercase">Nombre</label>
                             <Input name="name" value={formData.name} onChange={handleInputChange} />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <div>
-                                <label className="text-xs font-semibold uppercase">Costo</label>
-                                <Input name="unitCost" type="number" value={formData.unitCost} onChange={handleInputChange} />
+                                <label className="text-xs font-semibold uppercase">Precio de venta</label>
+                                <Input name="unitCost" type="number" onBlur={handleInputBlur} value={formData.unitCost} onChange={handleInputChange} />
                             </div>
                             <div>
                                 <label className="text-xs font-semibold uppercase">Stock</label>
-                                <Input name="currentStock" type="number" value={formData.currentStock} onChange={handleInputChange} />
+                                <Input name="currentStock" type="number" disabled value={formData.currentStock}  />
                             </div>
                         </div>
                     </div>
@@ -481,7 +502,7 @@ export function MenuManager({ products, supplies }: MenuProps) {
                     <div className="space-y-4 flex-1">
                         <div>
                             <label className="text-xs font-semibold uppercase">Nombre</label>
-                            <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Nombre del producto..." />
+                            <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Nombre del producto..."  />
                         </div>
                         <div className="flex flex-col gap-2">
                             <label className="text-xs font-semibold uppercase">Insumos</label>
@@ -522,7 +543,7 @@ export function MenuManager({ products, supplies }: MenuProps) {
                         </div>
                         <div>
                             <label className="text-xs font-semibold uppercase">Precio de Venta</label>
-                            <Input name="unitCost" type="number" value={formData.unitCost} onChange={handleInputChange} placeholder="0.00" />
+                            <Input name="unitCost" type="number" value={formData.unitCost} onChange={handleInputChange} placeholder="0.00"  />
                         </div>
                     </div>
                     <ButtonGroup className="mt-6 flex gap-2 w-full">
