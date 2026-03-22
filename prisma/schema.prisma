@@ -1,7 +1,6 @@
 generator client {
   provider = "prisma-client"
   output   = "../app/generated/prisma"
-
 }
 
 datasource db {
@@ -9,13 +8,13 @@ datasource db {
 }
 
 model bill {
-  id            Int      @id @default(autoincrement())
-  description   String?  @db.Text
-  amount        Decimal  @db.Decimal
-  category      String?  @db.VarChar(50)
+  id            Int       @id @default(autoincrement())
+  description   String?
+  amount        Decimal   @db.Decimal
+  category      String?   @db.VarChar(50)
   date          DateTime? @db.Date
   registered_by Int
-  users         users    @relation(fields: [registered_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users         users     @relation(fields: [registered_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model customer {
@@ -31,20 +30,20 @@ model customer {
 }
 
 model debtors {
-  id         Int      @id @default(autoincrement())
-  saleID     Int      @unique
+  id         Int        @id @default(autoincrement())
+  saleID     Int        @unique
   customerID Int
-  amount     Decimal  @db.Decimal
+  amount     Decimal    @db.Decimal
   status     SaleStatus @default(UNPAID)
-  customer   customer @relation(fields: [customerID], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  sales      sales    @relation(fields: [saleID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customer   customer   @relation(fields: [customerID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales      sales      @relation(fields: [saleID], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([customerID, status])
 }
 
 model products {
-  id         Int          @id @default(autoincrement()) 
-  name       String?      @db.VarChar(40) @unique
+  id         Int          @id @unique @default(autoincrement())
+  name       String?      @unique @db.VarChar(40)
   price      Decimal      @db.Decimal
   recipes    recipes[]
   sale_items sale_items[]
@@ -84,18 +83,18 @@ model sale_items {
 }
 
 model sales {
-  id          Int          @id @default(autoincrement())
-  total       Decimal?     @db.Decimal
-  status      SaleStatus   @default(UNPAID)
-  source_type String?      @db.VarChar(30)
-  payment_method String?   @db.VarChar(30)
-  customerID  Int?
-  placedBy    Int
-  createdAt   DateTime     @default(now()) @db.Timestamp
-  debtors     debtors[]
-  sale_items  sale_items[]
-  customer    customer?     @relation(fields: [customerID], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users       users        @relation(fields: [placedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id             Int          @id @default(autoincrement())
+  total          Decimal?     @db.Decimal
+  source_type    String?      @db.VarChar(30)
+  customerID     Int?
+  placedBy       Int
+  createdAt      DateTime     @default(now()) @db.Timestamp(6)
+  status         SaleStatus   @default(UNPAID)
+  payment_method String?      @db.VarChar(30)
+  debtors        debtors?
+  sale_items     sale_items[]
+  customer       customer?    @relation(fields: [customerID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users          users        @relation(fields: [placedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([customerID, createdAt])
 }
@@ -133,4 +132,4 @@ enum SaleStatus {
 enum PaymentMethod {
   TRANSFER
   CASH
-} 
+}

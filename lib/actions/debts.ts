@@ -139,7 +139,6 @@ export async function toDebt(customerId: number, sales: Sale[]) {
                 status: SaleStatus.DEBT,
             };
 
-
             operations.push(
                 prisma.debtors.upsert({
                     where: { saleID: s.id },
