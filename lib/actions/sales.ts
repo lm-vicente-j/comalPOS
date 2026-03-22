@@ -91,7 +91,6 @@ export async function createSale(sale_items: { productID: number, quantity: numb
             if (status === "DEBT" && customerID) {
                 await tx.debtors.create({
                     data: {
-                        id: newSale.id,
                         saleID: newSale.id,
                         customerID: customerID,
                         amount: totalSale,
