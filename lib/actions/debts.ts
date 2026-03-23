@@ -100,17 +100,34 @@ export async function getAllDebtors() {
 
 export async function getDebtsSummary() {
     try {
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+        
         const allDebts = await prisma.debtors.findMany({
             where: { status: "DEBT" }
         });
 
+        const todayCollections = await prisma.debtors.findMany({
+            where: {
+                status: "PAID",
+                paidAt: {
+                    gte: startOfDay,
+                    lte: endOfDay
+                }
+            }
+        });
+
         const totalAmount = allDebts.reduce((acc, curr) => acc + curr.amount.toNumber(), 0);
         const activeDebtors = new Set(allDebts.map(d => d.customerID)).size;
+        const todayPaymentsSum = todayCollections.reduce((acc, curr) => acc + Number(curr.amount), 0);
 
         return {
             totalAmount,
             activeDebtors,
-            todayPayments: 0
+            todayPayments: todayPaymentsSum
         };
     } catch (e) {
         return { totalAmount: 0, activeDebtors: 0, todayPayments: 0 };
@@ -195,12 +212,14 @@ export async function toDebt(customerId: number, sales: Sale[]) {
 
 export async function payAccount(customerID: number, sales: Sale[], paymentMethod: PaymentMethod) {
     try {
-
+        const now = new Date(); 
+        
         const operations: any[] = []
 
         sales.forEach((s) => {
             const debtorData = {
                 status: SaleStatus.PAID,
+                paidAt: now.toISOString(),
             }
 
             operations.push(

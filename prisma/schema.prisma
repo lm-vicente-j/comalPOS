@@ -37,6 +37,7 @@ model debtors {
   status     SaleStatus @default(UNPAID)
   customer   customer   @relation(fields: [customerID], references: [id], onDelete: NoAction, onUpdate: NoAction)
   sales      sales      @relation(fields: [saleID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paidAt     DateTime?  @db.Date
 
   @@index([customerID, status])
 }
