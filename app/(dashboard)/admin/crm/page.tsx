@@ -1,13 +1,14 @@
 import CRMMAngaer from "./crm-manager";
-import { getSuppliesData } from "@/lib/actions/inventory";
+import { GetAllStaffUsers } from "@/lib/actions/users";
+import { getAllCustomers } from "@/lib/actions/customers";
 
 export default async function(){
 
 
-        const rawCustomers = await getSuppliesData();
+        const rawCustomers = await getAllCustomers();
         const dataCustomers = JSON.parse(JSON.stringify(rawCustomers))
 
-        const rawUsers = await getSuppliesData();
+        const rawUsers = await GetAllStaffUsers();
         const dataUsers = JSON.parse(JSON.stringify(rawUsers))
 
     return(
