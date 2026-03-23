@@ -31,6 +31,12 @@ const DebtorSchema = z.object({
         customerID: z.number().nullable(),
         placedBy: z.number().nullable(),
         createdAt: z.date().nullable(),
+        sale_items: z.array(z.object({
+            quantity: z.number(),
+            products: z.object({
+                name: z.string().nullable()
+            }).nullable()
+        })).optional()
     })).optional(),
 });
 
@@ -44,7 +50,15 @@ export async function getAllDebtors() {
             },
             include: {
                 customer: true,
-                sales: true 
+                sales: {
+                    include: {
+                        sale_items: {
+                            include: {
+                                products: true
+                            }
+                        }
+                    }
+                }
             },
             orderBy: {
                 amount: 'desc'
@@ -58,15 +72,15 @@ export async function getAllDebtors() {
 
             if (!groupedDebtorsMap.has(customerId)) {
                 groupedDebtorsMap.set(customerId, {
-                    id: debt.id, 
+                    id: debt.id,
                     customerID: customerId,
-                    amount: Number(debt.amount), 
+                    amount: Number(debt.amount),
                     status: debt.status,
                     customer: debt.customer,
-                    sales: debt.sales ? [debt.sales] : [] 
+                    sales: debt.sales ? [debt.sales] : []
                 });
             } else {
-                
+
                 const existing = groupedDebtorsMap.get(customerId);
                 existing.amount += Number(debt.amount);
                 if (debt.sales) {
@@ -75,7 +89,7 @@ export async function getAllDebtors() {
             }
         });
 
-        
+
         return Array.from(groupedDebtorsMap.values());
 
     } catch (e) {
@@ -201,7 +215,7 @@ export async function payAccount(customerID: number, sales: Sale[], paymentMetho
             operations.push(
                 prisma.sales.update({
                     where: { id: s.id },
-                    data: { status: SaleStatus.PAID,payment_method: paymentMethod }
+                    data: { status: SaleStatus.PAID, payment_method: paymentMethod }
                 })
             )
 

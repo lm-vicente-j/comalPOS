@@ -291,3 +291,4 @@ export async function updateSaleQuantity(saleId: number, quantity: number, produ
         return { success: false, message: "Error al actualizar cantidad" };
     }
 }
+
