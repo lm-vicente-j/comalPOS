@@ -38,16 +38,18 @@ export const staffColumns: ColumnDef<User>[] = [
     {
         accessorKey: "name",
         header: "Nombre",
+        cell: ({ row }) => <Badge variant="secondary">{row.original.name}</Badge>,
+
     },
     {
         accessorKey: "role",
         header: "Rol",
-        cell: ({ row }) => <Badge variant="secondary">{row.getValue("role")}</Badge>,
+        cell: ({ row }) => <Badge variant="secondary">{row.original.role}</Badge>,
     },
     {
         accessorKey: "active",
         header: "Estado",
-        cell: ({ row }) => (row.getValue("active") ? "Activo" : "Inactivo"),
+        cell: ({ row }) => (row.original.active ? "Activo" : "Inactivo"),
     },
 ]
 
@@ -55,11 +57,13 @@ export const customerColumns: ColumnDef<Customer>[] = [
     {
         accessorKey: "customerName",
         header: "Cliente",
-        cell: ({ row }) => <div className="font-medium">{row.getValue("customerName") || "Sin nombre"}</div>,
+        cell: ({ row }) => <div className="font-medium">{row.original.customerName}</div>,
     },
     {
         accessorKey: "phone",
         header: "Teléfono",
+        cell: ({ row }) => <div className="font-medium">{row.original.phone}</div>,
+
     },
     {
         accessorKey: "currentBalance",
