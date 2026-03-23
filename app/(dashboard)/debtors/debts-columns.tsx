@@ -1,6 +1,7 @@
 "use client";
 import { ColumnDef } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
+import { useEffect } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +49,7 @@ import { Sale } from "@/lib/actions/sales";
 import { payAccount } from "@/lib/actions/debts"
 import { useState } from "react";
 import { PaymentMethod } from "@/app/generated/prisma/enums";
+
 
 export const debtsColumns: ColumnDef<Debtor>[] = [
   {
@@ -118,7 +120,7 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
     header: () => <div className="flex items-center justify-center">Operaciones</div>,
     id: "actions",
     cell: ({ row }) => {
-      
+
       const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
 
       const customerName = row.original.customer?.customerName || "Cliente";
@@ -126,6 +128,7 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
       const handlePayAccount = async (customerID: number, sales: Sale[]) => {
         await payAccount(customerID, sales, paymentMethod);
       }
+
 
       return (
         <div className="flex items-center justify-center">
@@ -152,7 +155,7 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                         <SelectValue placeholder="Tipo de pago" />
                       </SelectTrigger>
                       <SelectContent>
-                       <SelectItem value={PaymentMethod.TRANSFER}>Transferencia</SelectItem>
+                        <SelectItem value={PaymentMethod.TRANSFER}>Transferencia</SelectItem>
                         <SelectItem value={PaymentMethod.CASH}>Efectivo</SelectItem>
                       </SelectContent>
                     </Select>
@@ -176,45 +179,6 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                   <DialogHeader>
                     <DialogTitle>Historial de {customerName}</DialogTitle>
                   </DialogHeader>
-                  <TableBody>
-                    {row.original.sales ? (
-                      row.original.sales.map((sale) => (
-                        <TableRow key={sale.id}>
-                          <TableCell className="font-medium">
-                            #{sale.id}
-                          </TableCell>
-                          <TableCell>
-                            {sale.createdAt
-                              ? new Date(sale.createdAt).toLocaleDateString('es-MX', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: '2-digit'
-                              })
-                              : "N/A"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">
-                              {sale.source_type?.toLowerCase().replace("_", " ") || "Venta"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={sale.status === "PAID" ? "secondary" : "outline"}>
-                              {sale.status === "DEBT" ? "Adeudo" : sale.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-bold">
-                            ${Number(sale.total).toFixed(2)}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                          No hay ventas vinculadas a este deudor.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -229,7 +193,11 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                           row.original.sales.map((sale) => (
                             <TableRow key={sale.id}>
                               <TableCell>{new Date(sale.createdAt!).toLocaleDateString()}</TableCell>
-                              <TableCell>{sale.source_type}</TableCell>
+                              <TableCell>
+                                {sale.sale_items?.map(item =>
+                                  `${item.quantity}x ${item.products?.name}`
+                                ).join(", ") || "Sin productos"}
+                              </TableCell>
                               <TableCell className="text-right">
                                 ${Number(sale.total).toFixed(2)}
                               </TableCell>
