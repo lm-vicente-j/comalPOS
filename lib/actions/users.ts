@@ -5,7 +5,7 @@ export async function   GetAllStaffUsers(){
     try{
         const userList = await prisma.users.findMany(
       {
-        select: {id: true, name: true},
+        select: {id: true, name: true, active: true, role:true},
         orderBy: {name:'asc'},
         where: {
           role:{ not: "ADMIN" }
