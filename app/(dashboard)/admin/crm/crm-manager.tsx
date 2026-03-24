@@ -97,9 +97,23 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
 
     const currentColumns = listEditing === "CUSTOMERS" ? customerColumns : staffColumns;
 
-    const table = useReactTable({
-        data: currentData as any[],
-        columns:currentColumns,
+    const customerTable = useReactTable({
+        data: customers,
+        columns: customerColumns,
+        onSortingChange: setSorting,
+        onColumnFiltersChange: setColumnFilters,
+        getCoreRowModel: getCoreRowModel(),
+        getPaginationRowModel: getPaginationRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+        onRowSelectionChange: setRowSelection,
+        enableMultiRowSelection: false,
+        state: { sorting, columnFilters, rowSelection },
+    });
+
+    const staffTable = useReactTable({
+        data: staff,
+        columns: staffColumns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         getCoreRowModel: getCoreRowModel(),
@@ -126,7 +140,8 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
 
     const resetForm = () => {
         setCurrentItem(null);
-        table.toggleAllRowsSelected(false);
+        customerTable.toggleAllRowsSelected(false);
+        staffTable.toggleAllRowsSelected(false);
         setFormData({ name: "", unitCost: 0, currentStock: 0, measureUnit: "" });
     };
 
@@ -151,7 +166,8 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
         }
     };
 
-    const isRowSelected = table.getSelectedRowModel().rows.length > 0;
+    const isRowSelected = (listEditing === "CUSTOMERS" ? customerTable : staffTable)
+        .getSelectedRowModel().rows.length > 0;
     return (
 
         <div className="flex flex-row items-center justify-around w-full h-full gap-4 p-4">
@@ -165,15 +181,15 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                         <div className="flex w-full items-center py-4">
                             <Input
                                 placeholder="Buscar cliente..."
-                                value={(table.getColumn("customerName")?.getFilterValue() as string) ?? ""}
-                                onChange={(event) => table.getColumn("customerName")?.setFilterValue(event.target.value)}
+                                value={(customerTable.getColumn("customerName")?.getFilterValue() as string) ?? ""}
+                                onChange={(event) => customerTable.getColumn("customerName")?.setFilterValue(event.target.value)}
                                 className="max-w-sm"
                             />
                         </div>
                         <div className="rounded-md border overflow-hidden">
                             <Table>
                                 <TableHeader>
-                                    {table.getHeaderGroups().map(hg => (
+                                    {customerTable.getHeaderGroups().map(hg => (
                                         <TableRow key={hg.id}>
                                             {hg.headers.map(header => (
                                                 <TableHead key={header.id}>
@@ -184,13 +200,13 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                     ))}
                                 </TableHeader>
                                 <TableBody>
-                                    {table.getRowModel().rows.map(row => (
+                                    {customerTable.getRowModel().rows.map(row => (
                                         <TableRow
                                             key={row.id}
                                             className="cursor-pointer"
                                             onClick={() => {
                                                 const isSelected = row.getIsSelected();
-                                                table.toggleAllRowsSelected(false);
+                                                customerTable.toggleAllRowsSelected(false);
                                                 row.toggleSelected(!isSelected);
                                                 setCurrentItem(!isSelected ? row.original : null);
                                             }}
@@ -211,15 +227,15 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                         <div className="flex w-full items-center py-4">
                             <Input
                                 placeholder="Buscar empleado..."
-                                value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-                                onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
+                                value={(staffTable.getColumn("name")?.getFilterValue() as string) ?? ""}
+                                onChange={(event) => staffTable.getColumn("name")?.setFilterValue(event.target.value)}
                                 className="max-w-sm"
                             />
                         </div>
                         <div className="rounded-md border overflow-hidden">
                             <Table>
                                 <TableHeader>
-                                    {table.getHeaderGroups().map(hg => (
+                                    {staffTable.getHeaderGroups().map(hg => (
                                         <TableRow key={hg.id}>
                                             {hg.headers.map(header => (
                                                 <TableHead key={header.id}>
@@ -230,13 +246,13 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                     ))}
                                 </TableHeader>
                                 <TableBody>
-                                    {table.getRowModel().rows.map(row => (
+                                    {staffTable.getRowModel().rows.map(row => (
                                         <TableRow
                                             key={row.id}
                                             className="cursor-pointer"
                                             onClick={() => {
                                                 const isSelected = row.getIsSelected();
-                                                table.toggleAllRowsSelected(false);
+                                                staffTable.toggleAllRowsSelected(false);
                                                 row.toggleSelected(!isSelected);
                                                 setCurrentItem(!isSelected ? row.original : null);
                                             }}
