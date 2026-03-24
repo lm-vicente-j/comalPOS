@@ -69,7 +69,15 @@ export const customerColumns: ColumnDef<Customer>[] = [
     {
         accessorKey: "phone",
         header: "Teléfono",
-        cell: ({ row }) => <div className="font-medium">{row.original.phone}</div>,
+        cell: ({ row }) => {
+            const number = row.original.phone;
+
+            const formatted = number?.replace(/(\d{3})(\d{3})(\d{3})(\d{1})/, "$1-$2-$3-$4");
+
+            return (
+                <div className="font-medium">{formatted}</div>
+            );
+        },
 
     },
     {
