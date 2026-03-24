@@ -217,8 +217,8 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
             <div className="bg-white flex flex-col w-[70%] h-[90%] border rounded-md p-5 shadow-sm">
                 <Tabs defaultValue="customers" className="w-100%">
                     <TabsList>
-                        <TabsTrigger onClick={() => setListEditing("CUSTOMERS")} className="cursor-pointer" value="customers">Clientes</TabsTrigger>
-                        <TabsTrigger onClick={() => setListEditing("STAFF")} className="cursor-pointer" value="staff">Empleados</TabsTrigger>
+                        <TabsTrigger onClick={() => {setListEditing("CUSTOMERS"); resetForm(); }} className="cursor-pointer" value="customers">Clientes</TabsTrigger>
+                        <TabsTrigger onClick={() => {setListEditing("STAFF"); resetForm(); }} className="cursor-pointer" value="staff">Empleados</TabsTrigger>
                     </TabsList>
                     <TabsContent value="customers" className="">
                         <div className="flex w-full items-center py-4">
