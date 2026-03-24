@@ -28,6 +28,14 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import {
+    Field,
+    FieldContent,
+    FieldDescription,
+    FieldGroup,
+    FieldLabel,
+    FieldTitle,
+} from "@/components/ui/field"
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User } from "@/lib/actions/schemas";
@@ -75,20 +83,20 @@ export const staffColumns: ColumnDef<User>[] = [
 ]
 
 export const customerColumns: ColumnDef<Customer>[] = [
-        {
-            id: "select",
-            header: () => <div className="pl-1 text-xs font-bold text-muted-foreground">Sel.</div>,
-            cell: ({ row }) => (
-                <Checkbox
-                    checked={row.getIsSelected()}
-                    onCheckedChange={(value) => row.toggleSelected(!!value)}
-                    aria-label="Select row"
-                    className="rounded-full"
-                />
-            ),
-            enableSorting: false,
-            enableHiding: false,
-        },
+    {
+        id: "select",
+        header: () => <div className="pl-1 text-xs font-bold text-muted-foreground">Sel.</div>,
+        cell: ({ row }) => (
+            <Checkbox
+                checked={row.getIsSelected()}
+                onCheckedChange={(value) => row.toggleSelected(!!value)}
+                aria-label="Select row"
+                className="rounded-full"
+            />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+    },
     {
         accessorKey: "customerName",
         header: "Cliente",
@@ -133,9 +141,10 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
 
     const [formData, setFormData] = useState({
         name: "",
-        unitCost: 0,
-        currentStock: 0,
-        measureUnit: ""
+        customerName: "",
+        phone: "",
+        role: "",
+        active: true,
     });
 
     const currentColumns = listEditing === "CUSTOMERS" ? customerColumns : staffColumns;
@@ -172,12 +181,13 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
         if (currentItem) {
             setFormData({
                 name: currentItem.name || "",
-                unitCost: currentItem.unitCost || 0,
-                currentStock: currentItem.currentStock || 0,
-                measureUnit: currentItem.measureUnit || ""
+                customerName: currentItem.customerName || "",
+                phone: currentItem.phone || "",
+                role: currentItem.role || "",
+                active: currentItem.active ?? true,
             });
         } else {
-            setFormData({ name: "", unitCost: 0, currentStock: 0, measureUnit: "" });
+            setFormData({ name: "", customerName: "", phone: "", role: "", active: true });
         }
     }, [currentItem]);
 
@@ -185,14 +195,15 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
         setCurrentItem(null);
         customerTable.toggleAllRowsSelected(false);
         staffTable.toggleAllRowsSelected(false);
-        setFormData({ name: "", unitCost: 0, currentStock: 0, measureUnit: "" });
+        setFormData({ name: "", customerName: "", phone: "", role: "", active: true });
     };
 
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
+        const stringFields = ["name", "customerName", "phone", "measureUnit"];
         setFormData(prev => ({
             ...prev,
-            [name]: name === "name" ? value : parseFloat(value) || 0
+            [name]: stringFields.includes(name) ? value : parseFloat(value) || 0
         }));
     };
 
@@ -217,8 +228,8 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
             <div className="bg-white flex flex-col w-[70%] h-[90%] border rounded-md p-5 shadow-sm">
                 <Tabs defaultValue="customers" className="w-100%">
                     <TabsList>
-                        <TabsTrigger onClick={() => {setListEditing("CUSTOMERS"); resetForm(); }} className="cursor-pointer" value="customers">Clientes</TabsTrigger>
-                        <TabsTrigger onClick={() => {setListEditing("STAFF"); resetForm(); }} className="cursor-pointer" value="staff">Empleados</TabsTrigger>
+                        <TabsTrigger onClick={() => { setListEditing("CUSTOMERS"); resetForm(); }} className="cursor-pointer" value="customers">Clientes</TabsTrigger>
+                        <TabsTrigger onClick={() => { setListEditing("STAFF"); resetForm(); }} className="cursor-pointer" value="STAFF">Empleados</TabsTrigger>
                     </TabsList>
                     <TabsContent value="customers" className="">
                         <div className="flex w-full items-center py-4">
@@ -266,7 +277,7 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                             </Table>
                         </div>
                     </TabsContent>
-                    <TabsContent value="staff">
+                    <TabsContent value="STAFF">
                         <div className="flex w-full items-center py-4">
                             <Input
                                 placeholder="Buscar empleado..."
@@ -328,18 +339,20 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                             <div className="space-y-4 mt-6 flex-1">
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Nombre</label>
-                                    <Input name="name" value={formData.name} onChange={handleInputChange} />
+                                    <Input name="name" value={formData.customerName} onChange={handleInputChange} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label className="text-xs font-semibold uppercase">Costo</label>
-                                        <Input name="unitCost" type="number" value={formData.unitCost} onChange={handleInputChange} />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold uppercase">Stock</label>
-                                        <Input name="currentStock" type="number" value={formData.currentStock} onChange={handleInputChange} />
+                                        <label className="text-xs font-semibold uppercase">Teléfono</label>
+                                        <Input name="phone" type="number" value={formData.phone} onChange={handleInputChange} />
                                     </div>
                                 </div>
+
+                                {/* <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-semibold uppercase">NOTA:</label>
+                                    <textarea name="" id="" className="outline p-2 rounded-md h-30"></textarea>
+                                </div> */}
+
                             </div>
                             <ButtonGroup className="mt-6 flex gap-2 w-full">
                                 <Button type="button" variant="outline" onClick={resetForm} className="flex-1 cursor-pointer">Cancelar</Button>
@@ -360,13 +373,13 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                     <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Nombre Completo" />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold uppercase">NUMERO DE CELULAR</label>
-                                    <Input name="unitCost" type="text" placeholder="XXXX-XXXX-XX" />
+                                    <label className="text-xs font-semibold uppercase">Telefono</label>
+                                    <Input name="phone" type="text" placeholder="XXXX-XXXX-XX" />
                                 </div>
-                                <div className="flex flex-col gap-2">
+                                {/* <div className="flex flex-col gap-2">
                                     <label className="text-xs font-semibold uppercase">NOTA:</label>
-                                    <textarea name="" id="" className="outline p-2 rounded-md h-30"></textarea>
-                                </div>
+                                    <textarea name="note" id="" className="outline p-2 rounded-md h-30"></textarea>
+                                </div> */}
                             </div>
                             <ButtonGroup className="mt-6 flex gap-2 w-full">
                                 <Button type="button" variant="outline" onClick={resetForm} className="cursor-pointer flex-1 rounderd-sm">Limpiar</Button>
@@ -382,7 +395,7 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                         <form hidden={!isRowSelected} className="h-full w-full flex-col flex flex-1 justify-between">
                             <div className="flex flex-col gap-2">
                                 <div className="flex flex-row items-center justify-between">
-                                    <h2 className="text-xl font-bold">Editar Insumo</h2>
+                                    <h2 className="text-xl font-bold">Editar usuario</h2>
                                     <Button type="button" variant="ghost" size="sm" onClick={resetForm} className="text-orange-600 font-bold">+ Nuevo</Button>
                                 </div>
                                 <p className="text-xs text-muted-foreground">Revise los datos antes de actualizar.</p>
@@ -392,15 +405,35 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                     <label className="text-xs font-semibold uppercase">Nombre</label>
                                     <Input name="name" value={formData.name} onChange={handleInputChange} />
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label className="text-xs font-semibold uppercase">Costo</label>
-                                        <Input name="unitCost" type="number" value={formData.unitCost} onChange={handleInputChange} />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold uppercase">Stock</label>
-                                        <Input name="currentStock" type="number" value={formData.currentStock} onChange={handleInputChange} />
-                                    </div>
+                                <div>
+                                    <label className="text-xs font-semibold uppercase">Rol</label>
+                                    <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
+                                        <SelectTrigger className="w-45">
+                                            <SelectValue placeholder="Seleccionar Rol" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="STAFF">Staff</SelectItem>
+                                            <SelectItem value="ADMIN">Administrador</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold uppercase">ACTIVO</label>
+                                    <Field orientation="horizontal">
+                                        <Checkbox
+
+                                            name="active"
+                                            checked={formData.active}                                          // ← was defaultChecked
+                                            onCheckedChange={(value) =>
+                                                setFormData(prev => ({ ...prev, active: !!value }))
+                                            }
+                                        />
+                                        <FieldContent>
+                                            <FieldLabel htmlFor="terms-checkbox-2">
+                                                Usuario habilitado en sistema
+                                            </FieldLabel>
+                                        </FieldContent>
+                                    </Field>
                                 </div>
                             </div>
                             <ButtonGroup className="mt-6 flex gap-2 w-full">
@@ -428,8 +461,8 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                             <SelectValue placeholder="Seleccionar Rol" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="staff">Staff</SelectItem>
-                                            <SelectItem value="admin">Administrador</SelectItem>
+                                            <SelectItem value="STAFF">Staff</SelectItem>
+                                            <SelectItem value="ADMIN">Administrador</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
