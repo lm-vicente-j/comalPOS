@@ -67,7 +67,7 @@ export const customerColumns: ColumnDef<Customer>[] = [
     },
     {
         accessorKey: "currentBalance",
-        header: "Saldo",
+        header: () => <div className="text-right">Saldo</div>,
         cell: ({ row }) => {
             const balance = parseFloat(row.getValue("currentBalance") || "0");
             return <div className={`text-right font-mono ${balance > 0 ? 'text-red-500' : 'text-green-600'}`}>
