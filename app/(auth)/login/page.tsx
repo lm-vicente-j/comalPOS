@@ -5,7 +5,6 @@ import { login } from "@/lib/actions/auth_action";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-import { GetAllStaffUsers } from "@/lib/actions/users";
 
 import {
   InputOTP,
@@ -39,22 +38,9 @@ import { Input } from "@/components/ui/input";
 export default function LoginPage() {
 
   const [pin, setPin] = useState("");
-  const [open, setOpen] = useState(false)
-  const [selectedUser, setSelectedUser] = useState("");
-  const [staffList, setStaffList] = useState<{ id: number, name: string | null }[]>([]);
   const [state, formAction, isPending] = useActionState(login, null);
 
 
-
-  useEffect(() => {
-    async function loadUsers() {
-
-      const users = await GetAllStaffUsers();
-      setStaffList(users);
-
-    }
-    loadUsers();
-  }, []);
 
 
   return (

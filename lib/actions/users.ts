@@ -1,15 +1,12 @@
 "use server";
 import prisma from "../prisma";
 
-export async function   GetAllStaffUsers(){
+export async function   GetAllUsers(){
     try{
         const userList = await prisma.users.findMany(
       {
         select: {id: true, name: true, active: true, role:true},
         orderBy: {name:'asc'},
-        where: {
-          role:{ not: "ADMIN" }
-        }
       }
     );
 
