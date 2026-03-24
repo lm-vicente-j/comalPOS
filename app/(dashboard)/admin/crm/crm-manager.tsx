@@ -49,7 +49,14 @@ export const staffColumns: ColumnDef<User>[] = [
     {
         accessorKey: "active",
         header: "Estado",
-        cell: ({ row }) => (row.original.active ? "Activo" : "Inactivo"),
+        cell: ({ row }) => {
+            const isActive = row.original.active;
+            return (
+                <Badge variant={isActive ? "outline" : "destructive"} className={isActive ? "border-green-600 text-green-600" : ""}>
+                    {isActive ? "Activo" : "Inactivo"}
+                </Badge>
+            );
+        },
     },
 ]
 
