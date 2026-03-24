@@ -36,6 +36,20 @@ import { Customer } from "@/lib/actions/customers";
 
 export const staffColumns: ColumnDef<User>[] = [
     {
+        id: "select",
+        header: () => <div className="pl-1 text-xs font-bold text-muted-foreground">Sel.</div>,
+        cell: ({ row }) => (
+            <Checkbox
+                checked={row.getIsSelected()}
+                onCheckedChange={(value) => row.toggleSelected(!!value)}
+                aria-label="Select row"
+                className="rounded-full"
+            />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+    },
+    {
         accessorKey: "name",
         header: "Nombre",
         cell: ({ row }) => <Badge variant="secondary">{row.original.name}</Badge>,
@@ -61,6 +75,20 @@ export const staffColumns: ColumnDef<User>[] = [
 ]
 
 export const customerColumns: ColumnDef<Customer>[] = [
+        {
+            id: "select",
+            header: () => <div className="pl-1 text-xs font-bold text-muted-foreground">Sel.</div>,
+            cell: ({ row }) => (
+                <Checkbox
+                    checked={row.getIsSelected()}
+                    onCheckedChange={(value) => row.toggleSelected(!!value)}
+                    aria-label="Select row"
+                    className="rounded-full"
+                />
+            ),
+            enableSorting: false,
+            enableHiding: false,
+        },
     {
         accessorKey: "customerName",
         header: "Cliente",
