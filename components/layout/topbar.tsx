@@ -17,19 +17,9 @@ import {
 import { ChevronDown } from 'lucide-react';
 import { useEffect } from 'react';
 import { useState } from 'react';
-import { GetAllStaffUsers } from '@/lib/actions/users';
 
 
 export default function Topbar({ userName }: { userName: string }) {
-  const [staffList, setStaffList] = useState<{ id: number, name: string | null }[]>([]);
-
-  useEffect(() => {
-    async function loadUsers() {
-      const users = await GetAllStaffUsers();
-      setStaffList(users);
-    }
-    loadUsers();
-  }, []);
 
   return (
     <div className='z-20 flex flex-row justify-between h-20 w-screen bg-white font-rounded shadow-sm'>
