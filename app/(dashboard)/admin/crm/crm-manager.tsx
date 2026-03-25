@@ -39,7 +39,8 @@ import {
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User } from "@/lib/actions/schemas";
-import { Customer } from "@/lib/actions/customers";
+import { Customer, saveCustomer } from "@/lib/actions/customers";
+import { saveUser } from "@/lib/actions/users";
 
 
 export const staffColumns: ColumnDef<User>[] = [
@@ -134,9 +135,12 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
     const [listEditing, setListEditing] = useState<"CUSTOMERS" | "STAFF">("CUSTOMERS");
     const currentData = listEditing === "CUSTOMERS" ? customers : staff;
 
-    const [sorting, setSorting] = useState<SortingState>([]);
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+    const [customerSorting, setCustomerSorting] = useState<SortingState>([]);
+    const [customerFilters, setCustomerFilters] = useState<ColumnFiltersState>([]);
+    const [staffSorting, setStaffSorting] = useState<SortingState>([]);
+    const [staffFilters, setStaffFilters] = useState<ColumnFiltersState>([]);
     const [rowSelection, setRowSelection] = useState({});
+
     const [currentItem, setCurrentItem] = useState<any>(null);
 
     const [formData, setFormData] = useState({
@@ -145,6 +149,7 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
         phone: "",
         role: "",
         active: true,
+        pass: "",
     });
 
     const currentColumns = listEditing === "CUSTOMERS" ? customerColumns : staffColumns;
@@ -152,29 +157,29 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
     const customerTable = useReactTable({
         data: customers,
         columns: customerColumns,
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
+        onSortingChange: setCustomerSorting,
+        onColumnFiltersChange: setCustomerFilters,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         onRowSelectionChange: setRowSelection,
         enableMultiRowSelection: false,
-        state: { sorting, columnFilters, rowSelection },
+        state: { sorting: customerSorting, columnFilters: customerFilters, rowSelection },
     });
 
     const staffTable = useReactTable({
         data: staff,
         columns: staffColumns,
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
+        onSortingChange: setStaffSorting,
+        onColumnFiltersChange: setStaffFilters,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         onRowSelectionChange: setRowSelection,
         enableMultiRowSelection: false,
-        state: { sorting, columnFilters, rowSelection },
+        state: { sorting: staffSorting, columnFilters: staffFilters, rowSelection },
     });
 
     useEffect(() => {
@@ -185,9 +190,10 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                 phone: currentItem.phone || "",
                 role: currentItem.role || "",
                 active: currentItem.active ?? true,
+                pass: currentItem.pass || "",
             });
         } else {
-            setFormData({ name: "", customerName: "", phone: "", role: "", active: true });
+            setFormData({ name: "", customerName: "", phone: "", role: "", active: true, pass: "" });
         }
     }, [currentItem]);
 
@@ -195,28 +201,35 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
         setCurrentItem(null);
         customerTable.toggleAllRowsSelected(false);
         staffTable.toggleAllRowsSelected(false);
-        setFormData({ name: "", customerName: "", phone: "", role: "", active: true });
+        setFormData({ name: "", customerName: "", phone: "", role: "", active: true, pass: "", });
     };
 
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        const stringFields = ["name", "customerName", "phone", "measureUnit"];
+        const stringFields = ["name", "customerName", "phone", "pass"];
         setFormData(prev => ({
             ...prev,
-            [name]: stringFields.includes(name) ? value : parseFloat(value) || 0
+            [name]: stringFields.includes(name) ? value : parseFloat(value) || 0,
         }));
     };
 
     const handleSave = async () => {
-        const response = await saveSupply({
-            ...formData,
-            id: currentItem?.id
-        } as any);
-
-        if (response.success) {
-            resetForm();
+        let response;
+        if (listEditing === "CUSTOMERS") {
+            response = await saveCustomer({
+                id: currentItem?.id,
+                customerName: formData.name || formData.customerName,
+                phone: formData.phone,
+            });
         } else {
-            alert(response.error || "Error al guardar");
+            response = await saveUser({
+                id: currentItem?.id,
+                ...formData,
+            });
+        }
+
+        if (response?.success) {
+            resetForm();
         }
     };
 
@@ -374,7 +387,7 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Telefono</label>
-                                    <Input name="phone" type="text" placeholder="XXXX-XXXX-XX" />
+                                    <Input name="phone" type="text" value={formData.phone} onChange={handleInputChange} placeholder="XXXX-XXXX-XX" />
                                 </div>
                                 {/* <div className="flex flex-col gap-2">
                                     <label className="text-xs font-semibold uppercase">NOTA:</label>
@@ -452,11 +465,14 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                             <div className="space-y-4 flex-1">
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Nombre</label>
-                                    <Input name="name" placeholder="Nombre Completo" />
+                                    <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Nombre Completo" />
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Rol</label>
-                                    <Select>
+                                    <Select value={formData.role}
+                                        onValueChange={(value) =>
+                                            setFormData(prev => ({ ...prev, role: value }))
+                                        }>
                                         <SelectTrigger className="w-45">
                                             <SelectValue placeholder="Seleccionar Rol" />
                                         </SelectTrigger>
@@ -469,7 +485,7 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
 
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Constraseña</label>
-                                    <Input name="pass" type="text" placeholder="Contraseña..." />
+                                    <Input name="pass" type="text" value={formData.pass} onChange={handleInputChange} placeholder="Contraseña..." />
                                 </div>
                             </div>
                             <ButtonGroup className="mt-6 flex gap-2 w-full">

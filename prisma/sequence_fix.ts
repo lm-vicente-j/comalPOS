@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 
 async function main() {
-  const tables = ['sales', 'sale_items', 'Supplies', 'Customer', 'Debtors', 'Products'];
+  const tables = ['sales', 'sale_items', 'supplies', 'customer', 'debtors', 'products', 'users'];
 
   console.log("--- Starting Sequence Reset ---");
 
