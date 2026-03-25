@@ -74,6 +74,7 @@ export async function saveCustomer(data: Partial<Customer>){
         }
 
     }catch(e){
+      console.log(e)
       return { success: false, error: "Error on save client" };
     }
 }

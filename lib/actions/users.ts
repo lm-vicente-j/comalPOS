@@ -3,6 +3,7 @@ import { success } from "zod";
 import prisma from "../prisma";
 import { User } from "./schemas";
 import bcrypt from 'bcryptjs';
+import { revalidatePath } from "next/cache";
 
 
 export async function GetAllUsers() {
@@ -23,7 +24,7 @@ export async function GetAllUsers() {
 
 }
 
-export async function saveUser(data: User) {
+export async function saveUser(data: Partial<User>) {
 
 
   try {
@@ -31,24 +32,35 @@ export async function saveUser(data: User) {
 
     // Generate unique username
     const username = name?.toUpperCase().replace(/\s+/g, '');
-    
+
     const hashedPass = await bcrypt.hash(password ?? "", 10);
 
     // TODO: Add pass or pin depending on role
 
-    await prisma.users.upsert({
-        where: { id: id ?? -1 },
-            update: { name, role, active },
-            create: { 
-                name, 
-                role, 
-                active: active ?? true,
-                password: hashedPass, 
-                username: username
-            },
-    });
+    if (id) {
+      await prisma.users.update({
+        where: { id },
+        data: { name, role, active },
+      });
+    } else {
+      await prisma.users.create({
+        data: {
+          name,
+          role,
+          active: active ?? true,
+          password: hashedPass,
+          username,
+        },
+      });
+    }
+
+
+
+    revalidatePath("/admin/crm")
+    return { success: true }
 
   } catch (e) {
+    console.log(e)
     return { success: false, error: "Error on save user" }
   }
 
