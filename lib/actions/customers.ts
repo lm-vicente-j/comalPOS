@@ -1,7 +1,8 @@
 "use server";
 
-import { z } from "zod";
+import { success, z } from "zod";
 import prisma from "../prisma"
+import { revalidatePath } from "next/cache";
 
 
 const CustomerSchema = z.object({
@@ -49,4 +50,30 @@ export async function getAllCustomers() {
         return [];
     }
 
+}
+
+export async function saveCustomer(data: Partial<Customer>){
+    try{
+
+        const {id, customerName, phone} = data;
+
+        await prisma.customer.upsert({
+          where: {id: id ?? -1},
+          update: {customerName, phone},
+          create: {
+            customerName: customerName || "",
+            phone,
+            currentBalance: 0,
+            registeredDate: new Date().toISOString(),
+          }
+        });
+
+        revalidatePath("/admin/crm");
+        return {
+          success: true
+        }
+
+    }catch(e){
+      return { success: false, error: "Error on save client" };
+    }
 }
