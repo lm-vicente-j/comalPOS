@@ -14,6 +14,7 @@ model bill {
   category      String?   @db.VarChar(50)
   date          DateTime? @db.Date
   registered_by Int
+  receiptUrl String?
   users         users     @relation(fields: [registered_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
@@ -117,6 +118,7 @@ model users {
   pin      String?  @db.VarChar(255)
   password String?  @db.VarChar(255)
   role     String?  @db.VarChar(40)
+  registeredAt DateTime? @default(now())
   active   Boolean?
   bill     bill[]
   salary   salary[]
