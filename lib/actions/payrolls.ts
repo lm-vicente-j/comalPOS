@@ -33,3 +33,15 @@ export async function getSalaryHistory(userID: number) {
     return [];
   }
 }
+
+export async function getUserPayrollInfo(userID: number) {
+  try {
+    const user = await prisma.users.findUnique({
+      where: { id: userID },
+      select: { name: true, registeredAt: true }
+    });
+    return user;
+  } catch (error) {
+    return null;
+  }
+}
