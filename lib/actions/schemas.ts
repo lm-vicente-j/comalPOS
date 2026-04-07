@@ -48,7 +48,7 @@ export const RecipesSchema = z.object({
 export const SalarySchema = z.object({
   id: z.number().int(),
   userID: z.number().int(),
-  amount: z.number(),
+  amount: z.coerce.number(),
   payDate: z.date().nullable(),
   period: z.string().nullable(),
 });
