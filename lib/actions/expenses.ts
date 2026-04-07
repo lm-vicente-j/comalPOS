@@ -1,6 +1,7 @@
 "use server";
 import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
+import { BillSchema } from "./schemas";
 
 export async function saveExpense(data: {
   amount: number;
@@ -27,8 +28,9 @@ export async function saveExpense(data: {
 }
 
 export async function getExpenses() {
-  return await prisma.bill.findMany({
+  const rows = await prisma.bill.findMany({
     orderBy: { date: 'desc' },
     include: { users: { select: { name: true } } }
   });
+    return rows.map((row) => BillSchema.parse(row));
 }

@@ -2,6 +2,7 @@
 
 import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
+import { SalarySchema } from "./schemas";
 
 export async function saveSalaryPayment(data: {userID: number ;amount: number; period: string;}) {
   try {
@@ -27,7 +28,8 @@ export async function getSalaryHistory(userID: number) {
       where: { userID },
       orderBy: { payDate: "desc" },
     });
-    return history;
+    return history.map((row) => SalarySchema.parse(row));
+
   } catch (error) {
     console.error(error);
     return [];
