@@ -3,19 +3,9 @@ import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "../auth";
-import { ReceiptEuroIcon } from "lucide-react";
+import { ProductsSchema } from "./schemas";
 
-const ProductSchema = z.object({
-    id: z.number().optional(),
-    name: z.string().min(3, "3 characters min."),
-    price: z.number().positive("The price must be greater than zero."),
-    recipes: z.array(z.object({
-        supplyID: z.number().int(),
-        quantityUsed: z.number().nullable(),
-    })).optional()
-})
-
-export type Product = z.infer<typeof ProductSchema>;
+export type Product = z.infer<typeof ProductsSchema>;
 
 export async function saveProduct(data: Product) {
     // Check role

@@ -2,8 +2,6 @@ import { z } from "zod";
 
 export const SaleStatusSchema = z.enum(["UNPAID", "PAID", "DEBT", "CANCELLED"]);
 export const PaymentMethodSchema = z.enum(["TRANSFER", "CASH"]);
-
-
 export const BillSchema = z.object({
   id: z.number().int(),
   description: z.string().nullable(),
@@ -34,9 +32,13 @@ export const DebtorsSchema = z.object({
 });
 
 export const ProductsSchema = z.object({
-  id: z.number().int(),
-  name: z.string().nullable(),
-  price: z.number(),
+    id: z.number().optional(),
+    name: z.string().min(3, "3 characters min."),
+    price: z.number().positive("The price must be greater than zero."),
+    recipes: z.array(z.object({
+        supplyID: z.number().int(),
+        quantityUsed: z.number().nullable(),
+    })).optional()
 });
 
 export const RecipesSchema = z.object({
@@ -103,3 +105,16 @@ export type SaleItems = z.infer<typeof SaleItemsSchema>;
 export type Sales = z.infer<typeof SalesSchema>;
 export type Supplies = z.infer<typeof SuppliesSchema>;
 export type User = z.infer<typeof UserSchema>;
+
+// Form Schemas
+
+export const CreateProductSchema = z.object({
+  name: z.string().min(2, { message: "Product name must be at least 2 characters." }),
+  price: z.coerce.number().positive({ message: "Price must be a positive number." }),
+});
+
+export const CreateCustomerSchema = z.object({
+  customerName: z.string().min(2, { message: "Customer name is required." }),
+  phone: z.string().min(10, { message: "Phone number must be at least 10 digits." }).optional().or(z.literal("")),
+  alias: z.string().optional(),
+});
