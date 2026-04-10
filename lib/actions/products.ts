@@ -1,30 +1,37 @@
 "use server"
 import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { auth } from "../auth";
-import { ProductsSchema } from "./schemas";
-
-export type Product = z.infer<typeof ProductsSchema>;
+import { ProductSchema, type Product } from "./schemas";
+import z from "zod";
 
 export async function saveProduct(data: Product) {
     // Check role
     const session = await auth();
     const role = session?.user?.role || "NONE";
 
-    if (role != "ADMIN") {
-        return {
-            error: "PERMISSION DENIED"
-        }
-    }
+    if (role != "ADMIN") return { success: false, error: "PERMISSION DENIED" };
 
+    const parsedData = {
+        ...data,
+        price: Number(data.price)
+    };
+
+    const result = ProductSchema.safeParse(parsedData);
+    if (!result.success) {
+        return {
+            success: false,
+            error: "Datos inválidos",
+            fieldErrors: z.flattenError(result.error)
+        };
+    }
 
     let { id, name, price, recipes } = data;
     id = id == undefined ? -1 : id;
 
     try {
         await prisma.products.upsert({
-            where: { id: id},
+            where: { id: id },
             update: {
                 name,
                 price,
@@ -37,7 +44,7 @@ export async function saveProduct(data: Product) {
                 }
             },
             create: {
-                name, 
+                name,
                 price,
                 recipes: {
                     create: recipes?.map(r => ({
@@ -84,7 +91,7 @@ export async function deleteProduct(id: number) {
 export async function getProductsData() {
 
     try {
-         return await prisma.products.findMany({
+        return await prisma.products.findMany({
             include: {
                 recipes: {
                     include: { supplies: true }
