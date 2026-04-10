@@ -2,10 +2,11 @@ import { z } from "zod";
 
 export const SaleStatusSchema = z.enum(["UNPAID", "PAID", "DEBT", "CANCELLED"]);
 export const PaymentMethodSchema = z.enum(["TRANSFER", "CASH"]);
+
 export const BillSchema = z.object({
   id: z.number().int(),
   description: z.string().nullable(),
-  amount: z.number(), // Mapping Decimal to number
+  amount: z.number(),
   category: z.string().nullable(),
   date: z.date().nullable(),
   registered_by: z.number().int(),
@@ -31,7 +32,7 @@ export const DebtorsSchema = z.object({
   paidAt: z.date().nullable(),
 });
 
-export const ProductsSchema = z.object({
+export const ProductSchema = z.object({
     id: z.number().optional(),
     name: z.string().min(3, "3 characters min."),
     price: z.number().positive("The price must be greater than zero."),
@@ -75,12 +76,19 @@ export const SalesSchema = z.object({
   payment_method: z.string().nullable(),
 });
 
-export const SuppliesSchema = z.object({
-  id: z.number().int(),
-  name: z.string().nullable(),
-  measureUnit: z.string().nullable(),
-  currentStock: z.number(),
-  unitCost: z.number(),
+export const SupplySchema = z.object({
+  id: z.number().int().optional(),
+  name: z.string().min(1, "El nombre es requerido"),
+  measureUnit: z.string().min(1, "La unidad es requerida"),
+  currentStock: z.number().nonnegative("El stock no puede ser negativo"),
+  unitCost: z.number().nonnegative("El costo no puede ser negativo"),
+  recipes: z.array(
+    z.object({
+      productID: z.number().int(),
+      supplyID: z.number().int(),
+      quantityUsed: z.number().nullable(), 
+    })
+  ).optional(),
 });
 
 export const UserSchema = z.object({
@@ -98,23 +106,10 @@ export const UserSchema = z.object({
 export type Bill = z.infer<typeof BillSchema>;
 export type Customer = z.infer<typeof CustomerSchema>;
 export type Debtors = z.infer<typeof DebtorsSchema>;
-export type Products = z.infer<typeof ProductsSchema>;
+export type Product = z.infer<typeof ProductSchema>; 
 export type Recipes = z.infer<typeof RecipesSchema>;
 export type Salary = z.infer<typeof SalarySchema>;
 export type SaleItems = z.infer<typeof SaleItemsSchema>;
 export type Sales = z.infer<typeof SalesSchema>;
-export type Supplies = z.infer<typeof SuppliesSchema>;
+export type Supply = z.infer<typeof SupplySchema>; 
 export type User = z.infer<typeof UserSchema>;
-
-// Form Schemas
-
-export const CreateProductSchema = z.object({
-  name: z.string().min(2, { message: "Product name must be at least 2 characters." }),
-  price: z.coerce.number().positive({ message: "Price must be a positive number." }),
-});
-
-export const CreateCustomerSchema = z.object({
-  customerName: z.string().min(2, { message: "Customer name is required." }),
-  phone: z.string().min(10, { message: "Phone number must be at least 10 digits." }).optional().or(z.literal("")),
-  alias: z.string().optional(),
-});

@@ -1,44 +1,30 @@
 "use server"
 import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
-import { success, z } from "zod";
 import { auth } from "../auth";
-
-const SupplySchema = z.object({
-  id: z.number().int().optional(),
-  
-  name: z.string().nullable(),
-  
-  measureUnit: z.string().nullable(),
-  
-  currentStock: z.number(),
-  
-  unitCost: z.number(),
-
-  recipes: z.array(
-    z.object({
-      productID: z.number().int(),
-      supplyID: z.number().int(),
-      quantityUsed: z.number().nullable(), 
-    })
-  ).optional(),
-});
-
-export type Supply = z.infer<typeof SupplySchema>;
+import { SupplySchema, type Supply } from "./schemas";
+import z from "zod";
 
 export async function saveSupply(data: Supply) {
 
     const session = await auth();
     if (session?.user?.role !== "ADMIN") return { success: false,error: "PERMISSION DENIED" };
 
-    data.unitCost = Number(data.unitCost)
-    data.currentStock = Number(data.currentStock)
-    
-    const result = SupplySchema.safeParse(data);
-    console.log(result);
-    if (!result.success) return {  success: false, error: "INVALID DATA" };
-        
+    const parsedData = {
+        ...data,
+        unitCost: Number(data.unitCost),
+        currentStock: Number(data.currentStock)
+    };
 
+    const result = SupplySchema.safeParse(parsedData);
+   if (!result.success) {
+        return {  
+            success: false, 
+            error: "Datos inválidos", 
+            fieldErrors: z.flattenError(result.error).fieldErrors
+        };
+    }
+        
     
 
     const { id, name, measureUnit, currentStock, unitCost } = result.data;
