@@ -15,7 +15,8 @@ import { ButtonGroup } from "@/components/ui/button-group"
 import { ArrowUpDown, ChevronsUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { saveSupply, Supply } from "@/lib/actions/inventory"
+import { saveSupply } from "@/lib/actions/inventory"
+import { type Supply } from "@/lib/actions/schemas"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
@@ -45,8 +46,6 @@ const measureUnits = [
     { value: "Lt", label: "LITRO" },
     { value: "piece", label: "PAQU./PIEZA" },
 ]
-
-
 
 export const columns: ColumnDef<Supply>[] = [
     {
@@ -94,6 +93,10 @@ export function InventoryManager({ data }: { data: Supply[] }) {
     const [rowSelection, setRowSelection] = React.useState({});
     const [currentItem, setCurrentItem] = React.useState<Supply | null>(null);
 
+    // Validation State
+    const [errors, setErrors] = React.useState<Record<string, string[]>>({});
+    const [alert, setAlert] = React.useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
     const [formData, setFormData] = React.useState({
         name: "",
         unitCost: 0,
@@ -101,7 +104,7 @@ export function InventoryManager({ data }: { data: Supply[] }) {
         measureUnit: ""
     });
 
-const table = useReactTable({
+    const table = useReactTable({
         data,
         columns,
         onSortingChange: setSorting,
@@ -122,6 +125,8 @@ const table = useReactTable({
                 currentStock: currentItem.currentStock || 0,
                 measureUnit: currentItem.measureUnit || ""
             });
+            setErrors({});
+            setAlert(null);
         } else {
             setFormData({ name: "", unitCost: 0, currentStock: 0, measureUnit: "" });
         }
@@ -131,6 +136,8 @@ const table = useReactTable({
         setCurrentItem(null);
         table.toggleAllRowsSelected(false);
         setFormData({ name: "", unitCost: 0, currentStock: 0, measureUnit: "" });
+        setErrors({});
+        setAlert(null);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,6 +149,9 @@ const table = useReactTable({
     };
 
     const handleSave = async () => {
+        setErrors({});
+        setAlert(null);
+
         const response = await saveSupply({
             ...formData,
             id: currentItem?.id
@@ -149,6 +159,13 @@ const table = useReactTable({
 
         if (response.success) {
             resetForm();
+            setAlert({ message: "Insumo guardado exitosamente.", type: 'success' });
+            setTimeout(() => setAlert(null), 4000); // Clear after 4 seconds
+        } else {
+            setAlert({ message: response.error || "Ocurrió un error.", type: 'error' });
+            if (response.fieldErrors) {
+                setErrors(response.fieldErrors);
+            }
         }
     };
 
@@ -180,7 +197,6 @@ const table = useReactTable({
                         </TableHeader>
 
                         <TableBody>
-                            
                             {table.getRowModel().rows.map(row => (
                                 <TableRow 
                                     key={row.id} 
@@ -201,13 +217,18 @@ const table = useReactTable({
                                 </TableRow>
                             ))}
                         </TableBody>
-                        
                     </Table>
                 </div>
             </div>
 
             <div className="bg-white flex flex-col w-[30%] h-[90%] border rounded-md p-6 shadow-sm">
                 
+                {alert && (
+                    <div className={`p-3 rounded mb-4 text-sm font-semibold ${alert.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {alert.message}
+                    </div>
+                )}
+
                 <form hidden={!isRowSelected}  className="h-full w-full flex-col flex flex-1 justify-between">
                     <div className="flex flex-col gap-2">
                         <div className="flex flex-row items-center justify-between">
@@ -220,15 +241,18 @@ const table = useReactTable({
                         <div>
                             <label className="text-xs font-semibold uppercase">Nombre</label>
                             <Input name="name" value={formData.name} onChange={handleInputChange} />
+                            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <label className="text-xs font-semibold uppercase">Costo</label>
                                 <Input name="unitCost" type="number" value={formData.unitCost} onChange={handleInputChange} />
+                                {errors.unitCost && <p className="text-red-500 text-xs mt-1">{errors.unitCost[0]}</p>}
                             </div>
                             <div>
                                 <label className="text-xs font-semibold uppercase">Stock</label>
                                 <Input name="currentStock" type="number" value={formData.currentStock} onChange={handleInputChange} />
+                                {errors.currentStock && <p className="text-red-500 text-xs mt-1">{errors.currentStock[0]}</p>}
                             </div>
                         </div>
                     </div>
@@ -249,11 +273,13 @@ const table = useReactTable({
                         <div>
                             <label className="text-xs font-semibold uppercase">Nombre</label>
                             <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Nombre del insumo..." />
+                            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                         </div>
                         <div className="flex flex-row gap-2">
                             <div className="flex-1">
                                 <label className="text-xs font-semibold uppercase">Stock</label>
                                 <Input name="currentStock" type="number" value={formData.currentStock} onChange={handleInputChange} placeholder="0" />
+                                {errors.currentStock && <p className="text-red-500 text-xs mt-1">{errors.currentStock[0]}</p>}
                             </div>
                             <div className="flex-1">
                                 <label className="text-xs font-semibold uppercase">Unidad</label>
@@ -269,7 +295,10 @@ const table = useReactTable({
                                             <CommandList>
                                                 <CommandGroup>
                                                     {measureUnits.map(unit => (
-                                                        <CommandItem key={unit.value} onSelect={() => setFormData(prev => ({ ...prev, measureUnit: unit.value }))}>
+                                                        <CommandItem key={unit.value} onSelect={() => {
+                                                            setFormData(prev => ({ ...prev, measureUnit: unit.value }));
+                                                            setErrors(prev => ({ ...prev, measureUnit: [] }));
+                                                        }}>
                                                             {unit.label}
                                                         </CommandItem>
                                                     ))}
@@ -278,11 +307,13 @@ const table = useReactTable({
                                         </Command>
                                     </PopoverContent>
                                 </Popover>
+                                {errors.measureUnit && <p className="text-red-500 text-xs mt-1">{errors.measureUnit[0]}</p>}
                             </div>
                         </div>
                         <div>
                             <label className="text-xs font-semibold uppercase">Costo Unitario</label>
                             <Input name="unitCost" type="number" value={formData.unitCost} onChange={handleInputChange} placeholder="0.00" />
+                            {errors.unitCost && <p className="text-red-500 text-xs mt-1">{errors.unitCost[0]}</p>}
                         </div>
                     </div>
                     <ButtonGroup className="mt-6 flex gap-2 w-full">
