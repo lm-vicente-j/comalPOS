@@ -118,7 +118,7 @@ export async function createSale(sale_items: { productID: number, quantity: numb
 
         })
     } catch (e) {
-        console.log(e);
+        // console.log(e);
         return { success: false, message: "INTERNAL ERROR" }
     }
 }

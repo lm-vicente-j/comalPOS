@@ -14,12 +14,12 @@ export const BillSchema = z.object({
 });
 
 export const CustomerSchema = z.object({
-  id: z.number().int(),
-  customerName: z.string().nullable(),
-  phone: z.string().nullable(),
+  id: z.number().int().optional(),
+  customerName: z.string().min(1, "El nombre es requerido"),
+  phone: z.string().min(1, "El teléfono es requerido"),
   alias: z.string().nullable(),
   lastConsumption: z.date().nullable(),
-  currentBalance: z.number(),
+  currentBalance: z.number().default(0),
   registeredDate: z.date().nullable(),
 });
 
@@ -92,13 +92,13 @@ export const SupplySchema = z.object({
 });
 
 export const UserSchema = z.object({
-  id: z.number().int(),
-  email: z.string().nullable(),
-  name: z.string().nullable(),
+  id: z.number().int().optional(),
+  email: z.string().email("Email inválido").nullable().or(z.literal("")),
+  name: z.string().min(1, "El nombre es requerido"), 
   username: z.string().nullable(),
   pin: z.string().nullable(),
-  password: z.string().nullable(),
-  role: z.string().nullable(),
+  password: z.string().min(4, "Mínimo 4 caracteres").nullable().or(z.literal("")),
+  role: z.string().min(1, "El rol es requerido"),
   registeredAt: z.date().nullable(),
   active: z.boolean().nullable(),
 });

@@ -135,6 +135,7 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
     const [listEditing, setListEditing] = useState<"CUSTOMERS" | "STAFF">("CUSTOMERS");
     const currentData = listEditing === "CUSTOMERS" ? customers : staff;
 
+
     const [customerSorting, setCustomerSorting] = useState<SortingState>([]);
     const [customerFilters, setCustomerFilters] = useState<ColumnFiltersState>([]);
     const [staffSorting, setStaffSorting] = useState<SortingState>([]);
@@ -213,7 +214,12 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
         }));
     };
 
+    const [errors, setErrors] = useState<Record<string, string[]>>({});
+    const [alert, setAlert] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
     const handleSave = async () => {
+        setErrors({});
+        setAlert(null);
         let response;
         if (listEditing === "CUSTOMERS") {
             response = await saveCustomer({
@@ -230,6 +236,17 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
 
         if (response?.success) {
             resetForm();
+            setAlert({ message: "Guardado exitosamente.", type: 'success' });
+            setTimeout(() => setAlert(null), 4000);
+        } else {
+            setAlert({ message: response?.error || "Error al guardar.", type: 'error' });
+            if (response?.error) {
+                setErrors(
+                    typeof response.error === "string"
+                        ? { general: [response.error] }
+                        : response.error
+                );
+            }
         }
     };
 

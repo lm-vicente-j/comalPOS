@@ -15,10 +15,12 @@ import { ButtonGroup } from "@/components/ui/button-group"
 import { ArrowUpDown, ChevronsUpDown, HamIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { saveSupply, Supply } from "@/lib/actions/inventory"
-import { saveProduct, Product } from "@/lib/actions/products"
+import { saveSupply } from "@/lib/actions/inventory"
+import { saveProduct } from "@/lib/actions/products"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Supply, Product } from "@/lib/actions/schemas"
+
 import {
     CommandInput,
     CommandSeparator,
