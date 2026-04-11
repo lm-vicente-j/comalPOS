@@ -8,7 +8,8 @@ import z from "zod";
 export async function saveSupply(data: Supply) {
 
     const session = await auth();
-    if (session?.user?.role !== "ADMIN") return { success: false,error: "PERMISSION DENIED" };
+    if (session?.user?.role !== "ADMIN") return { success: false, error: "PERMISSION DENIED" };
+
 
     const parsedData = {
         ...data,
@@ -17,6 +18,7 @@ export async function saveSupply(data: Supply) {
     };
 
     const result = SupplySchema.safeParse(parsedData);
+    
    if (!result.success) {
         return {  
             success: false, 

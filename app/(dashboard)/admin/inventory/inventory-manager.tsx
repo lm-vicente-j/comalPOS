@@ -157,6 +157,7 @@ export function InventoryManager({ data }: { data: Supply[] }) {
             id: currentItem?.id
         } as any);
 
+
         if (response.success) {
             resetForm();
             setAlert({ message: "Insumo guardado exitosamente.", type: 'success' });

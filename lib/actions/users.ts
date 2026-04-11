@@ -60,7 +60,7 @@ export async function saveUser(data: Partial<User>) {
     return { success: true }
 
   } catch (e) {
-    console.log(e)
+    // console.log(e)
     return { success: false, error: "Error on save user" }
   }
 
