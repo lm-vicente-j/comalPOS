@@ -86,7 +86,7 @@ export default function ExpensesPage() {
     };
 
     const totalMonth = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
-
+    console.log(expenses);
     return (
         <div className="flex flex-col items-center justify-start w-full h-[calc(100vh-80px)] p-6 gap-6">
 
@@ -97,7 +97,7 @@ export default function ExpensesPage() {
                 </div>
                 <div className="outline rounded-md p-6 bg-white flex flex-col items-center justify-center">
                     <p className="text-muted-foreground text-sm">Último Gasto</p>
-                    <p className="text-2xl font-bold">{expenses[0]?.category || "N/A"}</p>
+                    <p className="text-2xl font-bold">{expenses[0]?.category ?? "---"}</p>
                 </div>
             </div>
 
