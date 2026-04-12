@@ -30,10 +30,13 @@ export default function RosterPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUserID, setSelectedUserID] = useState<string>("");
   const [history, setHistory] = useState<Salary[]>([]);
-  
+
   // Form states
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const [alert, setAlert] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
   // Fetch users on mount
   useEffect(() => {
@@ -50,7 +53,19 @@ export default function RosterPage() {
   const selectedUser = users.find(u => u.id === parseInt(selectedUserID));
 
   const handlePayment = async (type: "ADELANTO" | "BONO" | "SUELDO") => {
-    if (!selectedUserID || !amount) return alert("Seleccione usuario y monto");
+
+    setErrors({});
+    setAlert(null);
+
+
+    if (!selectedUserID) {
+      setErrors({ userID: ["Seleccione un empleado"] });
+      return;
+    }
+    if (!amount) {
+      setErrors({ amount: ["Ingrese un monto"] });
+      return;
+    }
 
     const res = await saveSalaryPayment({
       userID: parseInt(selectedUserID),
@@ -61,30 +76,41 @@ export default function RosterPage() {
     if (res.success) {
       setAmount("");
       setReason("");
-      // Refresh history
+      setAlert({ message: "Pago registrado exitosamente.", type: 'success' });
+      setTimeout(() => setAlert(null), 4000);
       const updatedHistory = await getSalaryHistory(parseInt(selectedUserID));
       setHistory(updatedHistory);
+    } else {
+      setAlert({ message: res.error || "Error al registrar pago.", type: 'error' });
+      if (res.fieldErrors) setErrors(res.fieldErrors);
     }
   };
 
   return (
     <div className="flex items-center justify-center w-full h-full p-4">
       <div className="flex flex-col items-center justify-around h-full outline rounded-md bg-white w-full max-w-6xl p-6">
-        
+
         {/* User Selection */}
         <div className="w-full mb-6">
+          {alert && (
+            <div className={`w-full p-3 rounded mb-2 text-sm font-semibold ${alert.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              {alert.message}
+            </div>
+          )}
           <Select onValueChange={setSelectedUserID} value={selectedUserID}>
             <SelectTrigger className="w-75">
               <SelectValue placeholder="Seleccionar Empleado" />
             </SelectTrigger>
             <SelectContent>
               {users.map((user) => (
-                <SelectItem key={user.id} value={user.id.toString()}>
+                <SelectItem key={user.id} value={user.id?.toString() ?? "no id"}>
                   {user.name} (@{user.username})
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {errors.userID && <p className="text-red-500 text-xs mt-1">{errors.userID[0]}</p>}
+
         </div>
 
         <div className="w-full h-full flex flex-row gap-6">
@@ -93,20 +119,24 @@ export default function RosterPage() {
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <Label>Monto</Label>
-                <Input 
-                  type="number" 
-                  placeholder="$0.00" 
-                  value={amount} 
-                  onChange={(e) => setAmount(e.target.value)} 
+                <Input
+                  type="number"
+                  placeholder="$0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
                 />
+                {errors.amount && <p className="text-red-500 text-xs mt-1">{errors.amount[0]}</p>}
+
               </div>
+
               <div className="flex flex-col gap-2">
                 <Label>Motivo / Descripción</Label>
-                <Input 
-                  placeholder="Ej: Bono por puntualidad" 
-                  value={reason} 
-                  onChange={(e) => setReason(e.target.value)} 
+                <Input
+                  placeholder="Ej: Bono por puntualidad"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
                 />
+                {errors.period && <p className="text-red-500 text-xs mt-1">{errors.period[0]}</p>}
               </div>
             </div>
 

@@ -4,7 +4,17 @@ import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
 import { SalarySchema } from "./schemas";
 
-export async function saveSalaryPayment(data: {userID: number ;amount: number; period: string;}) {
+
+export async function saveSalaryPayment(data: { userID: number; amount: number; period: string; }) {
+  const parsed = SalarySchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Datos inválidos",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
   try {
     await prisma.salary.create({
       data: {

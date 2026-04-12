@@ -22,7 +22,7 @@ export async function saveProduct(data: Product) {
         return {
             success: false,
             error: "Datos inválidos",
-            fieldErrors: z.flattenError(result.error)
+            fieldErrors: z.flattenError(result.error).fieldErrors
         };
     }
 

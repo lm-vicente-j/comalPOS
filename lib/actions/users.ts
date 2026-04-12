@@ -4,6 +4,7 @@ import prisma from "../prisma";
 import { User } from "./schemas";
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from "next/cache";
+import { UserSchema } from "./schemas";
 
 
 export async function GetAllUsers() {
@@ -26,7 +27,18 @@ export async function GetAllUsers() {
 
 export async function saveUser(data: Partial<User>) {
 
-
+if (data.id) {
+        const parsed = UserSchema.pick({ name: true, role: true }).safeParse(data);
+        if (!parsed.success) {
+            return { success: false, error: "Datos inválidos", fieldErrors: parsed.error.flatten().fieldErrors };
+        }
+    } else {
+        const parsed = UserSchema.pick({ name: true, role: true, password: true }).safeParse(data);
+        if (!parsed.success) {
+            return { success: false, error: "Datos inválidos", fieldErrors: parsed.error.flatten().fieldErrors };
+        }
+    }
+  
   try {
     const { id, name, role, active, password, email, pin } = data;
 

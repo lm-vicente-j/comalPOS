@@ -39,7 +39,8 @@ import {
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User } from "@/lib/actions/schemas";
-import { Customer, saveCustomer } from "@/lib/actions/customers";
+import { saveCustomer } from "@/lib/actions/customers";
+import { Customer } from "@/lib/actions/schemas";
 import { saveUser } from "@/lib/actions/users";
 
 
@@ -240,12 +241,8 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
             setTimeout(() => setAlert(null), 4000);
         } else {
             setAlert({ message: response?.error || "Error al guardar.", type: 'error' });
-            if (response?.error) {
-                setErrors(
-                    typeof response.error === "string"
-                        ? { general: [response.error] }
-                        : response.error
-                );
+            if (response?.fieldErrors) {
+                setErrors(response.fieldErrors);
             }
         }
     };
@@ -356,6 +353,11 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                 </Tabs>
             </div>
             <div className="bg-white flex flex-col w-[30%] h-[90%] border rounded-md p-6 shadow-sm">
+                {alert && (
+                    <div className={`p-3 rounded mb-4 text-sm font-semibold ${alert.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {alert.message}
+                    </div>
+                )}
                 {listEditing === "CUSTOMERS" && (
                     <>
                         <form hidden={!isRowSelected} className="h-full w-full flex-col flex flex-1 justify-between">
@@ -370,11 +372,15 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Nombre</label>
                                     <Input name="name" value={formData.customerName} onChange={handleInputChange} />
+                                    {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName[0]}</p>}
+
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
                                         <label className="text-xs font-semibold uppercase">Teléfono</label>
                                         <Input name="phone" type="number" value={formData.phone} onChange={handleInputChange} />
+                                        {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
+
                                     </div>
                                 </div>
 
@@ -401,10 +407,14 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Nombre</label>
                                     <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Nombre Completo" />
+                                    {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName[0]}</p>}
+
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Telefono</label>
                                     <Input name="phone" type="text" value={formData.phone} onChange={handleInputChange} placeholder="XXXX-XXXX-XX" />
+                                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
+
                                 </div>
                                 {/* <div className="flex flex-col gap-2">
                                     <label className="text-xs font-semibold uppercase">NOTA:</label>
@@ -434,6 +444,8 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Nombre</label>
                                     <Input name="name" value={formData.name} onChange={handleInputChange} />
+                                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
+
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Rol</label>
@@ -446,6 +458,8 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                             <SelectItem value="ADMIN">Administrador</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role[0]}</p>}
+
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold uppercase">ACTIVO</label>
@@ -498,11 +512,15 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                             <SelectItem value="ADMIN">Administrador</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role[0]}</p>}
+
                                 </div>
 
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Constraseña</label>
                                     <Input name="pass" type="text" value={formData.pass} onChange={handleInputChange} placeholder="Contraseña..." />
+                                    {errors.pass && <p className="text-red-500 text-xs mt-1">{errors.pass[0]}</p>}
+
                                 </div>
                             </div>
                             <ButtonGroup className="mt-6 flex gap-2 w-full">
