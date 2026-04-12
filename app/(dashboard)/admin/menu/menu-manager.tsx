@@ -97,7 +97,7 @@ export const columns: ColumnDef<any>[] = [
     {
         accessorKey: "stock",
         header: "Stock",
-        cell: ({row}) => <div className="font-medium text-center">0</div>,
+        cell: ({ row }) => <div className="font-medium text-center">0</div>,
     },
     {
         accessorKey: "baseCost",
@@ -180,7 +180,7 @@ function InputSupply({
             setRecipeItems(recipeItems.map(r =>
                 r.supply.id === id ? { ...r, quantityUsed: numQty } : r
             ));
-        } 
+        }
     };
 
     return (
@@ -253,7 +253,7 @@ function InputSupply({
                                         className="h-8 w-20"
                                         value={item.quantityUsed}
                                         onChange={(e) => handleUpdateQuantity(item.supply.id ?? -1, e.target.value)}
-                                        
+
                                     />
                                 </TableCell>
                                 <TableCell className="text-center">
@@ -285,6 +285,8 @@ export function MenuManager({ products, supplies }: MenuProps) {
     const [currentItem, setCurrentItem] = React.useState<any | null>(null);
 
     const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
+    const [alert, setAlert] = React.useState<{ message: string, type: 'success' | 'error' } | null>(null);
+    const [errors, setErrors] = React.useState<Record<string, string[]>>({});
 
     const [formData, setFormData] = React.useState({
         name: "",
@@ -346,20 +348,22 @@ export function MenuManager({ products, supplies }: MenuProps) {
         table.toggleAllRowsSelected(false);
         setFormData({ name: "", price: 0, unitCost: 0, currentStock: 0, measureUnit: "" });
         setRecipeItems([]);
+        setAlert(null);
+        setErrors({});
     };
 
 
     const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         if (name === "unitCost" || name === "price") {
-        const numericValue = parseFloat(value) || 0;
-        const clampedValue = Math.max(totalBaseCost, numericValue);
+            const numericValue = parseFloat(value) || 0;
+            const clampedValue = Math.max(totalBaseCost, numericValue);
 
-        setFormData(prev => ({
-            ...prev,
-            [name]: clampedValue
-        }));
-    }
+            setFormData(prev => ({
+                ...prev,
+                [name]: clampedValue
+            }));
+        }
     }
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -373,36 +377,37 @@ export function MenuManager({ products, supplies }: MenuProps) {
     };
 
     const handleSave = async () => {
-        
-
+        setAlert(null);
+        setErrors({});
 
         if (currentItem) {
-            
-            // EDIT
-            const response = await saveProduct({
-                id: currentItem.id,
-                price: formData.price,
-                name: formData.name,
-                
-            });
-
+            const response = await saveProduct({ id: currentItem.id, price: formData.price, name: formData.name });
             if (response.success) {
                 resetForm();
+                setAlert({ message: "Producto actualizado exitosamente.", type: 'success' });
+                setTimeout(() => setAlert(null), 4000);
+            } else {
+                setAlert({ message: response.error || "Ocurrió un error.", type: 'error' });
+                if (response.fieldErrors) {
+                    setErrors(response.fieldErrors);
+                }
             }
         } else {
-            // CREATE
             const response = await saveProduct({
                 name: formData.name,
                 price: formData.price,
-                recipes: recipeItems.map(item => ({
-                    supplyID: item.supply.id!,
-                    quantityUsed: item.quantityUsed
-                }))
+                recipes: recipeItems.map(item => ({ supplyID: item.supply.id!, quantityUsed: item.quantityUsed }))
             });
-
             if (response.success) {
                 resetForm();
-            } 
+                setAlert({ message: "Producto agregado exitosamente.", type: 'success' });
+                setTimeout(() => setAlert(null), 4000);
+            } else {
+                setAlert({ message: response.error || "Ocurrió un error.", type: 'error' });
+                if (response.fieldErrors) {
+                    setErrors(response.fieldErrors);
+                }
+            }
         }
     };
 
@@ -423,6 +428,7 @@ export function MenuManager({ products, supplies }: MenuProps) {
                         onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
                         className="max-w-sm"
                     />
+
                 </div>
                 <div className="rounded-md border overflow-hidden">
                     <Table>
@@ -463,7 +469,11 @@ export function MenuManager({ products, supplies }: MenuProps) {
             </div>
 
             <div className="bg-white flex flex-col w-[30%] h-[90%] border rounded-md p-6 shadow-sm">
-
+                {alert && (
+                    <div className={`p-3 rounded mb-4 text-sm font-semibold ${alert.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {alert.message}
+                    </div>
+                )}
                 <form hidden={!isRowSelected} className="h-full w-full flex-col flex flex-1 justify-between">
                     <div className="flex flex-col gap-2">
                         <div className="flex flex-row items-center justify-between">
@@ -476,15 +486,20 @@ export function MenuManager({ products, supplies }: MenuProps) {
                         <div>
                             <label className="text-xs font-semibold uppercase">Nombre</label>
                             <Input name="name" value={formData.name} onChange={handleInputChange} />
+                            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
+
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <label className="text-xs font-semibold uppercase">Precio de venta</label>
+                                
                                 <Input name="unitCost" type="number" onBlur={handleInputBlur} value={formData.unitCost} onChange={handleInputChange} />
+                                {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price[0]}</p>}
+
                             </div>
                             <div>
                                 <label className="text-xs font-semibold uppercase">Stock</label>
-                                <Input name="currentStock" type="number" disabled value={formData.currentStock}  />
+                                <Input name="currentStock" type="number" disabled value={formData.currentStock} />
                             </div>
                         </div>
                     </div>
@@ -504,7 +519,9 @@ export function MenuManager({ products, supplies }: MenuProps) {
                     <div className="space-y-4 flex-1">
                         <div>
                             <label className="text-xs font-semibold uppercase">Nombre</label>
-                            <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Nombre del producto..."  />
+                            <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Nombre del producto..." />
+                            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
+
                         </div>
                         <div className="flex flex-col gap-2">
                             <label className="text-xs font-semibold uppercase">Insumos</label>
@@ -545,11 +562,14 @@ export function MenuManager({ products, supplies }: MenuProps) {
                         </div>
                         <div>
                             <label className="text-xs font-semibold uppercase">Precio de Venta</label>
-                            <Input name="unitCost" type="number" value={formData.unitCost} onChange={handleInputChange} placeholder="0.00"  />
+                            <Input name="unitCost" type="number" value={formData.unitCost} onChange={handleInputChange} placeholder="0.00" />
+                                {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price[0]}</p>}
+                        
                         </div>
                     </div>
                     <ButtonGroup className="mt-6 flex gap-2 w-full">
                         <Button type="button" variant="outline" onClick={resetForm} className="cursor-pointer flex-1 rounderd-sm">Limpiar</Button>
+
                         <Button type="button" onClick={handleSave} className="rounderd-sm cursor-pointer" >
                             AGREGAR
                         </Button>

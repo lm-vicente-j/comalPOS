@@ -3,38 +3,8 @@
 import { success, z } from "zod";
 import prisma from "../prisma"
 import { revalidatePath } from "next/cache";
+import { Customer, CustomerSchema } from "./schemas";
 
-
-const CustomerSchema = z.object({
-  id: z.number().int(),
-  customerName: z.string().nullable(),
-  phone: z.string().nullable(),
-  alias: z.string().nullable(),
-  lastConsumption: z.date().nullable().or(z.string()),
-  currentBalance: z.number(),
-  registeredDate: z.date().nullable().or(z.string()),
-
-  debtors: z.array(
-    z.object({
-      id: z.number().int(),
-      saleID: z.number().int().nullable(),
-      amount: z.number(),
-      status: z.string().nullable(),
-    })
-  ).optional(),
-
-  sales: z.array(
-    z.object({
-      id: z.number().int(),
-      total: z.number().nullable(),
-      status: z.string().nullable(),
-      source_type: z.string().nullable(),
-      createdAt: z.date().nullable().or(z.string()),
-    })
-  ).optional(),
-});
-
-export type Customer = z.infer<typeof CustomerSchema>;
 
 export async function getAllCustomers() {
 
@@ -53,15 +23,26 @@ export async function getAllCustomers() {
 }
 
 export async function saveCustomer(data: Partial<Customer>){
-    try{
 
-        const {id, customerName, phone} = data;
+    const parsed = CustomerSchema.pick({ customerName: true, phone: true }).safeParse(data);
+
+    if (!parsed.success) {
+    return { 
+        success: false, 
+        error: "Datos inválidos",
+        fieldErrors: parsed.error.flatten().fieldErrors 
+    };
+}
+
+    try{
+        const { id } = data;
+        const { customerName, phone } = parsed.data;
 
         await prisma.customer.upsert({
           where: {id: id ?? -1},
           update: {customerName, phone},
           create: {
-            customerName: customerName || "",
+            customerName,
             phone,
             currentBalance: 0,
             registeredDate: new Date().toISOString(),
@@ -69,12 +50,9 @@ export async function saveCustomer(data: Partial<Customer>){
         });
 
         revalidatePath("/admin/crm");
-        return {
-          success: true
-        }
+        return { success: true }
 
     }catch(e){
-      // console.log(e)
       return { success: false, error: "Error on save client" };
     }
 }
