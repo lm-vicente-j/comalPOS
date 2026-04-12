@@ -14,6 +14,7 @@ export const BillSchema = z.object({
   .transform((val) => Number(val)),
   date: z.date({ message: "La fecha es requerida" }),
   registered_by: z.number().int(),
+  category: z.string().optional(),
   receiptUrl: z.string().min(1, "La URL del recibo es requerida").nullable(),
 });
 
