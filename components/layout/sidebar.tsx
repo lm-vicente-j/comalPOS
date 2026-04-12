@@ -55,7 +55,6 @@ const MODULES: NavModule[] = [
     sub: [
       { name: 'Deudores', href: '/debtors', role: ['ADMIN', 'STAFF'], icon: BanknoteIcon },
       { name: 'Inventario', href: '/admin/inventory', role: ['ADMIN'], icon: ArchiveIcon },
-      { name: 'Proveedores', href: '/admin/suppliers', role: ['ADMIN'], icon: TruckIcon, flag: "BETA" },
       { name: 'Menu', href: '/admin/menu', role: ['ADMIN'], icon: UtensilsIcon },
       { name: 'CRM', href: '/admin/crm', role: ['ADMIN'], icon: UserRoundIcon },
     ]
@@ -81,7 +80,7 @@ const MODULES: NavModule[] = [
     icon: WalletIcon,
     sub: [
       { name: 'Salarios', href: '/admin/roster', role: ['ADMIN'], icon: HandCoinsIcon },
-      { name: 'Ahorros', href: '/admin/savings', role: ['ADMIN'], icon: PiggyBankIcon, flag: "BETA" },
+      { name: 'Ahorros', href: '/admin/savings', role: ['ADMIN'], icon: PiggyBankIcon },
       { name: 'Egresos', href: '/expenses', role: ['ADMIN', 'STAFF'], icon: BanknoteArrowDownIcon },
       { name: 'Estadísticas', href: '/admin/statistics', role: ['ADMIN'], icon: ChartBarIcon, flag: "BETA" },
     ]
