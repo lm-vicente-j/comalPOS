@@ -14,10 +14,8 @@ import {
     type SortingState,
 } from "@tanstack/react-table"
 import { ButtonGroup } from "@/components/ui/button-group"
-import { ArrowUpDown, ChevronsUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { saveSupply } from "@/lib/actions/inventory"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
@@ -31,17 +29,14 @@ import {
 import {
     Field,
     FieldContent,
-    FieldDescription,
-    FieldGroup,
     FieldLabel,
-    FieldTitle,
 } from "@/components/ui/field"
-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User } from "@/lib/actions/schemas";
 import { saveCustomer } from "@/lib/actions/customers";
 import { Customer } from "@/lib/actions/schemas";
 import { saveUser } from "@/lib/actions/users";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 
 export const staffColumns: ColumnDef<User>[] = [
@@ -63,7 +58,6 @@ export const staffColumns: ColumnDef<User>[] = [
         accessorKey: "name",
         header: "Nombre",
         cell: ({ row }) => <Badge variant="secondary">{row.original.name}</Badge>,
-
     },
     {
         accessorKey: "role",
@@ -109,33 +103,29 @@ export const customerColumns: ColumnDef<Customer>[] = [
         header: "Teléfono",
         cell: ({ row }) => {
             const number = row.original.phone;
-
             const formatted = number?.replace(/(\d{3})(\d{3})(\d{3})(\d{1})/, "$1-$2-$3-$4");
-
-            return (
-                <div className="font-medium">{formatted}</div>
-            );
+            return <div className="font-medium">{formatted}</div>;
         },
-
     },
     {
         accessorKey: "currentBalance",
         header: () => <div className="text-right">Saldo</div>,
         cell: ({ row }) => {
             const balance = parseFloat(row.getValue("currentBalance") || "0");
-            return <div className={`text-right font-mono ${balance > 0 ? 'text-red-500' : 'text-green-600'}`}>
-                ${balance.toFixed(2)}
-            </div>;
+            return (
+                <div className={`text-right font-mono ${balance > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                    ${balance.toFixed(2)}
+                </div>
+            );
         },
     },
 ]
 
 
-export default function CRMMAngaer({ customers, staff }: { customers: Customer[], staff: User[] }) {
+export default function CRMManager({ customers, staff }: { customers: Customer[], staff: User[] }) {
 
+    const [pin, setPin] = useState("");
     const [listEditing, setListEditing] = useState<"CUSTOMERS" | "STAFF">("CUSTOMERS");
-    const currentData = listEditing === "CUSTOMERS" ? customers : staff;
-
 
     const [customerSorting, setCustomerSorting] = useState<SortingState>([]);
     const [customerFilters, setCustomerFilters] = useState<ColumnFiltersState>([]);
@@ -145,16 +135,16 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
 
     const [currentItem, setCurrentItem] = useState<any>(null);
 
+    // FIX: use `password` and `pin` to match UserSchema field names
     const [formData, setFormData] = useState({
         name: "",
         customerName: "",
         phone: "",
         role: "",
         active: true,
-        pass: "",
+        password: "",
+        pin: "",
     });
-
-    const currentColumns = listEditing === "CUSTOMERS" ? customerColumns : staffColumns;
 
     const customerTable = useReactTable({
         data: customers,
@@ -185,6 +175,8 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
     });
 
     useEffect(() => {
+        setPin("");
+
         if (currentItem) {
             setFormData({
                 name: currentItem.name || "",
@@ -192,10 +184,12 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                 phone: currentItem.phone || "",
                 role: currentItem.role || "",
                 active: currentItem.active ?? true,
-                pass: currentItem.pass || "",
+                password: currentItem.password || "",
+                pin: currentItem.pin || "",
             });
+            setPin(currentItem.pin || "");
         } else {
-            setFormData({ name: "", customerName: "", phone: "", role: "", active: true, pass: "" });
+            setFormData({ name: "", customerName: "", phone: "", role: "", active: true, password: "", pin: "" });
         }
     }, [currentItem]);
 
@@ -203,12 +197,13 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
         setCurrentItem(null);
         customerTable.toggleAllRowsSelected(false);
         staffTable.toggleAllRowsSelected(false);
-        setFormData({ name: "", customerName: "", phone: "", role: "", active: true, pass: "", });
+        setFormData({ name: "", customerName: "", phone: "", role: "", active: true, password: "", pin: "" });
+        setPin("");
     };
 
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        const stringFields = ["name", "customerName", "phone", "pass"];
+        const stringFields = ["name", "customerName", "phone", "password", "pin"];
         setFormData(prev => ({
             ...prev,
             [name]: stringFields.includes(name) ? value : parseFloat(value) || 0,
@@ -231,7 +226,11 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
         } else {
             response = await saveUser({
                 id: currentItem?.id,
-                ...formData,
+                name: formData.name,
+                role: formData.role,
+                active: formData.active,
+                password: formData.role === "STAFF" ? null : formData.password,
+                pin: formData.role === "STAFF" ? pin : null,
             });
         }
 
@@ -249,8 +248,36 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
 
     const isRowSelected = (listEditing === "CUSTOMERS" ? customerTable : staffTable)
         .getSelectedRowModel().rows.length > 0;
-    return (
 
+    const PasswordField = () => (
+        <div>
+            <label className="text-xs font-semibold uppercase">Contraseña</label>
+            {formData.role === "STAFF" ? (
+                <>
+                    <input type="hidden" name="pin" value={pin} />
+                    <InputOTP maxLength={4} value={pin} onChange={(v) => {
+                        setPin(v);
+                        setFormData(prev => ({ ...prev, pin: v }));
+                    }}>
+                        <InputOTPGroup>
+                            <InputOTPSlot index={0} />
+                            <InputOTPSlot index={1} />
+                            <InputOTPSlot index={2} />
+                            <InputOTPSlot index={3} />
+                        </InputOTPGroup>
+                    </InputOTP>
+                    {errors.pin && <p className="text-red-500 text-xs mt-1">{errors.pin[0]}</p>}
+                </>
+            ) : (
+                <>
+                    <Input name="password" type="password" value={formData.password} onChange={handleInputChange} placeholder="Contraseña..." />
+                    {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password[0]}</p>}
+                </>
+            )}
+        </div>
+    );
+
+    return (
         <div className="flex flex-row items-center justify-around w-full h-full gap-4 p-4">
             <div className="bg-white flex flex-col w-[70%] h-[90%] border rounded-md p-5 shadow-sm">
                 <Tabs defaultValue="customers" className="w-100%">
@@ -258,7 +285,7 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                         <TabsTrigger onClick={() => { setListEditing("CUSTOMERS"); resetForm(); }} className="cursor-pointer" value="customers">Clientes</TabsTrigger>
                         <TabsTrigger onClick={() => { setListEditing("STAFF"); resetForm(); }} className="cursor-pointer" value="STAFF">Empleados</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="customers" className="">
+                    <TabsContent value="customers">
                         <div className="flex w-full items-center py-4">
                             <Input
                                 placeholder="Buscar cliente..."
@@ -352,12 +379,14 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                     </TabsContent>
                 </Tabs>
             </div>
+
             <div className="bg-white flex flex-col w-[30%] h-[90%] border rounded-md p-6 shadow-sm">
                 {alert && (
                     <div className={`p-3 rounded mb-4 text-sm font-semibold ${alert.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                         {alert.message}
                     </div>
                 )}
+
                 {listEditing === "CUSTOMERS" && (
                     <>
                         <form hidden={!isRowSelected} className="h-full w-full flex-col flex flex-1 justify-between">
@@ -371,30 +400,19 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                             <div className="space-y-4 mt-6 flex-1">
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Nombre</label>
-                                    <Input name="name" value={formData.customerName} onChange={handleInputChange} />
+                                    {/* FIX: was binding name="name" but reading formData.customerName */}
+                                    <Input name="customerName" value={formData.customerName} onChange={handleInputChange} />
                                     {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName[0]}</p>}
-
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label className="text-xs font-semibold uppercase">Teléfono</label>
-                                        <Input name="phone" type="number" value={formData.phone} onChange={handleInputChange} />
-                                        {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
-
-                                    </div>
+                                <div>
+                                    <label className="text-xs font-semibold uppercase">Teléfono</label>
+                                    <Input name="phone" type="text" value={formData.phone} onChange={handleInputChange} />
+                                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
                                 </div>
-
-                                {/* <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-semibold uppercase">NOTA:</label>
-                                    <textarea name="" id="" className="outline p-2 rounded-md h-30"></textarea>
-                                </div> */}
-
                             </div>
                             <ButtonGroup className="mt-6 flex gap-2 w-full">
                                 <Button type="button" variant="outline" onClick={resetForm} className="flex-1 cursor-pointer">Cancelar</Button>
-                                <Button type="button" onClick={handleSave} className="rounderd-sm cursor-pointer">
-                                    Actualizar
-                                </Button>
+                                <Button type="button" onClick={handleSave} className="rounded-sm cursor-pointer">Actualizar</Button>
                             </ButtonGroup>
                         </form>
 
@@ -408,28 +426,21 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                     <label className="text-xs font-semibold uppercase">Nombre</label>
                                     <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Nombre Completo" />
                                     {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName[0]}</p>}
-
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold uppercase">Telefono</label>
+                                    <label className="text-xs font-semibold uppercase">Teléfono</label>
                                     <Input name="phone" type="text" value={formData.phone} onChange={handleInputChange} placeholder="XXXX-XXXX-XX" />
                                     {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
-
                                 </div>
-                                {/* <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-semibold uppercase">NOTA:</label>
-                                    <textarea name="note" id="" className="outline p-2 rounded-md h-30"></textarea>
-                                </div> */}
                             </div>
                             <ButtonGroup className="mt-6 flex gap-2 w-full">
-                                <Button type="button" variant="outline" onClick={resetForm} className="cursor-pointer flex-1 rounderd-sm">Limpiar</Button>
-                                <Button type="button" onClick={handleSave} className="rounderd-sm cursor-pointer" >
-                                    Registrar Nuevo Cliente
-                                </Button>
+                                <Button type="button" variant="outline" onClick={resetForm} className="cursor-pointer flex-1 rounded-sm">Limpiar</Button>
+                                <Button type="button" onClick={handleSave} className="rounded-sm cursor-pointer">Registrar Nuevo Cliente</Button>
                             </ButtonGroup>
                         </form>
                     </>
                 )}
+
                 {listEditing === "STAFF" && (
                     <>
                         <form hidden={!isRowSelected} className="h-full w-full flex-col flex flex-1 justify-between">
@@ -445,7 +456,6 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                     <label className="text-xs font-semibold uppercase">Nombre</label>
                                     <Input name="name" value={formData.name} onChange={handleInputChange} />
                                     {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
-
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Rol</label>
@@ -459,32 +469,27 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                         </SelectContent>
                                     </Select>
                                     {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role[0]}</p>}
-
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold uppercase">ACTIVO</label>
+                                    <label className="text-xs font-semibold uppercase">Activo</label>
                                     <Field orientation="horizontal">
                                         <Checkbox
-
                                             name="active"
-                                            checked={formData.active}                                          // ← was defaultChecked
+                                            checked={formData.active}
                                             onCheckedChange={(value) =>
                                                 setFormData(prev => ({ ...prev, active: !!value }))
                                             }
                                         />
                                         <FieldContent>
-                                            <FieldLabel htmlFor="terms-checkbox-2">
-                                                Usuario habilitado en sistema
-                                            </FieldLabel>
+                                            <FieldLabel>Usuario habilitado en sistema</FieldLabel>
                                         </FieldContent>
                                     </Field>
                                 </div>
+                                <PasswordField />
                             </div>
                             <ButtonGroup className="mt-6 flex gap-2 w-full">
                                 <Button type="button" variant="outline" onClick={resetForm} className="flex-1 cursor-pointer">Cancelar</Button>
-                                <Button type="button" onClick={handleSave} className="rounderd-sm cursor-pointer">
-                                    Actualizar
-                                </Button>
+                                <Button type="button" onClick={handleSave} className="rounded-sm cursor-pointer">Actualizar</Button>
                             </ButtonGroup>
                         </form>
 
@@ -497,13 +502,11 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Nombre</label>
                                     <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="Nombre Completo" />
+                                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Rol</label>
-                                    <Select value={formData.role}
-                                        onValueChange={(value) =>
-                                            setFormData(prev => ({ ...prev, role: value }))
-                                        }>
+                                    <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
                                         <SelectTrigger className="w-45">
                                             <SelectValue placeholder="Seleccionar Rol" />
                                         </SelectTrigger>
@@ -513,28 +516,17 @@ export default function CRMMAngaer({ customers, staff }: { customers: Customer[]
                                         </SelectContent>
                                     </Select>
                                     {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role[0]}</p>}
-
                                 </div>
-
-                                <div>
-                                    <label className="text-xs font-semibold uppercase">Constraseña</label>
-                                    <Input name="pass" type="text" value={formData.pass} onChange={handleInputChange} placeholder="Contraseña..." />
-                                    {errors.pass && <p className="text-red-500 text-xs mt-1">{errors.pass[0]}</p>}
-
-                                </div>
+                                <PasswordField />
                             </div>
                             <ButtonGroup className="mt-6 flex gap-2 w-full">
-                                <Button type="button" variant="outline" onClick={resetForm} className="cursor-pointer flex-1 rounderd-sm">Limpiar</Button>
-                                <Button type="button" onClick={handleSave} className="rounderd-sm cursor-pointer" >
-                                    Registrar Nuevo Empleado
-                                </Button>
+                                <Button type="button" variant="outline" onClick={resetForm} className="cursor-pointer flex-1 rounded-sm">Limpiar</Button>
+                                <Button type="button" onClick={handleSave} className="rounded-sm cursor-pointer">Registrar Nuevo Empleado</Button>
                             </ButtonGroup>
                         </form>
                     </>
                 )}
             </div>
         </div>
-
-
     );
 }

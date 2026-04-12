@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { nullable, z } from "zod";
 import { Decimal
 
  } from "@prisma/client/runtime/client";
@@ -58,8 +58,8 @@ export const DebtorsSchema = z.object({
 
 export const ProductSchema = z.object({
     id: z.number().optional(),
-    name: z.string().min(3, "3 characters min."),
-    price: z.number().positive("The price must be greater than zero."),
+    name: z.string().min(3, "Minimo 3 carácteres."),
+    price: z.number().positive("El precio debe ser mayor de cero."),
     recipes: z.array(z.object({
         supplyID: z.number({ message: "El ID del insumo es requerido" }).int(),
         quantityUsed: z.number({ message: "La cantidad usada es requerida" }),
@@ -105,7 +105,7 @@ export const SupplySchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
   measureUnit: z.string().min(1, "La unidad es requerida"),
   currentStock: z.number({ message: "El stock actual es requerido" }).nonnegative("El stock no puede ser negativo"),
-  unitCost: z.number({ message: "El costo unitario es requerido" }).nonnegative("El costo no puede ser negativo"),
+  unitCost: z.number({ message: "El costo unitario es requerido" }).nonnegative("El costo no puede ser negativo").min(1, "El costo unitario no puede ser cero."),
   recipes: z.array(
     z.object({
       productID: z.number({ message: "El ID del producto es requerido" }).int(),
@@ -117,10 +117,10 @@ export const SupplySchema = z.object({
 
 export const UserSchema = z.object({
   id: z.number().int().optional(),
-  email: z.string().email("Email inválido").nullable().or(z.literal("")),
-  name: z.string().min(1, "El nombre es requerido"),
+  email: z.string().nullable().or(z.literal("")),
+  name: z.string().min(3, "El nombre es requerido"),
   username: z.string().min(1, "El nombre de usuario es requerido"),
-  pin: z.string().min(1, "El PIN es requerido"),
+  pin: z.string().min(1, "El PIN es requerido").nullable(),
   password: z.string().min(4, "Mínimo 4 caracteres").nullable().or(z.literal("")),
   role: z.string().min(1, "El rol es requerido"),
   registeredAt: z.date({ message: "La fecha de registro es requerida" }),
