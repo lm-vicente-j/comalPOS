@@ -43,8 +43,8 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { closeAccountAction } from "@/lib/actions/sales";
-import { Customer } from "@/lib/actions/customers";
 import { Sale } from "@/lib/actions/sales";
+import { Customer } from "@/lib/actions/schemas";
 
 interface SalesInputProps {
     currentCustomerSales: Sale[];

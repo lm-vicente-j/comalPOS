@@ -7,10 +7,10 @@ import DataTable from "./date-table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import { Product } from "@/lib/actions/products";
+import { Product } from "@/lib/actions/schemas";
 import { Sale } from "@/lib/actions/sales";
 import { SalesRow } from "./saleRow";
-import { Customer } from "@/lib/actions/customers";
+import { Customer } from "@/lib/actions/schemas";
 
 interface PosManagerProps {
     products: Product[];
