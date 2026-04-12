@@ -3,15 +3,17 @@
 import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
 import { SalarySchema } from "./schemas";
-
+import z from "zod";
 
 export async function saveSalaryPayment(data: { userID: number; amount: number; period: string; }) {
-  const parsed = SalarySchema.safeParse(data);
+  
+  const parsed = SalarySchema.omit({ id: true, payDate: true }).safeParse(data);
+  
   if (!parsed.success) {
     return {
       success: false,
       error: "Datos inválidos",
-      fieldErrors: parsed.error.flatten().fieldErrors,
+      fieldErrors: z.flattenError(parsed.error).fieldErrors
     };
   }
 
