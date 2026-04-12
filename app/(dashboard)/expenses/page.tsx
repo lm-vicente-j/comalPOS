@@ -25,6 +25,9 @@ export default function ExpensesPage() {
     const [description, setDescription] = useState("");
     const [date, setDate] = useState<Date>(new Date());
 
+    const [errors, setErrors] = useState<Record<string, string[]>>({});
+    const [alert, setAlert] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
     const fetchData = async () => {
         const data = await getExpenses();
         setExpenses(data);
@@ -34,8 +37,29 @@ export default function ExpensesPage() {
         fetchData();
     }, []);
 
+    const resetForm = () => {
+        setAmount("");
+        setDescription("");
+        setCategory("");
+        setDate(new Date());
+        setErrors({});
+    };
+
     const handleSave = async () => {
-        if (!amount || !category) return alert("Complete los campos obligatorios");
+        setErrors({});
+        setAlert(null);
+
+        const localErrors: Record<string, string[]> = {};
+        if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0)
+            localErrors.amount = ["Ingrese un monto válido mayor a 0."];
+        if (!category)
+            localErrors.category = ["Seleccione una categoría."];
+
+        if (Object.keys(localErrors).length > 0) {
+            setErrors(localErrors);
+            setAlert({ message: "Corrija los campos marcados.", type: "error" });
+            return;
+        }
 
         setLoading(true);
         const res = await saveExpense({
@@ -43,23 +67,30 @@ export default function ExpensesPage() {
             category,
             description,
             date: date || new Date(),
-            registered_by: 1, // You should get this from your auth session
+            registered_by: 1,
         });
 
         if (res.success) {
-            setAmount("");
-            setDescription("");
-            setCategory("");
+            resetForm();
+            setAlert({ message: "Gasto guardado exitosamente.", type: "success" });
+            setTimeout(() => setAlert(null), 4000);
             fetchData();
+        } else {
+            setAlert({ message: res.error || "Error al guardar el gasto.", type: "error" });
+            if (res.fieldErrors) {
+                setErrors(res.fieldErrors);
+            }
         }
+
         setLoading(false);
     };
 
     const totalMonth = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
 
     return (
-        <div className="flex flex-col items-center justify-around w-full h-full p-6 gap-6">
-            <div className="grid grid-cols-2 gap-4 w-full max-w-6xl">
+        <div className="flex flex-col items-center justify-start w-full h-[calc(100vh-80px)] p-6 gap-6">
+
+            <div className="grid grid-cols-2 gap-4 w-full max-w-6xl shrink-0">
                 <div className="outline rounded-md p-6 bg-white flex flex-col items-center justify-center">
                     <p className="text-muted-foreground text-sm">Gastos Totales Registrados</p>
                     <p className="text-3xl font-bold text-red-600">${totalMonth.toFixed(2)}</p>
@@ -70,58 +101,97 @@ export default function ExpensesPage() {
                 </div>
             </div>
 
-            <div className="flex flex-row w-full max-w-6xl h-150 rounded-md border p-6 bg-white gap-6">
-                <div className="flex flex-col gap-5 w-1/2">
-                    <h2 className="text-lg font-bold">Registrar Nuevo Gasto</h2>
-                    <div className="space-y-4">
-                        <div className="flex flex-col gap-2">
-                            <Label>Monto</Label>
-                            <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label>Categoría</Label>
-                            <Select onValueChange={setCategory} value={category}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccionar categoría" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Insumos">Insumos</SelectItem>
-                                    <SelectItem value="Servicios">Servicios (Luz/Agua)</SelectItem>
-                                    <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
-                                    <SelectItem value="Otros">Otros</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label>Descripción</Label>
-                            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalle del gasto..." />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label>Fecha</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className={cn("justify-start text-left font-normal", !date && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {date ? format(date, "PPP") : <span>Seleccionar fecha</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
+            <div className="flex flex-row w-full max-w-6xl flex-1 min-h-0 rounded-md border p-6 bg-white gap-6 overflow-hidden">
+                <div className="flex flex-col gap-4 w-1/2 h-full min-h-0">
+
+                    <div className="flex justify-between items-center shrink-0">
+                        <h2 className="text-lg font-bold">Registrar Nuevo Gasto</h2>
+                        <Button className="cursor-pointer" onClick={handleSave} disabled={loading} size="sm">
+                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Guardar Gasto
+                        </Button>
                     </div>
-                    <Button onClick={handleSave} disabled={loading} className="mt-4">
-                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Guardar Gasto
-                    </Button>
+
+
+
+                    <ScrollArea className="flex-1 pr-4">
+                        <div className="space-y-4">
+                            <div className="flex flex-col gap-2 w-full px-1">
+                                <Label>Monto</Label>
+                                <Input
+                                    type="number"
+                                    value={amount}
+                                    onChange={(e) => setAmount(e.target.value)}
+                                    placeholder="0.00"
+                                    className={errors.amount ? "border-red-500 focus-visible:ring-red-500" : ""}
+                                />
+                                <p className="text-red-500 text-xs mt-1 h-4">{errors.amount ? errors.amount[0] : ""}</p>
+                            </div>
+
+                            <div className="flex flex-col gap-2 px-1">
+                                <Label>Categoría</Label>
+                                <Select onValueChange={setCategory} value={category}>
+                                    <SelectTrigger
+                                        className={errors.category ? "border-red-500 focus-visible:ring-red-500" : ""}
+                                    >
+                                        <SelectValue placeholder="Seleccionar categoría" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Insumos">Insumos</SelectItem>
+                                        <SelectItem value="Servicios">Servicios (Luz/Agua)</SelectItem>
+                                        <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
+                                        <SelectItem value="Otros">Otros</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-red-500 text-xs mt-1 h-4">{errors.category ? errors.category[0] : ""}</p>
+                            </div>
+
+                            <div className="flex flex-col gap-2 px-1">
+                                <Label>Descripción</Label>
+                                <Input
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    placeholder="Detalle del gasto..."
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <Label>Fecha</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className={cn(
+                                                "justify-start text-left font-normal",
+                                                !date && "text-muted-foreground",
+                                                errors.date && "border-red-500"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {date ? format(date, "PPP") : <span>Seleccionar fecha</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <Calendar
+                                            mode="single"
+                                            selected={date}
+                                            onSelect={(d) => d && setDate(d)}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                <p className="text-red-500 text-xs mt-1 h-4">{errors.date ? errors.date[0] : ""}</p>
+                            </div>
+                        </div>
+                    </ScrollArea>
                 </div>
 
                 <Separator orientation="vertical" />
 
-                <div className="w-1/2 flex flex-col">
-                    <h2 className="text-lg font-bold mb-4">Historial de Gastos</h2>
-                    <ScrollArea className="flex-1">
+                <div className="w-1/2 flex flex-col h-full min-h-0">
+
+                    <h2 className="text-lg font-bold mb-4 shrink-0">Historial de Gastos</h2>
+                    <ScrollArea className="flex-1 pr-4">
                         <Table>
                             <TableHeader>
                                 <TableRow>

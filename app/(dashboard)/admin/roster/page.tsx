@@ -141,9 +141,9 @@ export default function RosterPage() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <Button onClick={() => handlePayment("ADELANTO")} variant="outline">Adelantar Sueldo</Button>
-              <Button onClick={() => handlePayment("BONO")} className="bg-amber-500 hover:bg-amber-400">Otorgar Bono</Button>
-              <Button onClick={() => handlePayment("SUELDO")}>Registrar Pago de Sueldo</Button>
+              <Button onClick={() => handlePayment("ADELANTO")} className="cursor-pointer" variant="outline">Adelantar Sueldo</Button>
+              <Button onClick={() => handlePayment("BONO")} className="cursor-pointer bg-amber-500 hover:bg-amber-400">Otorgar Bono</Button>
+              <Button onClick={() => handlePayment("SUELDO")} className="cursor-pointer" >Registrar Pago de Sueldo</Button>
             </div>
           </div>
 
