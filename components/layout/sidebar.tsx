@@ -5,9 +5,7 @@ import { useStore } from '@/lib/store';
 
 import {
   CalculatorIcon,
-  PackageCheckIcon,
   ArchiveIcon,
-  TruckIcon,
   BrainCircuitIcon,
   UserRoundIcon,
   UtensilsIcon,
@@ -18,9 +16,12 @@ import {
   LineChartIcon,
   TargetIcon,
   ClipboardListIcon,
-  CpuIcon, PiggyBankIcon, HandCoinsIcon,
+  CpuIcon, 
+  PiggyBankIcon, 
+  HandCoinsIcon,
   LucideIcon,
-  BanknoteArrowDownIcon
+  BanknoteArrowDownIcon,
+  PackageCheckIcon
 } from 'lucide-react';
 
 interface SubModule {
@@ -65,13 +66,12 @@ const MODULES: NavModule[] = [
     role: ["ADMIN"],
     icon: BrainCircuitIcon,
     sub: [
-      { name: 'Motor de Análisis', href: '/admin/analysis/engine', role: ['ADMIN'], icon: CpuIcon }, // Interfaz para el motor
-      { name: 'Predicciones', href: '/admin/analysis/predictions', role: ['ADMIN'], icon: LineChartIcon }, // Resultados del modelo
-      { name: 'Validación', href: '/admin/analysis/accuracy', role: ['ADMIN'], icon: TargetIcon }, // Comparativa Real vs Predicción
-      { name: 'Suministro Sugerido', href: '/admin/analysis/supply', role: ['ADMIN'], icon: PackageCheckIcon }, // Aplicación práctica
+      { name: 'Motor de Análisis', href: '/admin/analysis/engine', role: ['ADMIN'], icon: CpuIcon },
+      { name: 'Predicciones', href: '/admin/analysis/predictions', role: ['ADMIN'], icon: LineChartIcon },
+      { name: 'Validación', href: '/admin/analysis/accuracy', role: ['ADMIN'], icon: TargetIcon },
+      { name: 'Suministro Sugerido', href: '/admin/analysis/supply', role: ['ADMIN'], icon: PackageCheckIcon },
     ],
     flag: "BETA"
-
   },
   {
     name: 'Finanzas',
@@ -95,11 +95,11 @@ export default function Sidebar({ userRole }: { userRole: string }) {
   const setSubMenu = useStore((state) => state.setSubMenu);
 
   const allowedModules = MODULES.filter(m => m.role.includes(userRole));
-
   const activeParent = allowedModules.find(m => m.name === subMenu);
 
   return (
-    <div className='z-10 flex flex-col items-center w-25   h-screen bg-white shadow-sm font-rounded py-4'>
+    // Changed classes: fixed bottom-0 for mobile, static for desktop
+    <div className='z-50 flex flex-row lg:flex-col items-center justify-around lg:justify-start w-full lg:w-25 h-16 lg:h-screen bg-white shadow-lg lg:shadow-sm font-rounded py-2 lg:py-4 fixed lg:static bottom-0 left-0 border-t lg:border-t-0 lg:border-r border-gray-100'>
 
       {!activeParent && allowedModules.map((item, i) => {
         const isActive = pathname === item.href;
@@ -109,11 +109,10 @@ export default function Sidebar({ userRole }: { userRole: string }) {
             <Link
               href={item.href}
               key={item.href}
-              className={`flex my-1 flex-col items-center justify-center w-18 h-18 rounded-xl cursor-pointer mb-4 transition-all shadow-md ${isActive ? 'bg-orange-400' : 'bg-gray-200'
-                }`}
+              className={`flex flex-col items-center justify-center w-16 lg:w-18 h-14 lg:h-18 rounded-xl cursor-pointer lg:mb-4 transition-all shadow-md ${isActive ? 'bg-orange-400' : 'bg-gray-200'}`}
             >
-              <item.icon size={25} className='mb-1' />
-              <p className='text-[10px] leading-tight font-medium text-center wrap-break-word w-full '>{item.name}</p>
+              <item.icon size={20} className='lg:size-6 mb-1' />
+              <p className='text-[8px] lg:text-[10px] leading-tight font-medium text-center wrap-break-word w-full '>{item.name}</p>
             </Link>
           );
         }
@@ -124,10 +123,10 @@ export default function Sidebar({ userRole }: { userRole: string }) {
           <Button
             key={i}
             onClick={() => setSubMenu(item.name)}
-            className="flex my-1 flex-col items-center justify-center w-18 h-18 rounded-xl cursor-pointer mb-4"
+            className="flex flex-col items-center justify-center w-16 lg:w-18 h-14 lg:h-18 rounded-xl cursor-pointer lg:mb-4"
           >
-            <item.icon size={25} className='mb-1 ' />
-            <p className='text-[10px] leading-tight font-medium text-center wrap-break-word w-full '>{item.name}</p>
+            <item.icon size={20} className='lg:size-6 mb-1 ' />
+            <p className='text-[8px] lg:text-[10px] leading-tight font-medium text-center wrap-break-word w-full '>{item.name}</p>
           </Button>
         );
       })}
@@ -142,21 +141,20 @@ export default function Sidebar({ userRole }: { userRole: string }) {
               <Link
                 href={subItem.href || "#"}
                 key={subItem.name}
-                className={`text-center text-ellipsis flex my-1 flex-col items-center justify-center w-16 h-16 rounded-xl cursor-pointer mb-4 transition-all shadow-md ${isActive ? 'bg-orange-400' : 'bg-gray-200'
-                  }`}
+                className={`text-center flex flex-col items-center justify-center w-16 h-14 lg:w-16 lg:h-16 rounded-xl cursor-pointer lg:mb-4 transition-all shadow-md ${isActive ? 'bg-orange-400' : 'bg-gray-200'}`}
               >
-                <subItem.icon size={25} className='mb-1' />
-                <p className='text-[10px] leading-tight font-medium text-center wrap-break-word w-full '>{subItem.name}</p>
+                <subItem.icon size={20} className='lg:size-6 mb-1' />
+                <p className='text-[8px] lg:text-[10px] leading-tight font-medium text-center wrap-break-word w-full '>{subItem.name}</p>
               </Link>
             );
           })}
 
           <Button
             onClick={() => setSubMenu("")}
-            className="flex flex-col items-center justify-center w-18 h-18 rounded-xl cursor-pointer "
+            className="flex flex-col items-center justify-center w-16 lg:w-18 h-14 lg:h-18 rounded-xl cursor-pointer"
           >
-            <CornerDownLeftIcon size={25} className='mb-1 ' />
-            <p className='text-[10px] leading-tight font-medium text-center wrap-break-word w-full px-1'>Volver</p>
+            <CornerDownLeftIcon size={20} className='lg:size-6 mb-1' />
+            <p className='text-[8px] lg:text-[10px] leading-tight font-medium text-center wrap-break-word w-full px-1'>Volver</p>
           </Button>
         </>
       )}
