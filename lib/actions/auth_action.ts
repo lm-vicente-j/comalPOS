@@ -3,16 +3,37 @@
 import { signIn } from "../auth"
 import { signOut } from "../auth"
 import { AuthError } from "next-auth"
+import { UserSchema } from "./schemas"
+import z from "zod"
 
-export async function login(prevState: any,formData: FormData) {
-  const email = formData.get('email')
-  const password = formData.get('password')
-  const username = formData.get("username");
-  const pin = formData.get("pin")
+export async function login(prevState: any, formData: FormData) {
   
-const role = email ? "ADMIN" : "STAFF";
+  const raw = {
+    email: formData.get("email"),
+    name: formData.get("name"),
+    username: formData.get("username"),
+    pin: formData.get("pin"),
+    password: formData.get("password"),
+  };
+  
+  const parsed = UserSchema.omit({registeredAt: true, role: true, active: true, name: true}).safeParse(raw);
+  console.log(parsed);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Datos inválidos",
+      fieldErrors: z.flattenError(parsed.error).fieldErrors
+    };
+  }
 
-  try{
+  const email = parsed.data.email;
+  const password = parsed.data.password;
+  const username = parsed.data.username;
+  const pin = parsed.data.pin;
+
+  const role = email ? "ADMIN" : "STAFF";
+
+  try {
     await signIn("credentials", {
       email,
       password,
@@ -21,7 +42,7 @@ const role = email ? "ADMIN" : "STAFF";
       role,
       redirectTo: "/pos",
     });
-  } catch(e){
+  } catch (e) {
     if (e instanceof AuthError) {
       switch (e.type) {
         case "CredentialsSignin":
@@ -38,12 +59,12 @@ const role = email ? "ADMIN" : "STAFF";
 
 export async function logout() {
 
-  try{
-    await signOut({redirectTo:"/login"});
-  }catch(e){
+  try {
+    await signOut({ redirectTo: "/login" });
+  } catch (e) {
     throw e
   }
-  
+
 }
 
 

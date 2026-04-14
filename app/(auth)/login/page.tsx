@@ -12,31 +12,8 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp"
 import { useState } from "react";
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { CheckIcon, ChevronsUpDownIcon } from "lucide-react"
-
-import { useEffect } from "react";
-import { Input } from "@/components/ui/input";
-
-
 
 export default function LoginPage() {
-
   const [pin, setPin] = useState("");
   const [state, formAction, isPending] = useActionState(login, null);
 
@@ -95,9 +72,9 @@ export default function LoginPage() {
             <div className="flex gap-2  flex-col flex-1 items-center justify-center">
               <div className="flex flex-1 flex-row items-center gap-3 justify-center">
                 <label className="block text-sm font-medium text-gray-700">Usuario</label>
-                <input                 required
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" 
-                name="username" />
+                <input required
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 outline-none"
+                  name="username" />
 
 
               </div>

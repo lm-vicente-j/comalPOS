@@ -122,6 +122,54 @@ export const customerColumns: ColumnDef<Customer>[] = [
 ]
 
 
+// ✅ Movido fuera de CRMManager para evitar remount en cada render
+function PasswordField({
+    role,
+    pin,
+    setPin,
+    formData,
+    setFormData,
+    handleInputChange,
+    errors,
+}: {
+    role: string;
+    pin: string;
+    setPin: (v: string) => void;
+    formData: any;
+    setFormData: (fn: (prev: any) => any) => void;
+    handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
+    errors: Record<string, string[]>;
+}) {
+    return (
+        <div>
+            <label className="text-xs font-semibold uppercase">Contraseña</label>
+            {role === "STAFF" ? (
+                <>
+                    <input type="hidden" name="pin" value={pin} />
+                    <InputOTP maxLength={4} value={pin} onChange={(v) => {
+                        setPin(v);
+                        setFormData(prev => ({ ...prev, pin: v }));
+                    }}>
+                        <InputOTPGroup>
+                            <InputOTPSlot index={0} />
+                            <InputOTPSlot index={1} />
+                            <InputOTPSlot index={2} />
+                            <InputOTPSlot index={3} />
+                        </InputOTPGroup>
+                    </InputOTP>
+                    {errors.pin && <p className="text-red-500 text-xs mt-1">{errors.pin[0]}</p>}
+                </>
+            ) : (
+                <>
+                    <Input name="password" type="password" value={formData.password} onChange={handleInputChange} placeholder="Contraseña..." />
+                    {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password[0]}</p>}
+                </>
+            )}
+        </div>
+    );
+}
+
+
 export default function CRMManager({ customers, staff }: { customers: Customer[], staff: User[] }) {
 
     const [pin, setPin] = useState("");
@@ -135,7 +183,6 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
 
     const [currentItem, setCurrentItem] = useState<any>(null);
 
-    // FIX: use `password` and `pin` to match UserSchema field names
     const [formData, setFormData] = useState({
         name: "",
         customerName: "",
@@ -249,33 +296,16 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
     const isRowSelected = (listEditing === "CUSTOMERS" ? customerTable : staffTable)
         .getSelectedRowModel().rows.length > 0;
 
-    const PasswordField = () => (
-        <div>
-            <label className="text-xs font-semibold uppercase">Contraseña</label>
-            {formData.role === "STAFF" ? (
-                <>
-                    <input type="hidden" name="pin" value={pin} />
-                    <InputOTP maxLength={4} value={pin} onChange={(v) => {
-                        setPin(v);
-                        setFormData(prev => ({ ...prev, pin: v }));
-                    }}>
-                        <InputOTPGroup>
-                            <InputOTPSlot index={0} />
-                            <InputOTPSlot index={1} />
-                            <InputOTPSlot index={2} />
-                            <InputOTPSlot index={3} />
-                        </InputOTPGroup>
-                    </InputOTP>
-                    {errors.pin && <p className="text-red-500 text-xs mt-1">{errors.pin[0]}</p>}
-                </>
-            ) : (
-                <>
-                    <Input name="password" type="password" value={formData.password} onChange={handleInputChange} placeholder="Contraseña..." />
-                    {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password[0]}</p>}
-                </>
-            )}
-        </div>
-    );
+    // Props compartidas para PasswordField
+    const passwordFieldProps = {
+        role: formData.role,
+        pin,
+        setPin,
+        formData,
+        setFormData,
+        handleInputChange,
+        errors,
+    };
 
     return (
         <div className="flex flex-row items-center justify-around w-full h-full gap-4 p-4">
@@ -400,7 +430,6 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
                             <div className="space-y-4 mt-6 flex-1">
                                 <div>
                                     <label className="text-xs font-semibold uppercase">Nombre</label>
-                                    {/* FIX: was binding name="name" but reading formData.customerName */}
                                     <Input name="customerName" value={formData.customerName} onChange={handleInputChange} />
                                     {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName[0]}</p>}
                                 </div>
@@ -485,7 +514,7 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
                                         </FieldContent>
                                     </Field>
                                 </div>
-                                <PasswordField />
+                                <PasswordField {...passwordFieldProps} />
                             </div>
                             <ButtonGroup className="mt-6 flex gap-2 w-full">
                                 <Button type="button" variant="outline" onClick={resetForm} className="flex-1 cursor-pointer">Cancelar</Button>
@@ -517,7 +546,7 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
                                     </Select>
                                     {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role[0]}</p>}
                                 </div>
-                                <PasswordField />
+                                <PasswordField {...passwordFieldProps} />
                             </div>
                             <ButtonGroup className="mt-6 flex gap-2 w-full">
                                 <Button type="button" variant="outline" onClick={resetForm} className="cursor-pointer flex-1 rounded-sm">Limpiar</Button>
