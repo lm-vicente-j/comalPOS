@@ -60,6 +60,19 @@ export const staffColumns: ColumnDef<User>[] = [
         cell: ({ row }) => <Badge variant="secondary">{row.original.name}</Badge>,
     },
     {
+        accessorKey: "username",
+        header: "Usuario - Email",
+        cell: ({row}) => {
+            
+            if(row.original.email){
+                return <p>{row.original.username + " - " + row.original.email}</p>
+            }else{
+                return <p>{row.original.username}</p>
+
+            }
+        }
+    },
+    {
         accessorKey: "role",
         header: "Rol",
         cell: ({ row }) => <Badge variant="secondary">{row.original.role}</Badge>,
@@ -122,7 +135,6 @@ export const customerColumns: ColumnDef<Customer>[] = [
 ]
 
 
-// ✅ Movido fuera de CRMManager para evitar remount en cada render
 function PasswordField({
     role,
     pin,

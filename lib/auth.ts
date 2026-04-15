@@ -30,7 +30,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 id: user.id.toString(),
                 name: user.name,
                 email: user.email,
-                role: user.role ?? "STAFF", 
+                role: user.role ?? "STAFF",
               };
             }
           }
@@ -41,17 +41,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const user = await prisma.users.findFirst({
             where: { username: credentials.username as string }
           });
+
           if (user && user.pin) {
             const isPinCorrect = await bcrypt.compare(
               credentials.pin as string,
               user.pin
             );
+
             if (isPinCorrect) {
               return {
                 id: user.id.toString(),
                 name: user.name,
                 email: undefined,
-                role: user.role ?? "STAFF", 
+                role: user.role ?? "STAFF",
               };
             }
           }

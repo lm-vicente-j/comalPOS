@@ -17,7 +17,6 @@ export async function login(prevState: any, formData: FormData) {
   };
   
   const parsed = UserSchema.omit({registeredAt: true, role: true, active: true, name: true}).safeParse(raw);
-  console.log(parsed);
   if (!parsed.success) {
     return {
       success: false,
@@ -27,9 +26,10 @@ export async function login(prevState: any, formData: FormData) {
   }
 
   const email = parsed.data.email;
-  const password = parsed.data.password;
   const username = parsed.data.username;
+
   const pin = parsed.data.pin;
+  const password = parsed.data.password;
 
   const role = email ? "ADMIN" : "STAFF";
 
