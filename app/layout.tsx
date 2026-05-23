@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tacos al Comal | Managment System",
+  title: "BoonFood | Managment System",
   description: "POS by starsux",
 };
 
