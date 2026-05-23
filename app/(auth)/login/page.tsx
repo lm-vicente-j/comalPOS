@@ -12,11 +12,11 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp"
 import { useState } from "react";
+import { FieldError } from "@/components/ui/field";
 
 export default function LoginPage() {
   const [pin, setPin] = useState("");
   const [state, formAction, isPending] = useActionState(login, null);
-
 
 
 
@@ -29,11 +29,14 @@ export default function LoginPage() {
         </TabsList>
         <TabsContent value="admin">
           <div className="flex flex-row items-center justify-center my-4 ">
-            <Image src="/favicon.ico" width={50} height={50} alt="Tacos al comal logo" />
-            <h1 className=" flex justify-center items-center text-2xl font-bold text-center m-6">COMAL | Login</h1>
+            <Image src="/favicon.ico" width={50} height={50} alt="BoonFood logo" />
+            <h1 className=" flex justify-center items-center text-2xl font-bold text-center m-6">Bonfood | Login</h1>
+            
           </div>
 
           <form action={formAction} className="space-y-4">
+            <FieldError errors={[{message: state?.error}]}/>
+            
             <div>
               <label className="block text-sm font-medium text-gray-700">Email</label>
               <input
@@ -60,14 +63,16 @@ export default function LoginPage() {
               Entrar al Sistema
             </button>
           </form>
+          
         </TabsContent>
         <TabsContent value="staff">
           <div className="flex flex-row items-center justify-center my-4 ">
-            <Image src="/favicon.ico" width={50} height={50} alt="Tacos al comal logo" />
-            <h1 className=" flex justify-center items-center text-2xl font-bold text-center m-6">COMAL | Login</h1>
+            <Image src="/favicon.ico" width={50} height={50} alt="BoonFood logo" />
+            <h1 className=" flex justify-center items-center text-2xl font-bold text-center m-6">Bonfood | Login</h1>
           </div>
 
           <form action={formAction} className="space-y-4">
+            <FieldError errors={[{message: state?.error}]}/>
 
             <div className="flex gap-2  flex-col flex-1 items-center justify-center">
               <div className="flex flex-1 flex-row items-center gap-3 justify-center">

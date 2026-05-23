@@ -46,9 +46,9 @@ export async function login(prevState: any, formData: FormData) {
     if (e instanceof AuthError) {
       switch (e.type) {
         case "CredentialsSignin":
-          return { error: "INVALID CREDENTIAL" };
+          return { error: "Usuario o contraseña incorrectos." };
         default:
-          return { error: "BAD REQUEST" };
+          return { error: "SERVER ERROR, CONTACT SUPPORT." };
       }
     }
 

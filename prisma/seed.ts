@@ -19,7 +19,7 @@ async function main() {
   const pinHash = await bcrypt.hash("1234", 10);
 
   const userData = [
-    { id: 1, email: 'admin@comal.com', username: 'admin', password: passHash, role: 'ADMIN', name: 'Administrador', active: true },
+    { id: 1, email: 'admin@bonfood.com', username: 'admin', password: passHash, role: 'ADMIN', name: 'Administrador', active: true },
     // { id: 2, name: 'Juan Perez', username: 'juanp', pin: pinHash, role: 'STAFF', active: true },
     // { id: 3, name: 'Maria Lopez', username: 'marial', pin: pinHash, role: 'STAFF', active: true },
     // { id: 4, name: 'Pedro Gomez', username: 'pedrog', pin: pinHash, role: 'STAFF', active: true },
