@@ -59,32 +59,13 @@ export async function getSuppliesData() {
 }
 
 // Soft delete: Mark as inactive
-export async function deleteSupply(data: Supply){
+export async function deleteSupply(id: number){
     
     const session = await auth();
     if (session?.user?.role !== "ADMIN") return { success: false, error: "PERMISSION DENIED" };
 
-
-    const parsedData = {
-        ...data,
-        unitCost: Number(data.unitCost),
-        currentStock: Number(data.currentStock)
-    };
-
-    const result = SupplySchema.safeParse(parsedData);
-    
-   if (!result.success) {
-        return {  
-            success: false, 
-            error: "Datos inválidos", 
-            fieldErrors: z.flattenError(result.error).fieldErrors
-        };
-    }
         
     
-
-    const { id } = result.data;
-
     try {
         await prisma.supplies.update({
             where: { id: id ?? -1 },
