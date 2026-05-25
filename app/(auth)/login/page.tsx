@@ -21,22 +21,24 @@ export default function LoginPage() {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 font-rounded">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 font-rounded text-[#241712]">
+
       <Tabs defaultValue="admin" className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        <div className="flex flex-row items-center justify-center my-2 ">
+          <Image src="/icon.svg" width={50} height={50} alt="BoonFood logo" />
+          <h1 className=" flex justify-center items-center text-2xl font-bold text-center m-6">Bon<span className="text-orange-500">Food</span>&nbsp; | Login</h1>
+
+        </div>
         <TabsList>
           <TabsTrigger value="admin" className="cursor-pointer">Administrador</TabsTrigger>
           <TabsTrigger value="staff" className="cursor-pointer">Staff</TabsTrigger>
         </TabsList>
         <TabsContent value="admin">
-          <div className="flex flex-row items-center justify-center my-4 ">
-            <Image src="/favicon.ico" width={50} height={50} alt="BoonFood logo" />
-            <h1 className=" flex justify-center items-center text-2xl font-bold text-center m-6">Bonfood | Login</h1>
-            
-          </div>
 
-          <form action={formAction} className="space-y-4">
-            <FieldError errors={[{message: state?.error}]}/>
-            
+
+          <form action={formAction} className="space-y-4 py-6 h-60">
+            <FieldError errors={[{ message: state?.error }]} />
+
             <div>
               <label className="block text-sm font-medium text-gray-700">Email</label>
               <input
@@ -63,16 +65,13 @@ export default function LoginPage() {
               Entrar al Sistema
             </button>
           </form>
-          
+
         </TabsContent>
         <TabsContent value="staff">
-          <div className="flex flex-row items-center justify-center my-4 ">
-            <Image src="/favicon.ico" width={50} height={50} alt="BoonFood logo" />
-            <h1 className=" flex justify-center items-center text-2xl font-bold text-center m-6">Bonfood | Login</h1>
-          </div>
 
-          <form action={formAction} className="space-y-4">
-            <FieldError errors={[{message: state?.error}]}/>
+
+          <form action={formAction} className="space-y-4 py-6 h-60">
+            <FieldError errors={[{ message: state?.error }]} />
 
             <div className="flex gap-2  flex-col flex-1 items-center justify-center">
               <div className="flex flex-1 flex-row items-center gap-3 justify-center">

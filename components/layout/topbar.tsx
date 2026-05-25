@@ -24,7 +24,7 @@ export default function Topbar({ userName }: { userName: string }) {
   return (
     <div className='z-20 flex flex-row justify-between h-20 w-screen bg-white font-rounded shadow-sm'>
       <div className='flex flex-row text-4xl font-extrabold text-gray-900 '>
-        <Image className='m-5 w-10 h-10' width="50" height="50" src="/favicon.ico" alt='BoonFood logo' />
+        <Image className='m-5 w-10 h-10' width="50" height="50" src="/icon.svg" alt='BoonFood logo' />
         <h1 className='flex items-center justify-center '>bonfood</h1>
       </div>
       <div className='flex items-center justify-around w-fit cursor-pointer m-5'>
