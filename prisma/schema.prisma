@@ -15,7 +15,12 @@ model bill {
   date          DateTime? @db.Date
   registered_by Int
   receiptUrl String?
+  jornadaId     Int?
+  jornada       jornada?  @relation(fields: [jornadaId], references: [id])
+
   users         users     @relation(fields: [registered_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([jornadaId])
 }
 
 model customer {
@@ -97,7 +102,10 @@ model sales {
   sale_items     sale_items[]
   customer       customer?    @relation(fields: [customerID], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users          users        @relation(fields: [placedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  jornadaId      Int?
+  jornada        jornada?     @relation(fields: [jornadaId], references: [id])
 
+  @@index([jornadaId])
   @@index([customerID, createdAt])
 }
 
@@ -124,6 +132,34 @@ model users {
   bill     bill[]
   salary   salary[]
   sales    sales[]
+  openedJornadas    jornada[]  @relation("OpenedJornadas")
+  closedJornadas    jornada[]  @relation("ClosedJornadas") 
+}
+
+model jornada {
+  id                    Int            @id @default(autoincrement())
+  openedAt              DateTime       @default(now())
+  closedAt              DateTime?      
+  openedBy              Int
+  closedBy              Int?           
+  status                JornadaStatus  @default(OPEN)
+  openingAmount         Decimal        @db.Decimal
+  expectedClosingAmount Decimal?       @db.Decimal  
+  actualClosingAmount   Decimal?       @db.Decimal  
+
+  openedByUser users  @relation("OpenedJornadas", fields: [openedBy], references: [id])
+  closedByUser users? @relation("ClosedJornadas", fields: [closedBy], references: [id])
+
+  sales sales[]
+  bills bill[]
+
+  @@index([status, openedAt])
+}
+
+enum JornadaStatus {
+  OPEN
+  CLOSED
+  AUTO_CLOSED
 }
 
 enum SaleStatus {
