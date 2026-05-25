@@ -1,5 +1,4 @@
 "use client"
-import * as React from "react"
 import {
     flexRender,
     getCoreRowModel,
@@ -12,10 +11,10 @@ import {
     type SortingState,
 } from "@tanstack/react-table"
 import { ButtonGroup } from "@/components/ui/button-group"
-import { ArrowUpDown, ChevronsUpDown } from "lucide-react"
+import { ChevronsUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { saveSupply } from "@/lib/actions/inventory"
+import { saveSupply, deleteSupply } from "@/lib/actions/inventory"
 import { type Supply } from "@/lib/actions/schemas"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -38,6 +37,21 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
+
+import { Trash2Icon } from "lucide-react"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
+import { useState, useEffect, ChangeEvent } from "react"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -88,16 +102,17 @@ export const columns: ColumnDef<Supply>[] = [
 ]
 
 export function InventoryManager({ data }: { data: Supply[] }) {
-    const [sorting, setSorting] = React.useState<SortingState>([]);
-    const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-    const [rowSelection, setRowSelection] = React.useState({});
-    const [currentItem, setCurrentItem] = React.useState<Supply | null>(null);
+    const [sorting, setSorting] = useState<SortingState>([]);
+    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+    const [rowSelection, setRowSelection] = useState({});
+    const [currentItem, setCurrentItem] = useState<Supply | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Validation State
-    const [errors, setErrors] = React.useState<Record<string, string[]>>({});
-    const [alert, setAlert] = React.useState<{ message: string, type: 'success' | 'error' } | null>(null);
+    const [errors, setErrors] = useState<Record<string, string[]>>({});
+    const [alert, setAlert] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
-    const [formData, setFormData] = React.useState({
+    const [formData, setFormData] = useState({
         name: "",
         unitCost: 0,
         currentStock: 0,
@@ -117,7 +132,7 @@ export function InventoryManager({ data }: { data: Supply[] }) {
         state: { sorting, columnFilters, rowSelection },
     });
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (currentItem) {
             setFormData({
                 name: currentItem.name || "",
@@ -140,7 +155,7 @@ export function InventoryManager({ data }: { data: Supply[] }) {
         setAlert(null);
     };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
@@ -169,6 +184,25 @@ export function InventoryManager({ data }: { data: Supply[] }) {
             }
         }
     };
+
+    const handleDelete = async () => {
+        if (!currentItem?.id) return;
+        setIsDeleting(true);
+        setAlert(null);
+
+        const response = await deleteSupply(currentItem.id)
+
+        setIsDeleting(false);
+
+        if (response.success) {
+            resetForm();
+            setAlert({ message: "Insumo Eliminado", type: "success" });
+            setTimeout(() => setAlert(null), 4000);
+        } else {
+            setAlert({ message: response.error || "Error en el servidor", type: "error" });
+        }
+
+    }
 
     const isRowSelected = table.getSelectedRowModel().rows.length > 0;
 
@@ -199,8 +233,8 @@ export function InventoryManager({ data }: { data: Supply[] }) {
 
                         <TableBody>
                             {table.getRowModel().rows.map(row => (
-                                <TableRow 
-                                    key={row.id} 
+                                <TableRow
+                                    key={row.id}
                                     className="cursor-pointer"
                                     onClick={() => {
                                         const isSelected = row.getIsSelected();
@@ -223,14 +257,14 @@ export function InventoryManager({ data }: { data: Supply[] }) {
             </div>
 
             <div className="bg-white flex flex-col w-[30%] h-[90%] border rounded-md p-6 shadow-sm">
-                
+
                 {alert && (
                     <div className={`p-3 rounded mb-4 text-sm font-semibold ${alert.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                         {alert.message}
                     </div>
                 )}
 
-                <form hidden={!isRowSelected}  className="h-full w-full flex-col flex flex-1 justify-between">
+                <form hidden={!isRowSelected} className="h-full w-full flex-col flex flex-1 justify-between">
                     <div className="flex flex-col gap-2">
                         <div className="flex flex-row items-center justify-between">
                             <h2 className="text-xl font-bold">Editar Insumo</h2>
@@ -258,7 +292,41 @@ export function InventoryManager({ data }: { data: Supply[] }) {
                         </div>
                     </div>
                     <ButtonGroup className="mt-6 flex gap-2 w-full">
-                        <Button type="button" variant="outline" onClick={resetForm} className="flex-1 cursor-pointer">Cancelar</Button>
+                        <Button type="button" variant="outline" onClick={resetForm} className="flex-1 cursor-pointer">
+                            Cancelar
+                        </Button>
+
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    className="cursor-pointer"
+                                    disabled={isDeleting}
+                                >
+                                    <Trash2Icon className="h-4 w-4" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar este insumo?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Se eliminará <span className="font-semibold">{currentItem?.name}</span> del inventario.
+                                        Las recetas y ventas históricas no se verán afectadas.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={handleDelete}
+                                        className="bg-red-600 hover:bg-red-700"
+                                    >
+                                        Sí, eliminar
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+
                         <Button type="button" onClick={handleSave} className="rounderd-sm cursor-pointer">
                             Actualizar
                         </Button>
