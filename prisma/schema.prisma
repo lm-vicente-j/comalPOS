@@ -108,6 +108,7 @@ model supplies {
   currentStock Decimal   @db.Decimal
   unitCost     Decimal   @default(0) @db.Decimal
   recipes      recipes[]
+  active       Boolean   @default(true)
 }
 
 model users {
