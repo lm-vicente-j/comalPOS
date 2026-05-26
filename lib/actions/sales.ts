@@ -31,19 +31,20 @@ const SaleSchema = z.object({
 
 export type Sale = z.infer<typeof SaleSchema>;
 
-export async function createSale(sale_items: { productID: number, quantity: number }[], status: "UNPAID" | "PAID" | "DEBT", source_type: string, customerID: number, placedBy: number) {
+export async function createSale(sale_items: { productID: number, quantity: number }[], status: "UNPAID" | "PAID" | "DEBT", source_type: string, customerID: number, placedBy: number, paymentMethod: "CASH" | "TRANSFER" = "CASH") {
 
 
 
     try {
-        const activeJornada = await prisma.jornada.findFirst({
-            where: { status: "OPEN" }
-        });
 
-        if (!activeJornada) {
-            return { success: false, error: "NO_OPEN_JORNADA" };
-        }
         return await prisma.$transaction(async (tx) => {
+            const activeJornada = await prisma.jornada.findFirst({
+                where: { status: "OPEN" }
+            });
+
+            if (!activeJornada) {
+                return { success: false, error: "NO_OPEN_JORNADA" };
+            }
             let totalSale = 0;
 
             // calulate sale total and check stock/sales
@@ -90,6 +91,7 @@ export async function createSale(sale_items: { productID: number, quantity: numb
                     source_type: source_type,
                     customerID: (customerID === -1 || !customerID) ? undefined : customerID,
                     placedBy: placedBy,
+                    payment_method: paymentMethod,
                     jornadaId: activeJornada.id,
                     sale_items: {
                         create: itemsToInsert
@@ -124,26 +126,29 @@ export async function createSale(sale_items: { productID: number, quantity: numb
 
             revalidatePath("/pos")
             revalidatePath("/debtors")
-            return { success: true, saleId: newSale.id };
+            return { success: true, saleId: newSale.id, message: "success" };
 
         })
     } catch (e) {
-        if(e instanceof Error && e.message === "NO_OPEN_JORNADA"){
-            return {success: false, message: "NO_OPEN_JORNADA"}
+        if (e instanceof Error && e.message === "NO_OPEN_JORNADA") {
+            return { success: false, message: "NO_OPEN_JORNADA" }
         }
         return { success: false, message: "INTERNAL ERROR" }
     }
 }
 
-export async function closeAccountAction(sourceType: string) {
+export async function closeAccountAction(sourceType: string, paymentMethod: "CASH" | "TRANSFER" = "CASH") {
     try {
+
+
         await prisma.sales.updateMany({
             where: {
                 source_type: sourceType,
                 status: "UNPAID"
             },
             data: {
-                status: "PAID"
+                status: "PAID",
+                payment_method: paymentMethod,
             }
         });
 
