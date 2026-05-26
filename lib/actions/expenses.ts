@@ -12,9 +12,16 @@ export async function saveExpense(data: {
   registered_by: number;
 }) {
 
+  const activeJornada = await prisma.jornada.findFirst({
+    where: { status: "OPEN" }
+  });
+
+  if (!activeJornada) {
+    return { success: false, error: "NO_OPEN_JORNADA" };
+  }
+
   const parsed = BillSchema.omit({ id: true, receiptUrl: true }).safeParse(data);
 
-  console.log("safeParse result:", BillSchema.safeParse(data));
 
   if (!parsed.success) {
     return {
@@ -32,6 +39,7 @@ export async function saveExpense(data: {
         description: data.description,
         date: data.date,
         registered_by: data.registered_by,
+        jornadaId: activeJornada.id
       },
     });
     revalidatePath("/expenses");

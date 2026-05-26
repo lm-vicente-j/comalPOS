@@ -34,7 +34,15 @@ export type Sale = z.infer<typeof SaleSchema>;
 export async function createSale(sale_items: { productID: number, quantity: number }[], status: "UNPAID" | "PAID" | "DEBT", source_type: string, customerID: number, placedBy: number) {
 
 
+
     try {
+        const activeJornada = await prisma.jornada.findFirst({
+            where: { status: "OPEN" }
+        });
+
+        if (!activeJornada) {
+            return { success: false, error: "NO_OPEN_JORNADA" };
+        }
         return await prisma.$transaction(async (tx) => {
             let totalSale = 0;
 
@@ -56,7 +64,8 @@ export async function createSale(sale_items: { productID: number, quantity: numb
                     productID: item.productID,
                     quantity: item.quantity,
                     unitPrice: product.price,
-                    subtotal: subtotal
+                    subtotal: subtotal,
+                    jornadaId: activeJornada.id
                 })
 
 
@@ -81,6 +90,7 @@ export async function createSale(sale_items: { productID: number, quantity: numb
                     source_type: source_type,
                     customerID: (customerID === -1 || !customerID) ? undefined : customerID,
                     placedBy: placedBy,
+                    jornadaId: activeJornada.id,
                     sale_items: {
                         create: itemsToInsert
                     }
@@ -118,7 +128,9 @@ export async function createSale(sale_items: { productID: number, quantity: numb
 
         })
     } catch (e) {
-        // console.log(e);
+        if(e instanceof Error && e.message === "NO_OPEN_JORNADA"){
+            return {success: false, message: "NO_OPEN_JORNADA"}
+        }
         return { success: false, message: "INTERNAL ERROR" }
     }
 }
@@ -175,8 +187,8 @@ export async function getTodaySalesHistory() {
     const sales = await prisma.sales.findMany({
         where: {
             createdAt: {
-                gte: startOfDay, 
-                lte: endOfDay,   
+                gte: startOfDay,
+                lte: endOfDay,
             },
 
         },
