@@ -1,8 +1,7 @@
-import { PrismaClient } from "@/app/generated/prisma/client"
+import { PrismaClient, SaleStatus, JornadaStatus, PaymentMethod, SavingsMovementType, GoalStatus } from "@/app/generated/prisma/client"
 import { PrismaPg } from '@prisma/adapter-pg'
 import 'dotenv/config'
 import bcrypt from 'bcryptjs';
-import { SaleStatus } from "@/app/generated/prisma/client";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL as string,
@@ -12,152 +11,188 @@ const prisma = new PrismaClient({
   adapter,
 });
 
+const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+const randomFloat = (min: number, max: number, decimals = 2) => parseFloat((Math.random() * (max - min) + min).toFixed(decimals));
+const randomDate = (start: Date, end: Date) => new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+const randomElement = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
 async function main() {
-  console.log("Starting seed...");
+  console.log("Iniciando seed con grandes volúmenes de datos...");
+
+  console.log("Limpiando registros existentes...");
+  await prisma.sale_items.deleteMany({});
+  await prisma.debtors.deleteMany({});
+  await prisma.sales.deleteMany({});
+  await prisma.recipes.deleteMany({});
+  await prisma.products.deleteMany({});
+  await prisma.supplies.deleteMany({});
+  await prisma.bill.deleteMany({});
+  await prisma.salary.deleteMany({});
+  await prisma.savings_movement.deleteMany({});
+  await prisma.goal_contribution.deleteMany({});
+  await prisma.savings_goal.deleteMany({});
+  await prisma.jornada.deleteMany({});
+  await prisma.customer.deleteMany({});
+  await prisma.users.deleteMany({});
 
   const passHash = await bcrypt.hash('Djw9zfq33nl7dgy', 10);
   const pinHash = await bcrypt.hash("1234", 10);
 
-  const userData = [
-    { id: 1, email: 'admin@bonfood.com', username: 'admin', password: passHash, role: 'ADMIN', name: 'Administrador', active: true },
-    // { id: 2, name: 'Juan Perez', username: 'juanp', pin: pinHash, role: 'STAFF', active: true },
-    // { id: 3, name: 'Maria Lopez', username: 'marial', pin: pinHash, role: 'STAFF', active: true },
-    // { id: 4, name: 'Pedro Gomez', username: 'pedrog', pin: pinHash, role: 'STAFF', active: true },
-    // { id: 5, name: 'Ana Ruiz', username: 'anar', pin: pinHash, role: 'STAFF', active: false },
+  const NUM_USERS = 20;
+  const NUM_CUSTOMERS = 1000;
+  const NUM_PRODUCTS = 200;
+  const NUM_SUPPLIES = 300;
+  const NUM_JORNADAS = 100;
+  const NUM_SALES = 10000;
+  const NUM_BILLS = 2000;
+
+
+  console.log(`Generando ${NUM_USERS} usuarios...`);
+  
+  
+  const users: any[] = [
+    { 
+      id: 1, 
+      email: 'admin@bonfood.com', 
+      username: 'admin', 
+      password: passHash, 
+      pin: null,
+      role: 'ADMIN', 
+      name: 'Administrador', 
+      active: true 
+    }
   ];
 
-  for (const u of userData) {
-    await prisma.users.upsert({ where: { id: u.id }, update: {}, create: u });
+  for (let i = 2; i <= NUM_USERS; i++) {
+    users.push({ 
+      id: i, 
+      email: `user${i}@test.com`, 
+      username: `user${i}`, 
+      password: passHash, 
+      pin: pinHash, 
+      role: 'STAFF', 
+      name: `Staff ${i}`, 
+      active: true 
+    });
+  }
+  await prisma.users.createMany({ data: users });
+
+  console.log(`Generando ${NUM_CUSTOMERS} clientes...`);
+  const customers = [];
+  for (let i = 1; i <= NUM_CUSTOMERS; i++) {
+    customers.push({
+      id: i,
+      customerName: `Cliente Demo ${i}`,
+      phone: `222${randomInt(1000000, 9999999)}`,
+      alias: `Alias ${i}`,
+      currentBalance: randomFloat(0, 500),
+      registeredDate: randomDate(new Date('2024-01-01'), new Date('2025-12-31')),
+      lastConsumption: randomDate(new Date('2025-01-01'), new Date('2026-05-01')),
+    });
+  }
+  await prisma.customer.createMany({ data: customers });
+
+  console.log(`Generando ${NUM_SUPPLIES} insumos y ${NUM_PRODUCTS} productos...`);
+  const supplies = Array.from({ length: NUM_SUPPLIES }).map((_, i) => ({
+    id: i + 1, name: `Insumo ${i + 1}`, measureUnit: randomElement(['kg', 'litro', 'pza', 'gr']), currentStock: randomFloat(10, 1000), unitCost: randomFloat(5, 200), active: true
+  }));
+  const products = Array.from({ length: NUM_PRODUCTS }).map((_, i) => ({
+    id: i + 1, name: `Producto ${i + 1} ${Math.random().toString(36).substring(7)}`, price: randomFloat(20, 500)
+  }));
+  await prisma.supplies.createMany({ data: supplies });
+  await prisma.products.createMany({ data: products });
+
+  console.log("Generando recetas...");
+  const recipes = [];
+  for (let i = 1; i <= NUM_PRODUCTS; i++) {
+    const numIngredients = randomInt(1, 5);
+    const usedSupplies = new Set<number>();
+    for (let j = 0; j < numIngredients; j++) {
+      let supplyId = randomInt(1, NUM_SUPPLIES);
+      while (usedSupplies.has(supplyId)) supplyId = randomInt(1, NUM_SUPPLIES);
+      usedSupplies.add(supplyId);
+      recipes.push({ productID: i, supplyID: supplyId, quantityUsed: randomFloat(0.01, 2) });
+    }
+  }
+  await prisma.recipes.createMany({ data: recipes });
+
+  console.log(`Generando ${NUM_JORNADAS} jornadas...`);
+  const jornadas = Array.from({ length: NUM_JORNADAS }).map((_, i) => ({
+    id: i + 1,
+    openedAt: randomDate(new Date('2025-01-01'), new Date('2026-05-01')),
+    openedBy: randomInt(1, NUM_USERS),
+    status: randomElement([JornadaStatus.CLOSED, JornadaStatus.AUTO_CLOSED, JornadaStatus.OPEN]),
+    openingAmount: randomFloat(500, 2000),
+    expectedClosingAmount: randomFloat(2000, 10000),
+    actualClosingAmount: randomFloat(2000, 10000),
+  }));
+  await prisma.jornada.createMany({ data: jornadas });
+
+  console.log(`Generando ${NUM_SALES} ventas y sus detalles (esto puede tardar un poco)...`);
+  const sales = [];
+  const saleItems = [];
+  let currentSaleItemId = 1;
+
+  for (let i = 1; i <= NUM_SALES; i++) {
+    const isPaid = Math.random() > 0.2; 
+    const totalVenta = randomFloat(50, 1500);
+    
+    sales.push({
+      id: i,
+      total: totalVenta,
+      source_type: randomElement(['VENTA_LIBRE', 'MESA_1', 'MESA_2', 'MESA_3', 'RAPPI']),
+      customerID: randomInt(1, NUM_CUSTOMERS),
+      placedBy: randomInt(1, NUM_USERS),
+      jornadaId: randomInt(1, NUM_JORNADAS),
+      createdAt: randomDate(new Date('2025-01-01'), new Date('2026-05-26')),
+      status: isPaid ? SaleStatus.PAID : randomElement([SaleStatus.UNPAID, SaleStatus.DEBT]),
+      payment_method: isPaid ? randomElement(['CASH', 'TRANSFER']) : null,
+    });
+
+    const numItems = randomInt(1, 5);
+    for (let j = 0; j < numItems; j++) {
+      const pPrice = randomFloat(20, 500);
+      const qty = randomInt(1, 4);
+      saleItems.push({
+        id: currentSaleItemId++, saleID: i, productID: randomInt(1, NUM_PRODUCTS), quantity: qty, unitPrice: pPrice, subtotal: pPrice * qty
+      });
+    }
   }
 
-  // const customerData = [
-  //   { id: 1, customerName: 'Maria Garcia', phone: '2221234567', alias: 'Mari', currentBalance: 0, registeredDate: new Date('2025-12-01') },
-  //   { id: 2, customerName: 'Ricardo Soto', phone: '2229876543', alias: 'Richie', currentBalance: 240.00, registeredDate: new Date('2025-12-15') },
-  //   { id: 3, customerName: 'Elena Paz', phone: '2224445566', alias: 'Elena', currentBalance: 0, registeredDate: new Date('2026-01-05') },
-  //   { id: 4, customerName: 'Jorge Luis', phone: '2227778899', alias: 'Georgie', currentBalance: 300.00, registeredDate: new Date('2026-01-10') },
-  //   { id: 5, customerName: 'Sofia Ruiz', phone: '2221112233', alias: 'Sofi', currentBalance: 0, registeredDate: new Date('2026-02-01') },
-  // ];
+  for (let i = 0; i < sales.length; i += 2000) {
+    await prisma.sales.createMany({ data: sales.slice(i, i + 2000) });
+  }
+  for (let i = 0; i < saleItems.length; i += 5000) {
+    await prisma.sale_items.createMany({ data: saleItems.slice(i, i + 5000) });
+  }
 
-  // for (const c of customerData) {
-  //   await prisma.customer.upsert({ where: { id: c.id }, update: {}, create: c });
-  // }
-
-  // const productData = [
-  //   { id: 1, name: 'Tacos al Pastor (Orden)', price: 75.00 },
-  //   { id: 2, name: 'Tacos de Bistec (Orden)', price: 85.00 },
-  //   { id: 3, name: 'Gringa de Pastor', price: 60.00 },
-  //   { id: 4, name: 'Volcán de Queso', price: 45.00 },
-  //   { id: 5, name: 'Agua de Horchata 1L', price: 35.00 },
-  // ];
-
-  // for (const p of productData) {
-  //   await prisma.products.upsert({ where: { id: p.id }, update: {}, create: p });
-  // }
-
-  // const supplyData = [
-  //   { id: 1, name: 'Tortillas', measureUnit: 'kg', currentStock: 20, unitCost: 22.00 },
-  //   { id: 2, name: 'Carne Pastor', measureUnit: 'kg', currentStock: 15, unitCost: 140.00 },
-  //   { id: 3, name: 'Queso Asadero', measureUnit: 'kg', currentStock: 5, unitCost: 160.00 },
-  //   { id: 4, name: 'Piña', measureUnit: 'pza', currentStock: 10, unitCost: 25.00 },
-  //   { id: 5, name: 'Carne Bistec', measureUnit: 'kg', currentStock: 12, unitCost: 180.00 },
-  // ];
-
-  // for (const s of supplyData) {
-  //   await prisma.supplies.upsert({ where: { id: s.id }, update: {}, create: s });
-  // }
-
-  // const recipeData = [
-  //   { productID: 1, supplyID: 1, quantityUsed: 0.150 }, 
-  //   { productID: 1, supplyID: 2, quantityUsed: 0.200 }, 
-  //   { productID: 3, supplyID: 1, quantityUsed: 0.050 }, 
-  //   { productID: 3, supplyID: 3, quantityUsed: 0.080 }, 
-  //   { productID: 4, supplyID: 3, quantityUsed: 0.100 }, 
-  // ];
-
-  // for (const r of recipeData) {
-  //   await prisma.recipes.upsert({
-  //     where: { productID_supplyID: { productID: r.productID, supplyID: r.supplyID } },
-  //     update: {},
-  //     create: r
-  //   });
-  // }
-
-  // const salesData = [
-  //   { id: 1, total: 185.00, status: SaleStatus.PAID, payment_method: 'CASH', source_type: 'VENTA_LIBRE', customerID: 1, placedBy: 2, createdAt: new Date('2026-02-10T14:00:00Z') },
-  //   { id: 2, total: 240.00, status: SaleStatus.UNPAID, payment_method: null, source_type: 'VENTA_LIBRE', customerID: 2, placedBy: 3, createdAt: new Date('2026-02-11T15:00:00Z') },
-  //   { id: 3, total: 110.00, status: SaleStatus.PAID, payment_method: 'TRANSFER', source_type: 'MESA_1', customerID: 3, placedBy: 2, createdAt: new Date('2026-02-12T16:30:00Z') },
-  //   { id: 4, total: 300.00, status: SaleStatus.UNPAID, payment_method: null, source_type: 'MESA_1', customerID: 4, placedBy: 4, createdAt: new Date('2026-02-13T19:00:00Z') },
-  //   { id: 5, total: 95.00, status: SaleStatus.PAID, payment_method: 'CASH', source_type: 'MESA_4', customerID: 5, placedBy: 3, createdAt: new Date('2026-02-14T20:00:00Z') },
-  // ];
-
-  // for (const sa of salesData) {
-  //   await prisma.sales.upsert({ where: { id: sa.id }, update: {}, create: sa });
-  // }
-
-  // const saleItemsData = [
-  //   { id: 1, saleID: 1, productID: 1, quantity: 2, unitPrice: 75.00, subtotal: 150.00 },
-  //   { id: 2, saleID: 1, productID: 5, quantity: 1, unitPrice: 35.00, subtotal: 35.00 },
-    
-  //   { id: 3, saleID: 2, productID: 2, quantity: 2, unitPrice: 85.00, subtotal: 170.00 },
-  //   { id: 4, saleID: 2, productID: 5, quantity: 2, unitPrice: 35.00, subtotal: 70.00 },
-    
-  //   { id: 5, saleID: 3, productID: 1, quantity: 1, unitPrice: 75.00, subtotal: 75.00 },
-  //   { id: 6, saleID: 3, productID: 5, quantity: 1, unitPrice: 35.00, subtotal: 35.00 },
-    
-  //   { id: 7, saleID: 4, productID: 3, quantity: 5, unitPrice: 60.00, subtotal: 300.00 },
-    
-  //   { id: 8, saleID: 5, productID: 3, quantity: 1, unitPrice: 60.00, subtotal: 60.00 },
-  //   { id: 9, saleID: 5, productID: 5, quantity: 1, unitPrice: 35.00, subtotal: 35.00 },
-  // ];
-
-  // for (const si of saleItemsData) {
-  //   await prisma.sale_items.upsert({ where: { id: si.id }, update: {}, create: si });
-  // }
-
-  // const debtorsData = [
-  //   { id: 1, saleID: 2, customerID: 2, amount: 240.00, status: SaleStatus.UNPAID },
-  //   { id: 2, saleID: 4, customerID: 4, amount: 300.00, status: SaleStatus.UNPAID },
-  //   { id: 3, saleID: 5, customerID: 5, amount: 0.00, status: SaleStatus.PAID },    
-  //   { id: 4, saleID: 1, customerID: 1, amount: 0.00, status: SaleStatus.PAID },    
-  //   { id: 5, saleID: 3, customerID: 3, amount: 0.00, status: SaleStatus.PAID },    
-  // ];
-
-  // for (const d of debtorsData) {
-  //   await prisma.debtors.upsert({ where: { id: d.id }, update: {}, create: d });
-  // }
-
-  
-  // const billData = [
-  //   { id: 1, description: 'Renta Enero', amount: 5000, category: 'RENT', date: new Date('2026-01-01'), registered_by: 1 },
-  //   { id: 2, description: 'Luz Comercial', amount: 1200, category: 'SERVICES', date: new Date('2026-01-15'), registered_by: 1 },
-  //   { id: 3, description: 'Compra Gas LP', amount: 850, category: 'SUPPLIES', date: new Date('2026-01-20'), registered_by: 1 },
-  //   { id: 4, description: 'Internet y Teléfono', amount: 600, category: 'SERVICES', date: new Date('2026-02-01'), registered_by: 1 },
-  //   { id: 5, description: 'Mantenimiento Parrilla', amount: 450, category: 'MAINTENANCE', date: new Date('2026-02-05'), registered_by: 1 },
-  // ];
-
-  // for (const b of billData) {
-  //   await prisma.bill.upsert({ where: { id: b.id }, update: {}, create: b });
-  // }
+  console.log(`Generando ${NUM_BILLS} gastos...`);
+  const bills = Array.from({ length: NUM_BILLS }).map((_, i) => ({
+    id: i + 1,
+    description: `Gasto operativo ${i}`,
+    amount: randomFloat(50, 5000),
+    category: randomElement(['RENT', 'SERVICES', 'SUPPLIES', 'MAINTENANCE', 'OTHER']),
+    date: randomDate(new Date('2025-01-01'), new Date('2026-05-26')),
+    registered_by: randomInt(1, NUM_USERS),
+    jornadaId: randomInt(1, NUM_JORNADAS)
+  }));
+  for (let i = 0; i < bills.length; i += 1000) {
+    await prisma.bill.createMany({ data: bills.slice(i, i + 1000) });
+  }
 
 
-  // const salaryData = [
-  //   { id: 1, userID: 2, amount: 1200, payDate: new Date('2026-02-07'), period: 'WEEKLY_01' },
-  //   { id: 2, userID: 3, amount: 1200, payDate: new Date('2026-02-07'), period: 'WEEKLY_01' },
-  //   { id: 3, userID: 4, amount: 1300, payDate: new Date('2026-02-07'), period: 'WEEKLY_01' },
-  //   { id: 4, userID: 2, amount: 1200, payDate: new Date('2026-02-14'), period: 'WEEKLY_02' },
-  //   { id: 5, userID: 3, amount: 1200, payDate: new Date('2026-02-14'), period: 'WEEKLY_02' },
-  // ];
+  console.log("Sincronizando secuencias de PostgreSQL...");
+  const tables = ['users', 'customer', 'products', 'supplies', 'jornada', 'sales', 'sale_items', 'bill', 'debtors', 'salary', 'savings_movement', 'savings_goal', 'goal_contribution'];
+  for (const table of tables) {
+    await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"${table}"', 'id'), coalesce(max(id)+1, 1), false) FROM "${table}";`);
+  }
 
-  // for (const sal of salaryData) {
-  //   await prisma.salary.upsert({ where: { id: sal.id }, update: {}, create: sal });
-  // }
-
-  console.log("Seed finished successfully!");
+  console.log("¡Seed de gran volumen finalizado con éxito! 🚀");
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error("Error durante el seed:", e);
     process.exit(1);
   })
   .finally(async () => {
