@@ -12,10 +12,10 @@ export default function HomePage() {
     <div className="flex-1 p-8 space-y-8 animate-in fade-in duration-500">
       <header className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-          Bienvenido al Sistema de Optimización
+          Bienvenido al Sistema POS
         </h1>
         <p className="text-slate-500 max-w-2xl">
-          Selecciona una opción del menú lateral para comenzar. Aquí tienes un resumen de cómo operar los módulos principales del sistema.
+          Selecciona una opción del menú lateral para comenzar
         </p>
       </header>
 
