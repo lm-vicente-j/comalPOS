@@ -430,41 +430,43 @@ export function MenuManager({ products, supplies }: MenuProps) {
                     />
 
                 </div>
-                <div className="rounded-md border overflow-hidden">
-                    <Table>
-                        <TableHeader>
-                            {table.getHeaderGroups().map(hg => (
-                                <TableRow key={hg.id}>
-                                    {hg.headers.map(header => (
-                                        <TableHead key={header.id}>
-                                            {flexRender(header.column.columnDef.header, header.getContext())}
-                                        </TableHead>
-                                    ))}
-                                </TableRow>
-                            ))}
-                        </TableHeader>
-                        <TableBody>
-                            {table.getRowModel().rows.map(row => (
-                                <TableRow
-                                    key={row.id}
-                                    className="cursor-pointer"
-                                    onClick={() => {
-                                        const isSelected = row.getIsSelected();
-                                        table.toggleAllRowsSelected(false);
-                                        row.toggleSelected(!isSelected);
-                                        setCurrentItem(!isSelected ? row.original : null);
-                                    }}
-                                    data-state={row.getIsSelected() && "selected"}
-                                >
-                                    {row.getVisibleCells().map(cell => (
-                                        <TableCell key={cell.id}>
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                <div className="rounded-md border overflow-hidden flex-1 min-h-0">
+                    <ScrollArea className="h-full">
+                        <Table>
+                            <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
+                                {table.getHeaderGroups().map(hg => (
+                                    <TableRow key={hg.id}>
+                                        {hg.headers.map(header => (
+                                            <TableHead key={header.id}>
+                                                {flexRender(header.column.columnDef.header, header.getContext())}
+                                            </TableHead>
+                                        ))}
+                                    </TableRow>
+                                ))}
+                            </TableHeader>
+                            <TableBody>
+                                {table.getRowModel().rows.map(row => (
+                                    <TableRow
+                                        key={row.id}
+                                        className="cursor-pointer"
+                                        onClick={() => {
+                                            const isSelected = row.getIsSelected();
+                                            table.toggleAllRowsSelected(false);
+                                            row.toggleSelected(!isSelected);
+                                            setCurrentItem(!isSelected ? row.original : null);
+                                        }}
+                                        data-state={row.getIsSelected() && "selected"}
+                                    >
+                                        {row.getVisibleCells().map(cell => (
+                                            <TableCell key={cell.id}>
+                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                            </TableCell>
+                                        ))}
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
                 </div>
             </div>
 

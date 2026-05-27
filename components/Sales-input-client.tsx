@@ -78,7 +78,7 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
     const isInputDisabled = !hasCustomers;
 
     const handleCloseAccount = async () => {
-        const sourceType = tableNumber !== 0 ? `MESA-${tableNumber}` : `CL- ${query}`;
+        const sourceType = tableNumber !== 0 ? `MESA_${tableNumber}` : `CL- ${query}`;
 
         const result = await closeAccountAction(sourceType);
 

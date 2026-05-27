@@ -66,7 +66,6 @@ export async function createSale(sale_items: { productID: number, quantity: numb
                     quantity: item.quantity,
                     unitPrice: product.price,
                     subtotal: subtotal,
-                    jornadaId: activeJornada.id
                 })
 
 
@@ -133,6 +132,7 @@ export async function createSale(sale_items: { productID: number, quantity: numb
         if (e instanceof Error && e.message === "NO_OPEN_JORNADA") {
             return { success: false, message: "NO_OPEN_JORNADA" }
         }
+        console.error("createSale failed:", e)
         return { success: false, message: "INTERNAL ERROR" }
     }
 }
@@ -308,4 +308,3 @@ export async function updateSaleQuantity(saleId: number, quantity: number, produ
         return { success: false, message: "Error al actualizar cantidad" };
     }
 }
-
