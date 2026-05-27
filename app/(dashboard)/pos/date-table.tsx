@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ interface DataTableProps {
 
 export default function DataTable({ data, onSelect, tableNumber, clientSelected, clientName, customerID }: DataTableProps) {
 
+  const router = useRouter();
   const [dataProducts, setDataProducts] = useState(data);
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "TRANSFER">("CASH");
 
@@ -41,7 +43,7 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
 
     const isTable = tableNumber > 0;
     const sourceType = isTable
-      ? `MESA-${tableNumber}`
+      ? `MESA_${tableNumber}`
       : (clientSelected ? `CL- ${clientName}` : "VENTA_LIBRE");
     const initialStatus = (isTable || clientSelected) ? "UNPAID" : "PAID";
 
@@ -54,14 +56,22 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
       paymentMethod
     );
 
-    if (!result.success && result.message === "NO_OPEN_JORNADA") {
-      alert("No hay jornada activa. Pide al administrador que abra la jornada antes de registrar ventas.");
+    if (!result.success) {
+      if (result.message === "NO_OPEN_JORNADA") {
+        alert("No hay jornada activa. Pide al administrador que abra la jornada antes de registrar ventas.");
+      } else {
+        alert("No se pudo registrar la venta. Revisa la consola del servidor para más detalle.");
+      }
       return;
     }
 
     if (paymentMethod === "TRANSFER") {
       setPaymentMethod("CASH");
     }
+
+    // Forzar refetch del server component para que la nueva venta
+    // aparezca en la "Lista de pedidos recientes".
+    router.refresh();
   };
 
   return (

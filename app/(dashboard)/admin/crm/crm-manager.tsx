@@ -37,6 +37,7 @@ import { saveCustomer } from "@/lib/actions/customers";
 import { Customer } from "@/lib/actions/schemas";
 import { saveUser } from "@/lib/actions/users";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 
 export const staffColumns: ColumnDef<User>[] = [
@@ -322,12 +323,12 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
     return (
         <div className="flex flex-row items-center justify-around w-full h-full gap-4 p-4">
             <div className="bg-white flex flex-col w-[70%] h-[90%] border rounded-md p-5 shadow-sm">
-                <Tabs defaultValue="customers" className="w-100%">
+                <Tabs defaultValue="customers" className="w-full h-full min-h-0">
                     <TabsList>
                         <TabsTrigger onClick={() => { setListEditing("CUSTOMERS"); resetForm(); }} className="cursor-pointer" value="customers">Clientes</TabsTrigger>
                         <TabsTrigger onClick={() => { setListEditing("STAFF"); resetForm(); }} className="cursor-pointer" value="STAFF">Empleados</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="customers">
+                    <TabsContent value="customers" className="flex flex-col min-h-0">
                         <div className="flex w-full items-center py-4">
                             <Input
                                 placeholder="Buscar cliente..."
@@ -336,44 +337,46 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
                                 className="max-w-sm"
                             />
                         </div>
-                        <div className="rounded-md border overflow-hidden">
-                            <Table>
-                                <TableHeader>
-                                    {customerTable.getHeaderGroups().map(hg => (
-                                        <TableRow key={hg.id}>
-                                            {hg.headers.map(header => (
-                                                <TableHead key={header.id}>
-                                                    {flexRender(header.column.columnDef.header, header.getContext())}
-                                                </TableHead>
-                                            ))}
-                                        </TableRow>
-                                    ))}
-                                </TableHeader>
-                                <TableBody>
-                                    {customerTable.getRowModel().rows.map(row => (
-                                        <TableRow
-                                            key={row.id}
-                                            className="cursor-pointer"
-                                            onClick={() => {
-                                                const isSelected = row.getIsSelected();
-                                                customerTable.toggleAllRowsSelected(false);
-                                                row.toggleSelected(!isSelected);
-                                                setCurrentItem(!isSelected ? row.original : null);
-                                            }}
-                                            data-state={row.getIsSelected() && "selected"}
-                                        >
-                                            {row.getVisibleCells().map(cell => (
-                                                <TableCell key={cell.id}>
-                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                </TableCell>
-                                            ))}
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                        <div className="rounded-md border overflow-hidden flex-1 min-h-0">
+                            <ScrollArea className="h-full">
+                                <Table>
+                                    <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
+                                        {customerTable.getHeaderGroups().map(hg => (
+                                            <TableRow key={hg.id}>
+                                                {hg.headers.map(header => (
+                                                    <TableHead key={header.id}>
+                                                        {flexRender(header.column.columnDef.header, header.getContext())}
+                                                    </TableHead>
+                                                ))}
+                                            </TableRow>
+                                        ))}
+                                    </TableHeader>
+                                    <TableBody>
+                                        {customerTable.getRowModel().rows.map(row => (
+                                            <TableRow
+                                                key={row.id}
+                                                className="cursor-pointer"
+                                                onClick={() => {
+                                                    const isSelected = row.getIsSelected();
+                                                    customerTable.toggleAllRowsSelected(false);
+                                                    row.toggleSelected(!isSelected);
+                                                    setCurrentItem(!isSelected ? row.original : null);
+                                                }}
+                                                data-state={row.getIsSelected() && "selected"}
+                                            >
+                                                {row.getVisibleCells().map(cell => (
+                                                    <TableCell key={cell.id}>
+                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                    </TableCell>
+                                                ))}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </ScrollArea>
                         </div>
                     </TabsContent>
-                    <TabsContent value="STAFF">
+                    <TabsContent value="STAFF" className="flex flex-col min-h-0">
                         <div className="flex w-full items-center py-4">
                             <Input
                                 placeholder="Buscar empleado..."
@@ -382,41 +385,43 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
                                 className="max-w-sm"
                             />
                         </div>
-                        <div className="rounded-md border overflow-hidden">
-                            <Table>
-                                <TableHeader>
-                                    {staffTable.getHeaderGroups().map(hg => (
-                                        <TableRow key={hg.id}>
-                                            {hg.headers.map(header => (
-                                                <TableHead key={header.id}>
-                                                    {flexRender(header.column.columnDef.header, header.getContext())}
-                                                </TableHead>
-                                            ))}
-                                        </TableRow>
-                                    ))}
-                                </TableHeader>
-                                <TableBody>
-                                    {staffTable.getRowModel().rows.map(row => (
-                                        <TableRow
-                                            key={row.id}
-                                            className="cursor-pointer"
-                                            onClick={() => {
-                                                const isSelected = row.getIsSelected();
-                                                staffTable.toggleAllRowsSelected(false);
-                                                row.toggleSelected(!isSelected);
-                                                setCurrentItem(!isSelected ? row.original : null);
-                                            }}
-                                            data-state={row.getIsSelected() && "selected"}
-                                        >
-                                            {row.getVisibleCells().map(cell => (
-                                                <TableCell key={cell.id}>
-                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                </TableCell>
-                                            ))}
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                        <div className="rounded-md border overflow-hidden flex-1 min-h-0">
+                            <ScrollArea className="h-full">
+                                <Table>
+                                    <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
+                                        {staffTable.getHeaderGroups().map(hg => (
+                                            <TableRow key={hg.id}>
+                                                {hg.headers.map(header => (
+                                                    <TableHead key={header.id}>
+                                                        {flexRender(header.column.columnDef.header, header.getContext())}
+                                                    </TableHead>
+                                                ))}
+                                            </TableRow>
+                                        ))}
+                                    </TableHeader>
+                                    <TableBody>
+                                        {staffTable.getRowModel().rows.map(row => (
+                                            <TableRow
+                                                key={row.id}
+                                                className="cursor-pointer"
+                                                onClick={() => {
+                                                    const isSelected = row.getIsSelected();
+                                                    staffTable.toggleAllRowsSelected(false);
+                                                    row.toggleSelected(!isSelected);
+                                                    setCurrentItem(!isSelected ? row.original : null);
+                                                }}
+                                                data-state={row.getIsSelected() && "selected"}
+                                            >
+                                                {row.getVisibleCells().map(cell => (
+                                                    <TableCell key={cell.id}>
+                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                    </TableCell>
+                                                ))}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </ScrollArea>
                         </div>
                     </TabsContent>
                 </Tabs>
