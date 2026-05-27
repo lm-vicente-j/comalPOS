@@ -134,6 +134,7 @@ model users {
   sales    sales[]
   openedJornadas    jornada[]  @relation("OpenedJornadas")
   closedJornadas    jornada[]  @relation("ClosedJornadas") 
+  savingsMovements savings_movement[]
 }
 
 model jornada {
@@ -149,6 +150,7 @@ model jornada {
 
   openedByUser users  @relation("OpenedJornadas", fields: [openedBy], references: [id])
   closedByUser users? @relation("ClosedJornadas", fields: [closedBy], references: [id])
+  savingsMovements savings_movement[]
 
   sales sales[]
   bills bill[]
@@ -172,4 +174,55 @@ enum SaleStatus {
 enum PaymentMethod {
   TRANSFER
   CASH
+}
+
+model savings_movement {
+    id            Int                    @id @default(autoincrement())
+    amount        Decimal                @db.Decimal
+    type          SavingsMovementType
+    description   String?
+    createdAt     DateTime               @default(now())
+    registered_by Int
+    jornadaId     Int?
+
+    users         users                  @relation(fields: [registered_by], references: [id])
+    jornada       jornada?               @relation(fields: [jornadaId], references: [id])
+
+    @@index([jornadaId])
+    @@index([createdAt])
+}
+
+enum SavingsMovementType {
+    DEPOSIT
+    WITHDRAW
+}
+
+model savings_goal {
+    id            Int                    @id @default(autoincrement())
+    name          String                 @db.VarChar(80)
+    targetAmount  Decimal                @db.Decimal
+    deadline      DateTime?
+    status        GoalStatus             @default(ACTIVE)
+    description   String?
+    createdAt     DateTime               @default(now())
+
+    contributions goal_contribution[]
+}
+
+enum GoalStatus {
+    ACTIVE
+    COMPLETED
+    CANCELLED
+}
+
+model goal_contribution {
+    id        Int           @id @default(autoincrement())
+    goalId    Int
+    amount    Decimal       @db.Decimal
+    note      String?
+    createdAt DateTime      @default(now())
+
+    goal      savings_goal  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+    @@index([goalId])
 }
