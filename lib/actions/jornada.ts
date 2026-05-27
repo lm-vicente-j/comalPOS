@@ -79,11 +79,25 @@ export async function closeJornada(
         _sum: { amount: true }
     });
 
+    const savingsDeposits = await prisma.savings_movement.aggregate({
+        where: { jornadaId: jornada.id, type: "DEPOSIT" },
+        _sum: { amount: true }
+    });
+
+    const savingsWithdraws = await prisma.savings_movement.aggregate({
+        where: { jornadaId: jornada.id, type: "WITHDRAW" },
+        _sum: { amount: true }
+    });
+
+
     const opening = Number(jornada.openingAmount);
     const salesSum = Number(cashSales._sum.total ?? 0);
     const billsSum = Number(bills._sum.amount ?? 0);
+    const depositsSum = Number(savingsDeposits._sum.amount ?? 0);
+    const withdrawsSum = Number(savingsWithdraws._sum.amount ?? 0);
 
-    const expectedClosingAmount = opening + salesSum - billsSum;
+
+    const expectedClosingAmount = opening + salesSum - billsSum - depositsSum + withdrawsSum;
 
     try {
         const res = await prisma.jornada.update({
@@ -98,7 +112,7 @@ export async function closeJornada(
         });
 
         revalidatePath("/admin/jornada");
-        return { success: true};
+        return { success: true };
     } catch (e) {
         return { success: false, error: "INTERNAL ERROR" };
     }
@@ -141,11 +155,23 @@ export async function getActiveJornadaWithStats() {
         })
     ]);
 
+    const savingsDeposits = await prisma.savings_movement.aggregate({
+        where: { jornadaId: jornada.id, type: "DEPOSIT" },
+        _sum: { amount: true }
+    });
+
+    const savingsWithdraws = await prisma.savings_movement.aggregate({
+        where: { jornadaId: jornada.id, type: "WITHDRAW" },
+        _sum: { amount: true }
+    });
+
     const opening = Number(jornada.openingAmount);
     const cashSum = Number(cashSales._sum.total ?? 0);
     const transferSum = Number(transferSales._sum.total ?? 0);
     const billsSum = Number(bills._sum.amount ?? 0);
-    const expectedCash = opening + cashSum - billsSum;
+    const depositsSum = Number(savingsDeposits._sum.amount ?? 0);
+    const withdrawsSum = Number(savingsWithdraws._sum.amount ?? 0);
+    const expectedCash = opening + cashSum - billsSum - depositsSum - withdrawsSum;
 
     const currentUserId = Number(session.user.id);
     const isMine = jornada.openedBy === currentUserId;
