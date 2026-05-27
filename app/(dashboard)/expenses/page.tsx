@@ -88,7 +88,7 @@ export default function ExpensesPage() {
     const totalMonth = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
     console.log(expenses);
     return (
-        <div className="flex flex-col items-center justify-start w-full h-[calc(100vh-80px)] p-6 gap-6">
+        <div className="flex flex-col items-center justify-start w-full h-full p-6 gap-6">
 
             <div className="grid grid-cols-2 gap-4 w-full max-w-6xl shrink-0">
                 <div className="outline rounded-md p-6 bg-white flex flex-col items-center justify-center">
@@ -114,7 +114,7 @@ export default function ExpensesPage() {
 
 
 
-                    <ScrollArea className="flex-1 pr-4">
+                    <ScrollArea className="flex-1 min-h-0 pr-4">
                         <div className="space-y-4">
                             <div className="flex flex-col gap-2 w-full px-1">
                                 <Label>Monto</Label>
@@ -191,7 +191,7 @@ export default function ExpensesPage() {
                 <div className="w-1/2 flex flex-col h-full min-h-0">
 
                     <h2 className="text-lg font-bold mb-4 shrink-0">Historial de Gastos</h2>
-                    <ScrollArea className="flex-1 pr-4">
+                    <ScrollArea className="flex-1 min-h-0 pr-4">
                         <Table>
                             <TableHeader>
                                 <TableRow>

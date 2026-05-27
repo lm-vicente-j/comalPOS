@@ -88,10 +88,10 @@ export default function RosterPage() {
 
   return (
     <div className="flex items-center justify-center w-full h-full p-4">
-      <div className="flex flex-col items-center justify-around h-full outline rounded-md bg-white w-full max-w-6xl p-6">
+      <div className="flex flex-col items-center h-full outline rounded-md bg-white w-full max-w-6xl p-6 overflow-hidden">
 
         {/* User Selection */}
-        <div className="w-full mb-6">
+        <div className="w-full mb-6 shrink-0">
           {alert && (
             <div className={`w-full p-3 rounded mb-2 text-sm font-semibold ${alert.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
               {alert.message}
@@ -113,10 +113,10 @@ export default function RosterPage() {
 
         </div>
 
-        <div className="w-full h-full flex flex-row gap-6">
+        <div className="w-full flex-1 min-h-0 flex flex-row gap-6">
           {/* Controls */}
-          <div className="h-full w-1/2 flex flex-col gap-6">
-            <div className="space-y-4">
+          <div className="h-full min-h-0 w-1/2 flex flex-col gap-6">
+            <div className="space-y-4 shrink-0">
               <div className="flex flex-col gap-2">
                 <Label>Monto</Label>
                 <Input
@@ -140,7 +140,7 @@ export default function RosterPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 shrink-0">
               <Button onClick={() => handlePayment("ADELANTO")} className="cursor-pointer" variant="outline">Adelantar Sueldo</Button>
               <Button onClick={() => handlePayment("BONO")} className="cursor-pointer bg-amber-500 hover:bg-amber-400">Otorgar Bono</Button>
               <Button onClick={() => handlePayment("SUELDO")} className="cursor-pointer" >Registrar Pago de Sueldo</Button>
@@ -150,7 +150,7 @@ export default function RosterPage() {
           <Separator orientation="vertical" />
 
           {/* Info & History */}
-          <div className="h-full w-1/2 flex flex-col gap-5">
+          <div className="h-full min-h-0 w-1/2 flex flex-col gap-5">
             <div className="bg-slate-50 p-4 rounded-lg">
               <p className="font-bold">Nombre: <span className="font-normal">{selectedUser?.name || "---"}</span></p>
               <p className="font-bold">Fecha de ingreso: <span className="font-normal">
@@ -158,7 +158,7 @@ export default function RosterPage() {
               </span></p>
             </div>
 
-            <ScrollArea className="h-100 w-full rounded-md border p-4 bg-white">
+            <ScrollArea className="flex-1 min-h-0 w-full rounded-md border p-4 bg-white">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -185,7 +185,6 @@ export default function RosterPage() {
   );
 }
 
-// Minimal Label component helper
 function Label({ children }: { children: React.ReactNode }) {
   return <label className="text-sm font-medium leading-none">{children}</label>;
 }
