@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
+import { canAccessRoute } from "@/lib/permissions";
 
 import {
   CalculatorIcon,
@@ -22,7 +23,6 @@ import {
 interface NavItem {
   name: string;
   href: string;
-  role: string[];
   icon: LucideIcon;
 }
 
@@ -31,11 +31,12 @@ interface MenuGroup {
   items: NavItem[];
 }
 
+// Visibility is derived from the central route permissions (lib/permissions.ts).
 // The four primary destinations shown directly in the bottom bar.
 const PRIMARY_ITEMS: NavItem[] = [
-  { name: "POS", href: "/pos", role: ["ADMIN", "STAFF"], icon: CalculatorIcon },
-  { name: "Egresos", href: "/expenses", role: ["ADMIN", "STAFF"], icon: BanknoteArrowDownIcon },
-  { name: "Deudores", href: "/debtors", role: ["ADMIN", "STAFF"], icon: BanknoteIcon },
+  { name: "POS", href: "/pos", icon: CalculatorIcon },
+  { name: "Egresos", href: "/expenses", icon: BanknoteArrowDownIcon },
+  { name: "Deudores", href: "/debtors", icon: BanknoteIcon },
 ];
 
 // Everything else lives inside the "Menu" bottom sheet, grouped by section.
@@ -43,16 +44,16 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     title: "Gestión",
     items: [
-      { name: "Inventario", href: "/admin/inventory", role: ["ADMIN"], icon: ArchiveIcon },
-      { name: "Menú", href: "/admin/menu", role: ["ADMIN"], icon: UtensilsIcon },
-      { name: "CRM", href: "/admin/crm", role: ["ADMIN"], icon: UserRoundIcon },
+      { name: "Inventario", href: "/admin/inventory", icon: ArchiveIcon },
+      { name: "Menú", href: "/admin/menu", icon: UtensilsIcon },
+      { name: "CRM", href: "/admin/crm", icon: UserRoundIcon },
     ],
   },
   {
     title: "Finanzas",
     items: [
-      { name: "Salarios", href: "/admin/roster", role: ["ADMIN"], icon: HandCoinsIcon },
-      { name: "Ahorros", href: "/admin/savings", role: ["ADMIN"], icon: PiggyBankIcon },
+      { name: "Salarios", href: "/admin/roster", icon: HandCoinsIcon },
+      { name: "Ahorros", href: "/admin/savings", icon: PiggyBankIcon },
     ],
   },
 ];
@@ -61,11 +62,11 @@ export default function MobileNav({ userRole }: { userRole: string }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const primary = PRIMARY_ITEMS.filter((item) => item.role.includes(userRole));
+  const primary = PRIMARY_ITEMS.filter((item) => canAccessRoute(userRole, item.href));
 
   const groups = MENU_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => item.role.includes(userRole)),
+    items: group.items.filter((item) => canAccessRoute(userRole, item.href)),
   })).filter((group) => group.items.length > 0);
 
   // Highlight the "Menu" tab when the active route lives inside the sheet.
