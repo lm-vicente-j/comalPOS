@@ -21,15 +21,15 @@ export function MobileInventoryManager({ data }: { data: Supply[] }) {
     const [alert, setAlert] = React.useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
     const [formData, setFormData] = React.useState({
-        name: "", unitCost: 0, currentStock: 0, measureUnit: ""
+        name: "", unitCost: "", currentStock: "", measureUnit: ""
     });
 
     const openEdit = (item: Supply) => {
         setCurrentItem(item);
         setFormData({
             name: item.name || "",
-            unitCost: item.unitCost || 0,
-            currentStock: item.currentStock || 0,
+            unitCost: item.unitCost?.toString() ?? "",
+            currentStock: item.currentStock?.toString() ?? "",
             measureUnit: item.measureUnit || ""
         });
         setErrors({});
@@ -38,16 +38,17 @@ export function MobileInventoryManager({ data }: { data: Supply[] }) {
 
     const openNew = () => {
         setCurrentItem(null);
-        setFormData({ name: "", unitCost: 0, currentStock: 0, measureUnit: "" });
+        setFormData({ name: "", unitCost: "", currentStock: "", measureUnit: "" });
         setErrors({});
         setIsDialogOpen(true);
     };
 
+    // Store raw string values so numeric fields can be cleared; saveSupply coerces with Number().
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: name === "name" || name === "measureUnit" ? value : parseFloat(value) || 0
+            [name]: value
         }));
     };
 
