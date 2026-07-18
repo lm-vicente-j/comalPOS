@@ -98,8 +98,8 @@ export default function Sidebar({ userRole }: { userRole: string }) {
   const activeParent = allowedModules.find(m => m.name === subMenu);
 
   return (
-    // Changed classes: fixed bottom-0 for mobile, static for desktop
-    <div className='z-50 flex flex-row lg:flex-col items-center justify-around lg:justify-start w-full lg:w-25 h-16 lg:h-screen bg-white shadow-lg lg:shadow-sm font-rounded py-2 lg:py-4 fixed lg:static bottom-0 left-0 border-t lg:border-t-0 lg:border-r border-gray-100'>
+    // Desktop-only vertical sidebar. On mobile the bottom nav (MobileNav) is used instead.
+    <div className='z-50 hidden lg:flex lg:flex-col items-center lg:justify-start lg:w-25 lg:h-screen bg-white lg:shadow-sm font-rounded lg:py-4 lg:static lg:border-r border-gray-100'>
 
       {!activeParent && allowedModules.map((item, i) => {
         const isActive = pathname === item.href;
