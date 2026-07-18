@@ -71,7 +71,7 @@ import clsx from "clsx"
 
 type RecipeItem = {
     supply: Supply;
-    quantityUsed: number;
+    quantityUsed: number | string;
 };
 
 export const columns: ColumnDef<any>[] = [
@@ -175,12 +175,10 @@ function InputSupply({
     };
 
     const handleUpdateQuantity = (id: number, qty: string) => {
-        const numQty = parseFloat(qty) || 0;
-        if (numQty != 0) {
-            setRecipeItems(recipeItems.map(r =>
-                r.supply.id === id ? { ...r, quantityUsed: numQty } : r
-            ));
-        }
+        // Store the raw value so the input can be emptied; coerced to a number on save.
+        setRecipeItems(recipeItems.map(r =>
+            r.supply.id === id ? { ...r, quantityUsed: qty } : r
+        ));
     };
 
     return (
@@ -290,9 +288,9 @@ export function MenuManager({ products, supplies }: MenuProps) {
 
     const [formData, setFormData] = React.useState({
         name: "",
-        price: 0,
-        unitCost: 0,
-        currentStock: 0,
+        price: "",
+        unitCost: "",
+        currentStock: "",
         measureUnit: ""
     });
 
@@ -312,16 +310,16 @@ export function MenuManager({ products, supplies }: MenuProps) {
 
     // Calculate base cost based on selected supplies
     const totalBaseCost = recipeItems.reduce((acc, item) => {
-        return acc + ((item.supply.unitCost || 0) * item.quantityUsed);
+        return acc + ((item.supply.unitCost || 0) * (Number(item.quantityUsed) || 0));
     }, 0);
 
     React.useEffect(() => {
         if (currentItem) {
             setFormData({
                 name: currentItem.name || "",
-                price: Number(currentItem.price) || 0,
-                unitCost: currentItem.unitCost || 0,
-                currentStock: 0,
+                price: currentItem.price?.toString() ?? "",
+                unitCost: currentItem.unitCost?.toString() ?? "",
+                currentStock: "",
                 measureUnit: ""
             });
             const existingRecipes = currentItem.recipes?.map((r: any) => ({
@@ -332,9 +330,9 @@ export function MenuManager({ products, supplies }: MenuProps) {
         } else {
             setFormData({
                 name: "",
-                price: 0,
-                unitCost: 0,
-                currentStock: 0,
+                price: "",
+                unitCost: "",
+                currentStock: "",
                 measureUnit: ""
             });
             setRecipeItems([]);
@@ -346,7 +344,7 @@ export function MenuManager({ products, supplies }: MenuProps) {
     const resetForm = () => {
         setCurrentItem(null);
         table.toggleAllRowsSelected(false);
-        setFormData({ name: "", price: 0, unitCost: 0, currentStock: 0, measureUnit: "" });
+        setFormData({ name: "", price: "", unitCost: "", currentStock: "", measureUnit: "" });
         setRecipeItems([]);
         setAlert(null);
         setErrors({});
@@ -355,13 +353,15 @@ export function MenuManager({ products, supplies }: MenuProps) {
 
     const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
+        // Leave the field empty if the user cleared it; don't force it back to a number.
+        if (value === "") return;
         if (name === "unitCost" || name === "price") {
             const numericValue = parseFloat(value) || 0;
             const clampedValue = Math.max(totalBaseCost, numericValue);
 
             setFormData(prev => ({
                 ...prev,
-                [name]: clampedValue
+                [name]: clampedValue.toString()
             }));
         }
     }
@@ -381,7 +381,7 @@ export function MenuManager({ products, supplies }: MenuProps) {
         setErrors({});
 
         if (currentItem) {
-            const response = await saveProduct({ id: currentItem.id, price: formData.price, name: formData.name });
+            const response = await saveProduct({ id: currentItem.id, price: Number(formData.price), name: formData.name });
             if (response.success) {
                 resetForm();
                 setAlert({ message: "Producto actualizado exitosamente.", type: 'success' });
@@ -395,8 +395,8 @@ export function MenuManager({ products, supplies }: MenuProps) {
         } else {
             const response = await saveProduct({
                 name: formData.name,
-                price: formData.price,
-                recipes: recipeItems.map(item => ({ supplyID: item.supply.id!, quantityUsed: item.quantityUsed }))
+                price: Number(formData.price),
+                recipes: recipeItems.map(item => ({ supplyID: item.supply.id!, quantityUsed: Number(item.quantityUsed) || 0 }))
             });
             if (response.success) {
                 resetForm();
