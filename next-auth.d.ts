@@ -1,33 +1,24 @@
-import { type DefaultSession } from "next-auth"
+import type { DefaultSession } from "next-auth";
+
+import type { UserRole } from "@/lib/auth-types";
 
 declare module "next-auth" {
   interface Session {
     user: {
-      id: string | undefined;  
-      role: string;
-    } & DefaultSession["user"]
+      id: string | undefined;
+      role: UserRole;
+    } & DefaultSession["user"];
   }
 
   interface User {
-    role?: string;
+    role?: UserRole;
   }
 }
 
-import { JWT } from "next-auth/jwt"
-
 declare module "next-auth/jwt" {
   interface JWT {
-    id: string | undefined;
-    role?: string;
-  }
-}
-
-
-
-
-declare module "next-auth/jwt" {
-  interface JWT {
-    id: string | undefined;
-    role: string;
+    // Kept optional while JWTs issued before this change expire.
+    id?: string;
+    role?: UserRole;
   }
 }
