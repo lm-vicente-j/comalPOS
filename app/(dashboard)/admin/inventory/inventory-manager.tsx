@@ -114,8 +114,8 @@ export function InventoryManager({ data }: { data: Supply[] }) {
 
     const [formData, setFormData] = useState({
         name: "",
-        unitCost: 0,
-        currentStock: 0,
+        unitCost: "",
+        currentStock: "",
         measureUnit: ""
     });
 
@@ -136,30 +136,32 @@ export function InventoryManager({ data }: { data: Supply[] }) {
         if (currentItem) {
             setFormData({
                 name: currentItem.name || "",
-                unitCost: currentItem.unitCost || 0,
-                currentStock: currentItem.currentStock || 0,
+                unitCost: currentItem.unitCost?.toString() ?? "",
+                currentStock: currentItem.currentStock?.toString() ?? "",
                 measureUnit: currentItem.measureUnit || ""
             });
             setErrors({});
             setAlert(null);
         } else {
-            setFormData({ name: "", unitCost: 0, currentStock: 0, measureUnit: "" });
+            setFormData({ name: "", unitCost: "", currentStock: "", measureUnit: "" });
         }
     }, [currentItem]);
 
     const resetForm = () => {
         setCurrentItem(null);
         table.toggleAllRowsSelected(false);
-        setFormData({ name: "", unitCost: 0, currentStock: 0, measureUnit: "" });
+        setFormData({ name: "", unitCost: "", currentStock: "", measureUnit: "" });
         setErrors({});
         setAlert(null);
     };
 
+    // Keep numeric inputs as raw strings so the field can be emptied while typing.
+    // The server action coerces with Number(), so validations still run on save.
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: name === "name" ? value : parseFloat(value) || 0
+            [name]: value
         }));
     };
 

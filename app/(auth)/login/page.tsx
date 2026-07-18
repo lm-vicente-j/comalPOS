@@ -3,6 +3,7 @@ import { useActionState } from "react";
 
 import { login } from "@/lib/actions/auth_action";
 import Image from "next/image";
+import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 
@@ -60,9 +61,17 @@ export default function LoginPage() {
             </div>
             <button
               type="submit"
-              className="mt-5 w-full cursor-pointer bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-lg transition-colors"
+              disabled={isPending}
+              className="mt-5 w-full cursor-pointer bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Entrar al Sistema
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                "Entrar al Sistema"
+              )}
             </button>
           </form>
 
@@ -97,8 +106,19 @@ export default function LoginPage() {
                 </InputOTP>
               </div>
             </div>
-            <button type="submit" className="mt-5 w-full cursor-pointer bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-lg transition-colors">
-              Entrar al Sistema
+            <button
+              type="submit"
+              disabled={isPending}
+              className="mt-5 w-full cursor-pointer bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                "Entrar al Sistema"
+              )}
             </button>
           </form>
         </TabsContent>

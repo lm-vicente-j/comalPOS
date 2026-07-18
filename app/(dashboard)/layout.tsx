@@ -1,4 +1,5 @@
 import Sidebar from '@/components/layout/sidebar';
+import MobileNav from '@/components/layout/mobile-nav';
 import Topbar from '@/components/layout/topbar';
 import StoreInitializer from '@/components/StoreInitializer';
 import { auth } from '@/lib/auth';
@@ -30,6 +31,8 @@ export default async function DashboardLayout({
           {children}
         </div>
       </main>
+
+      <MobileNav userRole={role} />
     </div>
   );
 }
