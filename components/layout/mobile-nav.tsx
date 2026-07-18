@@ -72,6 +72,10 @@ export default function MobileNav({ userRole }: { userRole: string }) {
   const menuHrefs = groups.flatMap((g) => g.items.map((i) => i.href));
   const isMenuActive = menuHrefs.some((href) => pathname === href);
 
+  // If the role has no options beyond the primary ones (e.g. STAFF),
+  // don't render the Menu tab or the sheet at all.
+  const hasMenuOptions = groups.length > 0;
+
   return (
     <nav className="fixed bottom-0 left-0 z-50 flex h-16 w-full items-stretch justify-around border-t border-gray-100 bg-white shadow-lg font-rounded lg:hidden">
       {primary.map((item) => {
@@ -91,6 +95,7 @@ export default function MobileNav({ userRole }: { userRole: string }) {
         );
       })}
 
+      {hasMenuOptions && (
       <DialogPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DialogPrimitive.Trigger
           className={cn(
@@ -130,44 +135,39 @@ export default function MobileNav({ userRole }: { userRole: string }) {
             </DialogPrimitive.Description>
 
             <div className="px-5 pt-2">
-              {groups.length === 0 ? (
-                <p className="py-10 text-center text-sm text-gray-500">
-                  No hay más opciones disponibles.
-                </p>
-              ) : (
-                groups.map((group) => (
-                  <div key={group.title} className="mb-6 last:mb-0">
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      {group.title}
-                    </p>
-                    <div className="grid grid-cols-3 gap-3">
-                      {group.items.map((item) => {
-                        const isActive = pathname === item.href;
-                        return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={() => setMenuOpen(false)}
-                            className={cn(
-                              "flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-center shadow-sm transition-all",
-                              isActive ? "bg-orange-400 text-white" : "bg-gray-100 text-gray-700"
-                            )}
-                          >
-                            <item.icon size={22} />
-                            <span className="text-[11px] font-medium leading-tight">
-                              {item.name}
-                            </span>
-                          </Link>
-                        );
-                      })}
-                    </div>
+              {groups.map((group) => (
+                <div key={group.title} className="mb-6 last:mb-0">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    {group.title}
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {group.items.map((item) => {
+                      const isActive = pathname === item.href;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setMenuOpen(false)}
+                          className={cn(
+                            "flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-center shadow-sm transition-all",
+                            isActive ? "bg-orange-400 text-white" : "bg-gray-100 text-gray-700"
+                          )}
+                        >
+                          <item.icon size={22} />
+                          <span className="text-[11px] font-medium leading-tight">
+                            {item.name}
+                          </span>
+                        </Link>
+                      );
+                    })}
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
+      )}
     </nav>
   );
 }
