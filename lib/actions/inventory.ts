@@ -46,6 +46,9 @@ export async function saveSupply(data: Supply) {
 }
 
 export async function getSuppliesData() {
+    const session = await auth();
+    if (!session?.user) return [];
+
     try {
         return await prisma.supplies.findMany({
              orderBy: { name: 'asc' },
