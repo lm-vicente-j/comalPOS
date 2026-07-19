@@ -28,24 +28,30 @@ export async function getPoolBalance() {
     return { balance: deposited - withdrawn, deposited, withdrawn };
 }
 
-export async function getRecentMovements(limit = 20) {
+// Paginated: returns one page of movements and whether more remain.
+export async function getRecentMovements(limit = 20, offset = 0) {
     const session = await auth();
-    if (!session?.user) return [];
+    if (!session?.user) return { items: [], hasMore: false };
 
     const movements = await prisma.savings_movement.findMany({
-        take: limit,
+        skip: offset,
+        // One extra row just to know whether another page exists.
+        take: limit + 1,
         orderBy: { createdAt: "desc" },
         include: { users: { select: { name: true } } }
     });
 
-    return movements.map(m => ({
-        id: m.id,
-        amount: Number(m.amount),
-        type: m.type,
-        description: m.description,
-        createdAt: m.createdAt,
-        userName: m.users?.name ?? "Sin nombre"
-    }));
+    return {
+        items: movements.slice(0, limit).map(m => ({
+            id: m.id,
+            amount: Number(m.amount),
+            type: m.type,
+            description: m.description,
+            createdAt: m.createdAt,
+            userName: m.users?.name ?? "Sin nombre"
+        })),
+        hasMore: movements.length > limit,
+    };
 }
 
 export async function saveMovement(

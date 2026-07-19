@@ -54,12 +54,27 @@ export async function saveExpense(data: {
   }
 }
 
-export async function getExpenses() {
+// Paginated: fetches one page of bills plus the all-time total so the
+// summary card stays accurate while the list loads incrementally.
+export async function getExpenses(offset = 0, limit = 30) {
   const session = await auth();
-  if (!session?.user) return [];
+  if (!session?.user) return { items: [], total: 0, hasMore: false };
 
-  const rows = await prisma.bill.findMany({
-    orderBy: { date: 'desc' },
-  });
-  return rows.map((row) => BillSchema.parse(row));
+  const [rows, totals] = await Promise.all([
+    prisma.bill.findMany({
+      // date is day-precision; id breaks same-day ties so new expenses
+      // always surface at the top and pagination stays stable.
+      orderBy: [{ date: 'desc' }, { id: 'desc' }],
+      skip: offset,
+      // One extra row just to know whether another page exists.
+      take: limit + 1,
+    }),
+    prisma.bill.aggregate({ _sum: { amount: true } }),
+  ]);
+
+  return {
+    items: rows.slice(0, limit).map((row) => BillSchema.parse(row)),
+    total: Number(totals._sum.amount ?? 0),
+    hasMore: rows.length > limit,
+  };
 }

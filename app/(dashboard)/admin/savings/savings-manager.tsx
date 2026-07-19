@@ -1,7 +1,8 @@
 "use client"
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { saveMovement, saveGoal, addContribution, cancelGoal } from "@/lib/actions/savings";
+import { saveMovement, saveGoal, addContribution, cancelGoal, getRecentMovements } from "@/lib/actions/savings";
+import { InfiniteScroll } from "@/components/ui/infinite-scroll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,24 @@ export default function SavingsManager({ pool, movements, goals }: Props) {
 }
 
 function PoolCard({ pool, movements }: { pool: Props["pool"]; movements: Props["movements"] }) {
+    const [items, setItems] = useState(movements.items);
+    const [hasMore, setHasMore] = useState(movements.hasMore);
+    const [loadingMore, setLoadingMore] = useState(false);
+
+    // The server re-sends the first page after router.refresh(); resync.
+    useEffect(() => {
+        setItems(movements.items);
+        setHasMore(movements.hasMore);
+    }, [movements]);
+
+    const loadMore = async () => {
+        setLoadingMore(true);
+        const res = await getRecentMovements(20, items.length);
+        setItems(prev => [...prev, ...res.items]);
+        setHasMore(res.hasMore);
+        setLoadingMore(false);
+    };
+
     return (
         <Card className="p-6">
             <div className="flex items-start justify-between mb-4">
@@ -44,11 +63,11 @@ function PoolCard({ pool, movements }: { pool: Props["pool"]; movements: Props["
             </div>
 
             <h3 className="text-sm font-medium text-gray-700 mt-6 mb-2">Movimientos recientes</h3>
-            {movements.length === 0 ? (
+            {items.length === 0 ? (
                 <p className="text-sm text-gray-500">Aún no hay movimientos registrados.</p>
             ) : (
                 <div className="divide-y">
-                    {movements.map(m => (
+                    {items.map(m => (
                         <div key={m.id} className="py-2.5 flex items-center justify-between text-sm">
                             <div className="flex items-center gap-2.5">
                                 {m.type === "DEPOSIT"
@@ -68,6 +87,7 @@ function PoolCard({ pool, movements }: { pool: Props["pool"]; movements: Props["
                     ))}
                 </div>
             )}
+            <InfiniteScroll onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
         </Card>
     );
 }
