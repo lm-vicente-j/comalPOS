@@ -40,20 +40,26 @@ export async function saveSalaryPayment(data: { userID: number; amount: number; 
   }
 }
 
-export async function getSalaryHistory(userID: number) {
+// Paginated: returns one page of payments and whether more remain.
+export async function getSalaryHistory(userID: number, offset = 0, limit = 30) {
   const session = await auth();
-  if (!session?.user) return [];
+  if (!session?.user) return { items: [], hasMore: false };
 
   try {
     const history = await prisma.salary.findMany({
       where: { userID },
       orderBy: { payDate: "desc" },
+      skip: offset,
+      // One extra row just to know whether another page exists.
+      take: limit + 1,
     });
-    return history.map((row) => SalarySchema.parse(row));
-
+    return {
+      items: history.slice(0, limit).map((row) => SalarySchema.parse(row)),
+      hasMore: history.length > limit,
+    };
   } catch (error) {
     console.error(error);
-    return [];
+    return { items: [], hasMore: false };
   }
 }
 
