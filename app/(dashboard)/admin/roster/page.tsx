@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { InfiniteScroll } from "@/components/ui/infinite-scroll";
 import { useEffect, useState } from "react";
 import {
   Table,
@@ -26,10 +27,14 @@ import { GetAllUsers } from "@/lib/actions/users";
 import { User, Salary } from "@/lib/actions/schemas";
 import { format } from "date-fns";
 
+const PAGE_SIZE = 30;
+
 export default function RosterPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUserID, setSelectedUserID] = useState<string>("");
   const [history, setHistory] = useState<Salary[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Form states
   const [amount, setAmount] = useState("");
@@ -43,12 +48,24 @@ export default function RosterPage() {
     GetAllUsers().then((data) => setUsers(data as User[]));
   }, []);
 
-  // Fetch history when user changes
+  // Fetch the first page of history when user changes
   useEffect(() => {
     if (selectedUserID) {
-      getSalaryHistory(parseInt(selectedUserID)).then(setHistory);
+      getSalaryHistory(parseInt(selectedUserID), 0, PAGE_SIZE).then((res) => {
+        setHistory(res.items);
+        setHasMore(res.hasMore);
+      });
     }
   }, [selectedUserID]);
+
+  const loadMoreHistory = async () => {
+    if (!selectedUserID) return;
+    setLoadingMore(true);
+    const res = await getSalaryHistory(parseInt(selectedUserID), history.length, PAGE_SIZE);
+    setHistory((prev) => [...prev, ...res.items]);
+    setHasMore(res.hasMore);
+    setLoadingMore(false);
+  };
 
   const selectedUser = users.find(u => u.id === parseInt(selectedUserID));
 
@@ -78,8 +95,9 @@ export default function RosterPage() {
       setReason("");
       setAlert({ message: "Pago registrado exitosamente.", type: 'success' });
       setTimeout(() => setAlert(null), 4000);
-      const updatedHistory = await getSalaryHistory(parseInt(selectedUserID));
-      setHistory(updatedHistory);
+      const updatedHistory = await getSalaryHistory(parseInt(selectedUserID), 0, PAGE_SIZE);
+      setHistory(updatedHistory.items);
+      setHasMore(updatedHistory.hasMore);
     } else {
       setAlert({ message: res.error || "Error al registrar pago.", type: 'error' });
       if (res.fieldErrors) setErrors(res.fieldErrors);
@@ -177,6 +195,7 @@ export default function RosterPage() {
                   ))}
                 </TableBody>
               </Table>
+              <InfiniteScroll onLoadMore={loadMoreHistory} hasMore={hasMore} loading={loadingMore} />
             </ScrollArea>
           </div>
         </div>
