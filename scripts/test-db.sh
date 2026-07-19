@@ -32,7 +32,11 @@ if ! as_postgres "$PGBIN/pg_ctl -D '$DATA' status" >/dev/null 2>&1; then
 fi
 
 as_postgres "$PGBIN/createdb -h localhost -p $PORT -U postgres $DB" 2>/dev/null || true
+as_postgres "$PGBIN/createdb -h localhost -p $PORT -U postgres ${DB}_e2e" 2>/dev/null || true
 
+# Integration tests and the e2e dev server use separate databases so the
+# suites cannot step on each other's data.
 DATABASE_URL="$URL" npx prisma db push >/dev/null
+DATABASE_URL="postgresql://postgres@localhost:$PORT/${DB}_e2e" npx prisma db push >/dev/null
 
 echo "$URL"
