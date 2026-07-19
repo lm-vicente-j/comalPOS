@@ -62,7 +62,9 @@ export async function getExpenses(offset = 0, limit = 30) {
 
   const [rows, totals] = await Promise.all([
     prisma.bill.findMany({
-      orderBy: { date: 'desc' },
+      // date is day-precision; id breaks same-day ties so new expenses
+      // always surface at the top and pagination stays stable.
+      orderBy: [{ date: 'desc' }, { id: 'desc' }],
       skip: offset,
       // One extra row just to know whether another page exists.
       take: limit + 1,

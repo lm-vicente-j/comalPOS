@@ -495,7 +495,7 @@ export function MenuManager({ products, supplies }: MenuProps) {
                             <div>
                                 <label className="text-xs font-semibold uppercase">Precio de venta</label>
                                 
-                                <Input name="unitCost" type="number" onBlur={handleInputBlur} value={formData.unitCost} onChange={handleInputChange} />
+                                <Input name="price" type="number" onBlur={handleInputBlur} value={formData.price} onChange={handleInputChange} />
                                 {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price[0]}</p>}
 
                             </div>
@@ -564,7 +564,7 @@ export function MenuManager({ products, supplies }: MenuProps) {
                         </div>
                         <div>
                             <label className="text-xs font-semibold uppercase">Precio de Venta</label>
-                            <Input name="unitCost" type="number" value={formData.unitCost} onChange={handleInputChange} placeholder="0.00" />
+                            <Input name="price" type="number" value={formData.price} onChange={handleInputChange} placeholder="0.00" />
                                 {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price[0]}</p>}
                         
                         </div>
