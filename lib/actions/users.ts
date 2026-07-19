@@ -4,6 +4,7 @@ import { User } from "./schemas";
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from "next/cache";
 import { UserSchema } from "./schemas";
+import { auth } from "../auth";
 import z from "zod";
 
 function GenerateUsername({ fullname }: { fullname: string }) {
@@ -33,6 +34,9 @@ function GenerateUsername({ fullname }: { fullname: string }) {
 }
 
 export async function GetAllUsers() {
+  const session = await auth();
+  if (!session?.user) return [];
+
   try {
     const userList = await prisma.users.findMany({
       select: { id: true, name: true, email: true, username: true, active: true, role: true },
@@ -46,6 +50,11 @@ export async function GetAllUsers() {
 }
 
 export async function saveUser(data: Partial<User>) {
+
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") {
+    return { success: false, error: "UNAUTHORIZED" };
+  }
 
   if (data.id) {
     const parsed = UserSchema.pick({ id: true, password: true, name: true, role: true, pin: true }).safeParse(data);

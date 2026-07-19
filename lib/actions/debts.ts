@@ -4,6 +4,7 @@ import prisma from "../prisma"
 import { Sale } from "./sales";
 import { revalidatePath } from "next/cache";
 import { PaymentMethod, SaleStatus } from "@/app/generated/prisma/enums";
+import { auth } from "../auth";
 
 const DebtorSchema = z.object({
     id: z.number(),
@@ -43,6 +44,9 @@ const DebtorSchema = z.object({
 export type Debtor = z.infer<typeof DebtorSchema>
 
 export async function getAllDebtors() {
+    const session = await auth();
+    if (!session?.user) return [];
+
     try {
         const rawDebts = await prisma.debtors.findMany({
             where: {
@@ -99,6 +103,9 @@ export async function getAllDebtors() {
 }
 
 export async function getDebtsSummary() {
+    const session = await auth();
+    if (!session?.user) return { totalAmount: 0, activeDebtors: 0, todayPayments: 0 };
+
     try {
 
         const startOfDay = new Date();
@@ -137,6 +144,8 @@ export async function getDebtsSummary() {
 
 export async function getDebtorHistory(id: any) {
 
+    const session = await auth();
+    if (!session?.user) return { success: false, error: "UNAUTHORIZED" };
 
     try {
         const debts = await prisma.debtors.findUnique({
@@ -154,7 +163,8 @@ export async function getDebtorHistory(id: any) {
 
 export async function toDebt(customerId: number, sales: Sale[]) {
 
-
+    const session = await auth();
+    if (!session?.user) return { msg: "UNAUTHORIZED" };
 
     try {
 
@@ -211,6 +221,9 @@ export async function toDebt(customerId: number, sales: Sale[]) {
 }
 
 export async function payAccount(customerID: number, sales: Sale[], paymentMethod: PaymentMethod) {
+    const session = await auth();
+    if (!session?.user) return { msg: "UNAUTHORIZED" };
+
     try {
         const now = new Date(); 
         
