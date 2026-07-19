@@ -205,6 +205,9 @@ export async function getActiveJornadaWithStats() {
 
 
 export async function getJornadaEmployeeBreakdown(jornadaId: number) {
+    const session = await auth();
+    if (!session?.user) return [];
+
     const grouped = await prisma.sales.groupBy({
         by: ['placedBy'],
         where: { jornadaId, status: 'PAID' },

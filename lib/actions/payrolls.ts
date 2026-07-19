@@ -3,10 +3,16 @@
 import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
 import { SalarySchema } from "./schemas";
+import { auth } from "../auth";
 import z from "zod";
 
 export async function saveSalaryPayment(data: { userID: number; amount: number; period: string; }) {
-  
+
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") {
+    return { success: false, error: "UNAUTHORIZED" };
+  }
+
   const parsed = SalarySchema.omit({ id: true, payDate: true }).safeParse(data);
   
   if (!parsed.success) {
@@ -35,6 +41,9 @@ export async function saveSalaryPayment(data: { userID: number; amount: number; 
 }
 
 export async function getSalaryHistory(userID: number) {
+  const session = await auth();
+  if (!session?.user) return [];
+
   try {
     const history = await prisma.salary.findMany({
       where: { userID },
@@ -49,6 +58,9 @@ export async function getSalaryHistory(userID: number) {
 }
 
 export async function getUserPayrollInfo(userID: number) {
+  const session = await auth();
+  if (!session?.user) return null;
+
   try {
     const user = await prisma.users.findUnique({
       where: { id: userID },

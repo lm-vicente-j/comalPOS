@@ -3,6 +3,7 @@
 import z, { success, treeifyError } from "zod";
 import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
+import { auth } from "../auth";
 
 const SaleSchema = z.object({
     id: z.number().int(),
@@ -33,7 +34,8 @@ export type Sale = z.infer<typeof SaleSchema>;
 
 export async function createSale(sale_items: { productID: number, quantity: number }[], status: "UNPAID" | "PAID" | "DEBT", source_type: string, customerID: number, placedBy: number, paymentMethod: "CASH" | "TRANSFER" = "CASH") {
 
-
+    const session = await auth();
+    if (!session?.user) return { success: false, error: "UNAUTHORIZED" };
 
     try {
 
@@ -138,6 +140,9 @@ export async function createSale(sale_items: { productID: number, quantity: numb
 }
 
 export async function closeAccountAction(sourceType: string, paymentMethod: "CASH" | "TRANSFER" = "CASH") {
+    const session = await auth();
+    if (!session?.user) return { success: false, message: "UNAUTHORIZED" };
+
     try {
 
 
@@ -161,6 +166,9 @@ export async function closeAccountAction(sourceType: string, paymentMethod: "CAS
 }
 
 export async function getSalesHistory() {
+    const session = await auth();
+    if (!session?.user) return [];
+
     const sales = await prisma.sales.findMany({
         include: {
             customer: true,
@@ -182,6 +190,9 @@ export async function getSalesHistory() {
 }
 
 export async function getTodaySalesHistory() {
+
+    const session = await auth();
+    if (!session?.user) return [];
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -217,6 +228,9 @@ export async function getTodaySalesHistory() {
 }
 
 export async function cancelSaleAction(saleId: number) {
+    const session = await auth();
+    if (!session?.user) return { success: false, error: "UNAUTHORIZED" };
+
     try {
         return await prisma.$transaction(async (tx) => {
             const sale = await tx.sales.findUnique({
@@ -252,6 +266,9 @@ export async function cancelSaleAction(saleId: number) {
 }
 
 export async function updateSaleQuantity(saleId: number, quantity: number, productId: number) {
+
+    const session = await auth();
+    if (!session?.user) return { success: false, message: "UNAUTHORIZED" };
 
     try {
         // CANCELL SALE

@@ -2,6 +2,7 @@
 import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
 import { BillSchema } from "./schemas";
+import { auth } from "../auth";
 import z from "zod";
 
 export async function saveExpense(data: {
@@ -11,6 +12,9 @@ export async function saveExpense(data: {
   date: Date;
   registered_by: number;
 }) {
+
+  const session = await auth();
+  if (!session?.user) return { success: false, error: "UNAUTHORIZED" };
 
   const activeJornada = await prisma.jornada.findFirst({
     where: { status: "OPEN" }
@@ -51,6 +55,9 @@ export async function saveExpense(data: {
 }
 
 export async function getExpenses() {
+  const session = await auth();
+  if (!session?.user) return [];
+
   const rows = await prisma.bill.findMany({
     orderBy: { date: 'desc' },
   });

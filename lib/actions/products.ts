@@ -90,6 +90,9 @@ export async function deleteProduct(id: number) {
 
 export async function getProductsData() {
 
+    const session = await auth();
+    if (!session?.user) return [];
+
     try {
         return await prisma.products.findMany({
             include: {
