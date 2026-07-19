@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { InfiniteScroll } from "@/components/ui/infinite-scroll";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
@@ -15,8 +16,13 @@ import { cn } from "@/lib/utils";
 
 import { saveExpense, getExpenses } from "@/lib/actions/expenses";
 
+const PAGE_SIZE = 30;
+
 export default function ExpensesPage() {
     const [expenses, setExpenses] = useState<any[]>([]);
+    const [total, setTotal] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [loading, setLoading] = useState(false);
 
     // Form States
@@ -28,9 +34,21 @@ export default function ExpensesPage() {
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const [alert, setAlert] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
+    // Reloads the first page (used on mount and after saving an expense).
     const fetchData = async () => {
-        const data = await getExpenses();
-        setExpenses(data);
+        const res = await getExpenses(0, PAGE_SIZE);
+        setExpenses(res.items);
+        setTotal(res.total);
+        setHasMore(res.hasMore);
+    };
+
+    const loadMore = async () => {
+        setLoadingMore(true);
+        const res = await getExpenses(expenses.length, PAGE_SIZE);
+        setExpenses((prev) => [...prev, ...res.items]);
+        setTotal(res.total);
+        setHasMore(res.hasMore);
+        setLoadingMore(false);
     };
 
     useEffect(() => {
@@ -85,8 +103,8 @@ export default function ExpensesPage() {
         setLoading(false);
     };
 
-    const totalMonth = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
-    console.log(expenses);
+    // Server-side aggregate: stays correct even with the list paginated.
+    const totalMonth = total;
     return (
         <div className="flex flex-col items-center justify-start w-full h-full p-6 gap-6">
 
@@ -219,6 +237,7 @@ export default function ExpensesPage() {
                                 ))}
                             </TableBody>
                         </Table>
+                        <InfiniteScroll onLoadMore={loadMore} hasMore={hasMore} loading={loadingMore} />
                     </ScrollArea>
                 </div>
             </div>
