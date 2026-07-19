@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 
 import { toDebt } from "@/lib/actions/debts";
 
@@ -69,7 +68,11 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
 
     const inputRef = useRef<HTMLInputElement>(null);
     useEffect(() => {
-        inputRef.current?.focus();
+        // Autofocus only on desktop: on mobile it would pop the on-screen
+        // keyboard as soon as the POS opens.
+        if (window.matchMedia("(min-width: 1024px)").matches) {
+            inputRef.current?.focus();
+        }
     }, []);
     const [open, setOpen] = useState(false);
 
@@ -96,7 +99,7 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
 
     return (
 
-        <div className=" h-20 flex flex-col items-start justify-between my-5">
+        <div className="flex flex-col items-stretch justify-between gap-3 my-4 lg:my-5 lg:h-20 lg:items-start lg:gap-0">
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverAnchor asChild>
                     <Input ref={inputRef} type="text"
@@ -136,18 +139,20 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
                     </Command>
                 </PopoverContent>
             </Popover>
-            <ButtonGroup>
-                <Button className="cursor-pointer" disabled={isAlreadyFreeSale} onClick={() => {
+            {/* Wrapping action row: full-width touch buttons on mobile,
+                inline group on desktop. Long labels shrink on mobile. */}
+            <div className="flex w-full flex-wrap gap-2 lg:w-fit">
+                <Button className="cursor-pointer flex-1 lg:flex-none" disabled={isAlreadyFreeSale} onClick={() => {
                     setClientSelected(false);
                     setQuery("");
                     setTableNumber(0);
                     setSalesFilter("VENTA_LIBRE");
-                    
-                }} >Cambiar a venta libre</Button>
+
+                }} ><span className="lg:hidden">Venta libre</span><span className="hidden lg:inline">Cambiar a venta libre</span></Button>
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
 
-                        <Button variant="destructive" className="cursor-pointer" disabled={!clientSelected}>Cerrar cuenta {query}</Button>
+                        <Button variant="destructive" className="cursor-pointer flex-1 lg:flex-none" disabled={!clientSelected}>Cerrar cuenta <span className="hidden lg:inline">{query}</span></Button>
 
                     </DialogTrigger>
                     <DialogContent>
@@ -183,7 +188,7 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
                 </Dialog>
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button className="cursor-pointer bg-amber-500 text-black hover:bg-amber-400" disabled={!clientSelected}>A deuda {query}</Button>
+                        <Button className="cursor-pointer flex-1 lg:flex-none bg-amber-500 text-black hover:bg-amber-400" disabled={!clientSelected}>A deuda <span className="hidden lg:inline">{query}</span></Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
@@ -199,7 +204,7 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
-            </ButtonGroup>
+            </div>
 
         </div>
     );
