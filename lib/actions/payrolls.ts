@@ -48,7 +48,8 @@ export async function getSalaryHistory(userID: number, offset = 0, limit = 30) {
   try {
     const history = await prisma.salary.findMany({
       where: { userID },
-      orderBy: { payDate: "desc" },
+      // payDate is day-precision; id breaks same-day ties for stable pages.
+      orderBy: [{ payDate: "desc" }, { id: "desc" }],
       skip: offset,
       // One extra row just to know whether another page exists.
       take: limit + 1,
