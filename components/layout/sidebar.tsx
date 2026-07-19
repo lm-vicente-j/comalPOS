@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useStore } from '@/lib/store';
+import { canAccessRoute } from '@/lib/permissions';
 
 import {
   CalculatorIcon,
@@ -27,7 +28,6 @@ import {
 interface SubModule {
   name: string;
   href: string | null;
-  role: string[];
   icon: LucideIcon;
   flag?: string;
 }
@@ -35,54 +35,52 @@ interface SubModule {
 interface NavModule {
   name: string;
   href: string | null;
-  role: string[];
   icon: LucideIcon;
   sub?: SubModule[];
   flag?: string;
 }
 
+// Visibility is derived from the central route permissions (lib/permissions.ts):
+// items with an href are shown when the role can access that route, and parent
+// modules are shown when at least one of their sub-items is visible.
 const MODULES: NavModule[] = [
   {
     name: 'Ventas',
     href: '/pos',
-    role: ['ADMIN', 'STAFF'],
     icon: CalculatorIcon
   },
   {
     name: 'Gestión',
     href: null,
-    role: ["ADMIN"],
     icon: ClipboardListIcon,
     sub: [
-      { name: 'Deudores', href: '/debtors', role: ['ADMIN', 'STAFF'], icon: BanknoteIcon },
-      { name: 'Inventario', href: '/admin/inventory', role: ['ADMIN'], icon: ArchiveIcon },
-      { name: 'Menu', href: '/admin/menu', role: ['ADMIN'], icon: UtensilsIcon },
-      { name: 'CRM', href: '/admin/crm', role: ['ADMIN'], icon: UserRoundIcon },
+      { name: 'Deudores', href: '/debtors', icon: BanknoteIcon },
+      { name: 'Inventario', href: '/admin/inventory', icon: ArchiveIcon },
+      { name: 'Menu', href: '/admin/menu', icon: UtensilsIcon },
+      { name: 'CRM', href: '/admin/crm', icon: UserRoundIcon },
     ]
   },
   {
     name: 'Optimiza',
     href: null,
-    role: ["ADMIN"],
     icon: BrainCircuitIcon,
     sub: [
-      { name: 'Motor de Análisis', href: '/admin/analysis/engine', role: ['ADMIN'], icon: CpuIcon },
-      { name: 'Predicciones', href: '/admin/analysis/predictions', role: ['ADMIN'], icon: LineChartIcon },
-      { name: 'Validación', href: '/admin/analysis/accuracy', role: ['ADMIN'], icon: TargetIcon },
-      { name: 'Suministro Sugerido', href: '/admin/analysis/supply', role: ['ADMIN'], icon: PackageCheckIcon },
+      { name: 'Motor de Análisis', href: '/admin/analysis/engine', icon: CpuIcon },
+      { name: 'Predicciones', href: '/admin/analysis/predictions', icon: LineChartIcon },
+      { name: 'Validación', href: '/admin/analysis/accuracy', icon: TargetIcon },
+      { name: 'Suministro Sugerido', href: '/admin/analysis/supply', icon: PackageCheckIcon },
     ],
     flag: "BETA"
   },
   {
     name: 'Finanzas',
     href: null,
-    role: ["ADMIN", "STAFF"],
     icon: WalletIcon,
     sub: [
-      { name: 'Salarios', href: '/admin/roster', role: ['ADMIN'], icon: HandCoinsIcon },
-      { name: 'Ahorros', href: '/admin/savings', role: ['ADMIN'], icon: PiggyBankIcon },
-      { name: 'Egresos', href: '/expenses', role: ['ADMIN', 'STAFF'], icon: BanknoteArrowDownIcon },
-      { name: 'Estadísticas', href: '/admin/statistics', role: ['ADMIN'], icon: ChartBarIcon, flag: "BETA" },
+      { name: 'Salarios', href: '/admin/roster', icon: HandCoinsIcon },
+      { name: 'Ahorros', href: '/admin/savings', icon: PiggyBankIcon },
+      { name: 'Egresos', href: '/expenses', icon: BanknoteArrowDownIcon },
+      { name: 'Estadísticas', href: '/admin/statistics', icon: ChartBarIcon, flag: "BETA" },
     ]
   }
 ];
@@ -94,7 +92,12 @@ export default function Sidebar({ userRole }: { userRole: string }) {
   const subMenu = useStore((state) => state.subMenu);
   const setSubMenu = useStore((state) => state.setSubMenu);
 
-  const allowedModules = MODULES.filter(m => m.role.includes(userRole));
+  const canSee = (item: { href: string | null; sub?: SubModule[] }): boolean => {
+    if (item.href) return canAccessRoute(userRole, item.href);
+    return item.sub?.some(s => s.href && canAccessRoute(userRole, s.href)) ?? false;
+  };
+
+  const allowedModules = MODULES.filter(canSee);
   const activeParent = allowedModules.find(m => m.name === subMenu);
 
   return (
@@ -133,7 +136,7 @@ export default function Sidebar({ userRole }: { userRole: string }) {
 
       {activeParent && (
         <>
-          {activeParent.sub?.filter(subItem => subItem.role.includes(userRole)).map((subItem) => {
+          {activeParent.sub?.filter(subItem => subItem.href && canAccessRoute(userRole, subItem.href)).map((subItem) => {
             const isActive = pathname === subItem.href;
             if (subItem.flag == "BETA") return null;
 
