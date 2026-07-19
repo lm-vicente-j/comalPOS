@@ -21,7 +21,8 @@ export function SalesRow({ sales }: { sales: Sale[] }) {
             {sales.map((sale) => 
                 sale.sale_items.map((item, k) => (
                     <TableRow key={`${sale.id}-${k}`}>
-                        <TableCell className="font-medium">
+                        {/* Hidden on phones: the active filter already gives the context */}
+                        <TableCell className="hidden font-medium sm:table-cell">
                             {sale.source_type}
                         </TableCell>
 
@@ -32,7 +33,7 @@ export function SalesRow({ sales }: { sales: Sale[] }) {
                             ${Number(item.subtotal || 0).toFixed(2)}
                         </TableCell>
                         
-                        <TableCell className="flex items-center justify-center gap-2">
+                        <TableCell className="flex items-center justify-center gap-1 sm:gap-2">
                             <Button onClick={()=> handleUpdate(sale.id, item.quantity+1,item.productID)} className="cursor-pointer size-6" variant="outline" size="icon">
                                 <PlusIcon className="w-4 h-4" />
                             </Button>
