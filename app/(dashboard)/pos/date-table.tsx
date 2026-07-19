@@ -75,9 +75,9 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
   };
 
   return (
-    <div className="w-full h-full mx-10">
+    <div className="w-full lg:h-full lg:mx-10">
 
-      <div className="flex flex-wrap items-center gap-3 pt-4">
+      <div className="flex flex-wrap items-center gap-3 pt-2 lg:pt-4">
         <span className="text-sm font-medium text-gray-700">Próxima venta:</span>
         <div className="inline-flex rounded-md border border-gray-200 bg-white p-0.5">
           <button
@@ -120,8 +120,8 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
         />
       </div>
 
-      <ScrollArea className="grid h-[65%] w-full rounded-md border p-4">
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
+      <ScrollArea className="grid h-[45vh] lg:h-[65%] w-full rounded-md border p-2 lg:p-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2 lg:gap-4">
           {dataProducts.map((val: Product, index: any) => (
             <Button
               onClick={() => {
@@ -130,7 +130,7 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
               }}
               variant="outline"
               key={index}
-              className="cursor-pointer w-full h-30 flex flex-col items-center justify-center"
+              className="cursor-pointer w-full h-24 lg:h-30 flex flex-col items-center justify-center"
             >
               <div className="w-[80%] h-[50%] text-wrap flex items-center justify-center">
                 <p>{val.name}</p>
