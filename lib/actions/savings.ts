@@ -9,6 +9,9 @@ type ActionResult =
 
 
 export async function getPoolBalance() {
+    const session = await auth();
+    if (!session?.user) return { balance: 0, deposited: 0, withdrawn: 0 };
+
     const [deposits, withdraws] = await Promise.all([
         prisma.savings_movement.aggregate({
             where: { type: "DEPOSIT" },
@@ -26,6 +29,9 @@ export async function getPoolBalance() {
 }
 
 export async function getRecentMovements(limit = 20) {
+    const session = await auth();
+    if (!session?.user) return [];
+
     const movements = await prisma.savings_movement.findMany({
         take: limit,
         orderBy: { createdAt: "desc" },
@@ -91,6 +97,9 @@ export async function saveMovement(
 
 
 export async function getGoalsWithProgress() {
+    const session = await auth();
+    if (!session?.user) return [];
+
     const goals = await prisma.savings_goal.findMany({
         orderBy: [{ status: "asc" }, { createdAt: "desc" }],
         include: {

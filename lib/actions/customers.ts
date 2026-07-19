@@ -4,9 +4,13 @@ import { success, z } from "zod";
 import prisma from "../prisma"
 import { revalidatePath } from "next/cache";
 import { Customer, CustomerSchema } from "./schemas";
+import { auth } from "../auth";
 
 
 export async function getAllCustomers() {
+
+    const session = await auth();
+    if (!session?.user) return [];
 
     try {
         const customers = await prisma.customer.findMany({
@@ -23,6 +27,9 @@ export async function getAllCustomers() {
 }
 
 export async function saveCustomer(data: Partial<Customer>){
+
+    const session = await auth();
+    if (!session?.user) return { success: false, error: "UNAUTHORIZED" };
 
     const parsed = CustomerSchema.pick({ customerName: true, phone: true }).safeParse(data);
 
