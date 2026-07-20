@@ -1,7 +1,6 @@
 import Sidebar from '@/components/layout/sidebar';
 import MobileNav from '@/components/layout/mobile-nav';
 import Topbar from '@/components/layout/topbar';
-import StoreInitializer from '@/components/StoreInitializer';
 import { auth } from '@/lib/auth';
 import JornadaBanner from '@/components/layout/jornada-banner';
 import AutoRefresh from '@/components/layout/auto-refresh';
@@ -16,11 +15,9 @@ export default async function DashboardLayout({
   const user = session?.user;
   const staffName = user?.name || "NONE";
   const role = user?.role || "NONE";
-  const userId = session?.user?.id || "-1";
 
   return (
     <div className="flex flex-col overflow-hidden h-screen bg-gray-50 text-gray-900">
-      <StoreInitializer userId={userId} />
       <AutoRefresh />
       <Topbar userName={staffName} />
       <JornadaBanner />

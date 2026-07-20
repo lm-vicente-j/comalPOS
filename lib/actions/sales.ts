@@ -32,10 +32,15 @@ const SaleSchema = z.object({
 
 export type Sale = z.infer<typeof SaleSchema>;
 
-export async function createSale(sale_items: { productID: number, quantity: number }[], status: "UNPAID" | "PAID" | "DEBT", source_type: string, customerID: number, placedBy: number, paymentMethod: "CASH" | "TRANSFER" = "CASH") {
+export async function createSale(sale_items: { productID: number, quantity: number }[], status: "UNPAID" | "PAID" | "DEBT", source_type: string, customerID: number, paymentMethod: "CASH" | "TRANSFER" = "CASH") {
 
     const session = await auth();
     if (!session?.user) return { success: false, error: "UNAUTHORIZED" };
+
+    // Attribution comes from the authenticated session, never from the
+    // client, so a sale can't be registered on behalf of another user.
+    const placedBy = Number(session.user.id);
+    if (!Number.isInteger(placedBy)) return { success: false, error: "UNAUTHORIZED" };
 
     try {
 
@@ -273,7 +278,10 @@ export async function updateSaleQuantity(saleId: number, quantity: number, produ
     try {
         // CANCELL SALE
         if (quantity < 1) {
-            cancelSaleAction(saleId)
+            const cancelResult = await cancelSaleAction(saleId);
+            if (!("success" in cancelResult) || !cancelResult.success) {
+                return { success: false, message: "Error al cancelar la venta" };
+            }
             return { success: true, message: "PRODUCT CANCELLED" }
         }
 
