@@ -3,6 +3,18 @@ import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "../auth";
 
+// Lightweight check used by the UI to disable controls that need an open jornada.
+export async function hasOpenJornada() {
+    const session = await auth();
+    if (!session?.user) return false;
+
+    const jornada = await prisma.jornada.findFirst({
+        where: { status: "OPEN" },
+        select: { id: true }
+    });
+    return !!jornada;
+}
+
 export async function openJornada(openingAmount: number) {
     const session = await auth();
     if (session?.user?.role !== "ADMIN") {

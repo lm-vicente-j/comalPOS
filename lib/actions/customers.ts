@@ -43,7 +43,9 @@ export async function saveCustomer(data: Partial<Customer>){
 
     try{
         const { id } = data;
-        const { customerName, phone } = parsed.data;
+        const { customerName } = parsed.data;
+        // Phone is optional; store empty values as null.
+        const phone = parsed.data.phone?.trim() ? parsed.data.phone.trim() : null;
 
         await prisma.customer.upsert({
           where: {id: id ?? -1},

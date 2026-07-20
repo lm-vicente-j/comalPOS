@@ -85,4 +85,25 @@ describe("products actions", () => {
         logout();
         expect(await getProductsData()).toEqual([]);
     });
+
+    it("rejects a sale price below the recipe base cost", async () => {
+        loginAs("ADMIN");
+        const res = await saveProduct({ name: "Torta", price: 1, recipes: [{ supplyID: supplyId, quantityUsed: 5 }] });
+        expect(res.success).toBe(false);
+        expect(res.fieldErrors).toBeDefined();
+        expect(await prisma.products.findFirst({ where: { name: "Torta" } })).toBeNull();
+    });
+
+    it("keeps the stored recipe when a product is updated without one", async () => {
+        loginAs("ADMIN");
+        const before = await prisma.products.findFirstOrThrow({ where: { name: "Quesadilla" }, include: { recipes: true } });
+        expect(before.recipes.length).toBeGreaterThan(0);
+
+        const res = await saveProduct({ id: before.id, name: "Quesadilla Grande", price: 40 });
+        expect(res).toMatchObject({ success: true });
+
+        const after = await prisma.products.findUniqueOrThrow({ where: { id: before.id }, include: { recipes: true } });
+        expect(after.name).toBe("Quesadilla Grande");
+        expect(after.recipes).toHaveLength(before.recipes.length);
+    });
 });

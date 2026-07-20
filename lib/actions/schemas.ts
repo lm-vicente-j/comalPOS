@@ -21,7 +21,7 @@ export const BillSchema = z.object({
 export const CustomerSchema = z.object({
   id: z.number().int(),
   customerName: z.string().min(3, "El nombre debe contener al menos 3 carácteres."),
-  phone: z.string().min(1, "El teléfono es requerido"),
+  phone: z.string().optional().nullable(),
   alias: z.string().min(1, "El alias es requerido"),
   lastConsumption: z.date().nullable().or(z.string().min(1, "La fecha es requerida")),
   currentBalance: z.number({ message: "El balance actual es requerido" }),
@@ -121,7 +121,7 @@ export const UserSchema = z.object({
   email: z.string().nullable().or(z.literal("")),
   name: z.string().min(3, "El nombre es requerido"),
   username: z.string().min(1, "El nombre de usuario es requerido").optional().nullable(),
-  pin: z.string().min(4).optional().nullable(),
+  pin: z.string().min(4, "El PIN debe tener 4 dígitos").optional().nullable().or(z.literal("")),
   password: z.string().min(4, "Mínimo 4 caracteres").nullable().or(z.literal("")),
   role: z.string().min(1, "El rol es requerido"),
   registeredAt: z.date({ message: "La fecha de registro es requerida" }),
