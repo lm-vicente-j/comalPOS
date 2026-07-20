@@ -15,7 +15,8 @@ import { Customer } from "@/lib/actions/schemas";
 interface PosManagerProps {
     products: Product[];
     sales: Sale[];
-    customerList: Customer[]
+    customerList: Customer[];
+    jornadaOpen: boolean;
 }
 
 function FilterSales(sales:Sale[], src:string):Sale[]{
@@ -23,7 +24,7 @@ function FilterSales(sales:Sale[], src:string):Sale[]{
 }
 
 
-export default function PosManager({ products, sales, customerList }: PosManagerProps) {
+export default function PosManager({ products, sales, customerList, jornadaOpen }: PosManagerProps) {
 
     const [salesHistory, setSalesHistory] = useState<{ productID: number; quantity: number; name: string; price: number }[]>([]);
     const [tableNumber, setTableNumber] = useState(0);
@@ -73,11 +74,18 @@ export default function PosManager({ products, sales, customerList }: PosManager
         // flow (context selector -> product grid -> recent orders).
         // Desktop (lg+): 40/60 two-column layout, products spanning the left.
         <div className="z-0 flex w-full flex-col gap-3 p-3 lg:grid lg:h-full lg:grid-cols-[2fr_3fr] lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-0 lg:p-0">
-            <div className="order-2 lg:order-none lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:flex lg:h-full lg:items-center lg:justify-center">
+            {/* Sale controls go inert without an open jornada; the history below stays usable. */}
+            <div
+                aria-disabled={!jornadaOpen}
+                className={`order-2 lg:order-none lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:flex lg:h-full lg:items-center lg:justify-center ${!jornadaOpen ? "pointer-events-none opacity-50 select-none" : ""}`}
+            >
                 <DataTable data={products} onSelect={addToHistory} tableNumber={tableNumber} clientName={query} clientSelected={clientSelected} customerID={currentCustomerID} />
             </div>
 
-            <div className="order-1 lg:order-none lg:col-start-2 lg:row-start-1 lg:px-5 lg:pt-5">
+            <div
+                aria-disabled={!jornadaOpen}
+                className={`order-1 lg:order-none lg:col-start-2 lg:row-start-1 lg:px-5 lg:pt-5 ${!jornadaOpen ? "pointer-events-none opacity-50 select-none" : ""}`}
+            >
                 <div className="flex flex-col rounded-md">
                     <p className="font-bold mb-2">Mesas</p>
                     <Seatings
