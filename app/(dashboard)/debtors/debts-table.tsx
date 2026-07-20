@@ -47,7 +47,7 @@ export default function DebtorsTable<TData, TValue>({ columns, data }: DebtorsTa
 
 
     return (
-        <ScrollArea className=" h-[80%] w-[95%] rounded-md border p-4 bg-white">
+        <ScrollArea className="h-full w-full rounded-md border p-2 md:p-4 bg-white">
 
             <div className="flex items-center py-4 w-full ">
                 <Input
@@ -65,7 +65,7 @@ export default function DebtorsTable<TData, TValue>({ columns, data }: DebtorsTa
                         <TableRow key={headerGroup.id}>
                             {headerGroup.headers.map((header) => {
                                 return (
-                                    <TableHead key={header.id}>
+                                    <TableHead key={header.id} className={header.column.columnDef.meta?.className}>
                                         {header.isPlaceholder
                                             ? null
                                             : flexRender(
@@ -87,7 +87,7 @@ export default function DebtorsTable<TData, TValue>({ columns, data }: DebtorsTa
                                 data-state={row.getIsSelected() && "selected"}
                             >
                                 {row.getVisibleCells().map((cell) => (
-                                    <TableCell key={cell.id}>
+                                    <TableCell key={cell.id} className={cell.column.columnDef.meta?.className}>
                                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                     </TableCell>
                                 ))}
