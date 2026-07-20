@@ -105,8 +105,8 @@ export default function RosterPage() {
   };
 
   return (
-    <div className="flex items-center justify-center w-full h-full p-4">
-      <div className="flex flex-col items-center h-full outline rounded-md bg-white w-full max-w-6xl p-6 overflow-hidden">
+    <div className="flex items-start md:items-center justify-center w-full min-h-full md:h-full p-2 md:p-4">
+      <div className="flex flex-col items-center md:h-full outline rounded-md bg-white w-full max-w-6xl p-4 md:p-6 md:overflow-hidden">
 
         {/* User Selection */}
         <div className="w-full mb-6 shrink-0">
@@ -116,7 +116,7 @@ export default function RosterPage() {
             </div>
           )}
           <Select onValueChange={setSelectedUserID} value={selectedUserID}>
-            <SelectTrigger className="w-75">
+            <SelectTrigger className="w-full md:w-75">
               <SelectValue placeholder="Seleccionar Empleado" />
             </SelectTrigger>
             <SelectContent>
@@ -131,9 +131,9 @@ export default function RosterPage() {
 
         </div>
 
-        <div className="w-full flex-1 min-h-0 flex flex-row gap-6">
+        <div className="w-full flex-1 min-h-0 flex flex-col md:flex-row gap-6">
           {/* Controls */}
-          <div className="h-full min-h-0 w-1/2 flex flex-col gap-6">
+          <div className="md:h-full min-h-0 w-full md:w-1/2 flex flex-col gap-6">
             <div className="space-y-4 shrink-0">
               <div className="flex flex-col gap-2">
                 <Label>Monto</Label>
@@ -165,10 +165,11 @@ export default function RosterPage() {
             </div>
           </div>
 
-          <Separator orientation="vertical" />
+          <Separator orientation="vertical" className="hidden md:block" />
+          <Separator className="md:hidden" />
 
           {/* Info & History */}
-          <div className="h-full min-h-0 w-1/2 flex flex-col gap-5">
+          <div className="md:h-full min-h-0 w-full md:w-1/2 flex flex-col gap-5">
             <div className="bg-slate-50 p-4 rounded-lg">
               <p className="font-bold">Nombre: <span className="font-normal">{selectedUser?.name || "---"}</span></p>
               <p className="font-bold">Fecha de ingreso: <span className="font-normal">
@@ -176,7 +177,7 @@ export default function RosterPage() {
               </span></p>
             </div>
 
-            <ScrollArea className="flex-1 min-h-0 w-full rounded-md border p-4 bg-white">
+            <ScrollArea className="flex-1 min-h-0 h-72 md:h-auto w-full rounded-md border p-2 md:p-4 bg-white">
               <Table>
                 <TableHeader>
                   <TableRow>
