@@ -180,6 +180,15 @@ function Stat({ label, value, positive, negative, highlight }: {
     );
 }
 
+// "MESA_4" -> "Mesa 4", "CL- Juan" -> "Cliente Juan"
+function formatSourceType(source: string): string {
+    if (source.startsWith("MESA_")) return `Mesa ${source.slice(5)}`;
+    if (source.startsWith("CL- ")) return `Cliente ${source.slice(4)}`;
+    return source;
+}
+
+type OpenAccount = { sourceType: string; count: number; total: number };
+
 // physical count dialog
 function CloseJornadaDialog({ jornadaId, expectedCash, forced }: {
     jornadaId: number;
@@ -190,10 +199,12 @@ function CloseJornadaDialog({ jornadaId, expectedCash, forced }: {
     const [open, setOpen] = useState(false);
     const [actual, setActual] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [openAccounts, setOpenAccounts] = useState<OpenAccount[]>([]);
     const [loading, setLoading] = useState(false);
 
     const handleClose = async () => {
         setError(null);
+        setOpenAccounts([]);
         const parsed = Number(actual);
         if (!Number.isFinite(parsed) || parsed < 0) {
             setError("Ingresa un monto válido");
@@ -207,6 +218,8 @@ function CloseJornadaDialog({ jornadaId, expectedCash, forced }: {
         if (res.success) {
             setOpen(false);
             router.refresh();
+        } else if (res.error === "OPEN_ACCOUNTS" && "openAccounts" in res) {
+            setOpenAccounts(res.openAccounts ?? []);
         } else {
             setError(res.error ?? "Error desconocido");
         }
@@ -255,11 +268,44 @@ function CloseJornadaDialog({ jornadaId, expectedCash, forced }: {
                         </div>
                     )}
                     {error && <p className="text-sm text-red-600">{error}</p>}
+
+                    {openAccounts.length > 0 && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-2">
+                            <div className="flex items-start gap-2">
+                                <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                                <p className="text-sm font-semibold text-red-800">
+                                    No se puede cerrar: hay cuentas abiertas sin cobrar.
+                                </p>
+                            </div>
+                            <ul className="text-sm text-red-800 divide-y divide-red-200">
+                                {openAccounts.map((acc) => (
+                                    <li key={acc.sourceType} className="py-1.5 flex items-center justify-between gap-2">
+                                        <span className="font-medium">{formatSourceType(acc.sourceType)}</span>
+                                        <span className="text-xs">
+                                            {acc.count} pedido{acc.count !== 1 ? "s" : ""} · ${acc.total.toFixed(2)}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="text-xs text-red-700">
+                                Resuelve cada cuenta en el POS (cerrar cuenta, enviar a deuda o cancelar) antes de intentar cerrar la jornada.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 <AlertDialogFooter>
                     <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClose} disabled={loading}>
+                    {/* preventDefault keeps the dialog open so validation errors
+                        and the open-accounts list are actually visible; it only
+                        closes itself on success (handleClose -> setOpen(false)). */}
+                    <AlertDialogAction
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleClose();
+                        }}
+                        disabled={loading}
+                    >
                         {loading ? "Cerrando..." : "Confirmar cierre"}
                     </AlertDialogAction>
                 </AlertDialogFooter>
