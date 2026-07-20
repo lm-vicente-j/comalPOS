@@ -91,16 +91,27 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
         const result = await closeAccountAction(sourceType, closeMethod);
 
         if (result.success) {
+            // The account is settled: return to venta libre so the table
+            // can be occupied again with a clean slate.
             setClientSelected(false);
             setQuery("");
             setTableNumber(0);
             setDialogOpen(false);
             setCloseMethod("CASH");
+            setSalesFilter("VENTA_LIBRE");
         }
     };
 
     const handleToDebt = async (idCustomer: number, sales: Sale[]) => {
-        await toDebt(idCustomer, sales);
+        const res = await toDebt(idCustomer, sales);
+        if (res.msg === "SUCCESS") {
+            // Same as closing: the account was resolved (as debt), so the
+            // POS returns to venta libre.
+            setClientSelected(false);
+            setQuery("");
+            setTableNumber(0);
+            setSalesFilter("VENTA_LIBRE");
+        }
     }
 
     return (

@@ -47,4 +47,25 @@ test.describe("pos", () => {
         // The sale stays in the DB as CANCELLED but leaves today's list.
         await expect(rows).toHaveCount(before, { timeout: 15_000 });
     });
+
+    test("closing a table returns to venta libre and clears its history", async ({ page }) => {
+        const rows = page.locator("tbody tr");
+
+        // A fresh table starts with an empty account view.
+        await page.getByRole("button", { name: "3", exact: true }).click();
+        await expect(rows).toHaveCount(0);
+
+        // Order one product on the table: it shows as the open account.
+        await page.getByRole("button", { name: /Quesadilla Grande/ }).first().click();
+        await expect(rows).toHaveCount(1, { timeout: 15_000 });
+
+        // Close the table (pay the account).
+        await page.getByRole("button", { name: /Cerrar Mesa/ }).click();
+        await page.getByRole("button", { name: "Confirmar y Cerrar" }).click();
+
+        // Reselecting the table shows a clean slate: its settled history is
+        // gone from the POS, ready for the next customers.
+        await page.getByRole("button", { name: "3", exact: true }).click();
+        await expect(rows).toHaveCount(0, { timeout: 15_000 });
+    });
 });
