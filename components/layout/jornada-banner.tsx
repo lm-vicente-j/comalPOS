@@ -1,10 +1,30 @@
 
 import Link from 'next/link';
 import { AlertTriangle, AlertCircle } from 'lucide-react';
-import { getActiveJornadaWithStats } from '@/lib/actions/jornada';
+import { getActiveJornadaWithStats, hasOpenJornada } from '@/lib/actions/jornada';
+import { auth } from '@/lib/auth';
 
 
 export default async function JornadaBanner() {
+    const session = await auth();
+    if (!session?.user) return null;
+
+    // Opening/closing jornadas is ADMIN-only (server actions and the
+    // /admin/jornada route already enforce it). STAFF only gets an
+    // informative notice while sales are blocked — and no banner at all,
+    // cash expectations included, while a jornada is open.
+    if (session.user.role !== "ADMIN") {
+        const open = await hasOpenJornada();
+        if (open) return null;
+
+        return (
+            <div className="bg-red-50 border-b border-red-200 px-4 md:px-6 py-2 flex items-center gap-2 text-sm text-red-800">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>No hay jornada activa. Las ventas y gastos están bloqueados; solicite a un administrador abrirla.</span>
+            </div>
+        );
+    }
+
     const data = await getActiveJornadaWithStats();
     if (!data) return null;
 
