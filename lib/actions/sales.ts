@@ -224,7 +224,9 @@ export async function getTodaySalesHistory() {
                 gte: startOfDay,
                 lte: endOfDay,
             },
-
+            // Cancelled sales stay in the DB for auditing but leave the
+            // POS "pedidos recientes" list, so deleting a line visibly works.
+            status: { not: "CANCELLED" },
         },
         include: {
             customer: true,

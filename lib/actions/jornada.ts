@@ -78,10 +78,15 @@ export async function closeJornada(
         return { success: false, error: "La jornada ya está cerrada" };
     }
 
+    // Same filter as getActiveJornadaWithStats: only PAID sales count as
+    // received cash. Without it, cancelled sales (which keep their original
+    // payment_method) and sales converted to debt inflated the expected
+    // closing amount with money that never reached the register.
     const cashSales = await prisma.sales.aggregate({
         where: {
             jornadaId: jornada.id,
-            payment_method: "CASH"
+            OR: [{ payment_method: "CASH" }, { payment_method: null }],
+            status: "PAID"
         },
         _sum: { total: true }
     });
