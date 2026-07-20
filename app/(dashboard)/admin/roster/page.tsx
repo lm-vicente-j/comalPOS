@@ -31,6 +31,7 @@ import { ChevronsUpDown } from "lucide-react";
 
 import { getSalaryHistory, saveSalaryPayment } from "@/lib/actions/payrolls";
 import { searchUsers } from "@/lib/actions/users";
+import { usePolling } from "@/lib/use-polling";
 import { Salary } from "@/lib/actions/schemas";
 import { format } from "date-fns";
 
@@ -71,6 +72,15 @@ export default function RosterPage() {
       });
     }
   }, [selectedUser?.id]);
+
+  // Keep the visible history in sync with payments made from other sessions.
+  usePolling(() => {
+    if (!selectedUser?.id) return;
+    getSalaryHistory(selectedUser.id, 0, Math.max(PAGE_SIZE, history.length)).then((res) => {
+      setHistory(res.items);
+      setHasMore(res.hasMore);
+    });
+  });
 
   const loadMoreHistory = async () => {
     if (!selectedUser?.id) return;
