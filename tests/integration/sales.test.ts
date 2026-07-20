@@ -82,13 +82,37 @@ describe("sales actions", () => {
         expect(res).toMatchObject({ success: true });
 
         const saleId = (res as { saleId: number }).saleId;
+        const sale = await prisma.sales.findUniqueOrThrow({ where: { id: saleId } });
+        expect(sale.status).toBe("DEBT");
+        expect(sale.payment_method).toBeNull();
+
         const debtor = await prisma.debtors.findUniqueOrThrow({ where: { saleID: saleId } });
         expect(debtor.customerID).toBe(customerId);
         expect(Number(debtor.amount)).toBe(50);
-        expect(debtor.status).toBe("UNPAID");
+        expect(debtor.status).toBe("DEBT");
 
         const customer = await prisma.customer.findUniqueOrThrow({ where: { id: customerId } });
         expect(customer.lastConsumption).not.toBeNull();
+        expect(Number(customer.currentBalance)).toBe(50);
+    });
+
+    it("keeps a table order UNPAID until the account is closed", async () => {
+        loginAs("ADMIN", adminId);
+        const res = await createSale([{ productID: productId, quantity: 1 }], "UNPAID", "MESA_2", -1);
+        expect(res).toMatchObject({ success: true });
+
+        const saleId = (res as { saleId: number }).saleId;
+        const sale = await prisma.sales.findUniqueOrThrow({ where: { id: saleId } });
+        expect(sale.status).toBe("UNPAID");
+        // The method is only known when the account is actually settled.
+        expect(sale.payment_method).toBeNull();
+
+        const close = await closeAccountAction("MESA_2", "TRANSFER");
+        expect(close).toMatchObject({ success: true });
+
+        const paid = await prisma.sales.findUniqueOrThrow({ where: { id: saleId } });
+        expect(paid.status).toBe("PAID");
+        expect(paid.payment_method).toBe("TRANSFER");
     });
 
     it("updateSaleQuantity adjusts item, totals and stock", async () => {

@@ -44,6 +44,7 @@ import {
 import { closeAccountAction } from "@/lib/actions/sales";
 import { Sale } from "@/lib/actions/sales";
 import { Customer } from "@/lib/actions/schemas";
+import { Banknote, CreditCard } from "lucide-react";
 
 interface SalesInputProps {
     currentCustomerSales: Sale[];
@@ -80,16 +81,21 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
     const hasCustomers = Array.isArray(customerList) && customerList.length > 0;
     const isInputDisabled = !hasCustomers;
 
+    // How the account is being settled; asked in the close dialog since the
+    // method is only known when the money actually changes hands.
+    const [closeMethod, setCloseMethod] = useState<"CASH" | "TRANSFER">("CASH");
+
     const handleCloseAccount = async () => {
         const sourceType = tableNumber !== 0 ? `MESA_${tableNumber}` : `CL- ${query}`;
 
-        const result = await closeAccountAction(sourceType);
+        const result = await closeAccountAction(sourceType, closeMethod);
 
         if (result.success) {
             setClientSelected(false);
             setQuery("");
             setTableNumber(0);
             setDialogOpen(false);
+            setCloseMethod("CASH");
         }
     };
 
@@ -162,6 +168,35 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
                                 Asegurate de haber procesado el pago antes de continuar.
                             </DialogDescription>
                         </DialogHeader>
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-gray-700">Método de pago:</span>
+                            <div className="inline-flex rounded-md border border-gray-200 bg-white p-0.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setCloseMethod("CASH")}
+                                    className={`px-3 py-1.5 text-sm font-medium rounded transition-colors flex items-center gap-1.5 cursor-pointer ${
+                                        closeMethod === "CASH"
+                                            ? "bg-emerald-600 text-white"
+                                            : "text-gray-600 hover:bg-gray-50"
+                                    }`}
+                                >
+                                    <Banknote className="h-4 w-4" />
+                                    Efectivo
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setCloseMethod("TRANSFER")}
+                                    className={`px-3 py-1.5 text-sm font-medium rounded transition-colors flex items-center gap-1.5 cursor-pointer ${
+                                        closeMethod === "TRANSFER"
+                                            ? "bg-amber-500 text-white"
+                                            : "text-gray-600 hover:bg-gray-50"
+                                    }`}
+                                >
+                                    <CreditCard className="h-4 w-4" />
+                                    Transferencia
+                                </button>
+                            </div>
+                        </div>
                         <div className="flex justify-end gap-3 mt-4">
                             <DialogClose asChild>
                                 <Button

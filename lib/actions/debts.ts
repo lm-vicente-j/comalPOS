@@ -168,15 +168,25 @@ export async function toDebt(customerId: number, sales: Sale[]) {
 
     try {
 
-        const totalNewDebt = sales.reduce((sum, s) => sum + Number(s.total), 0);
+        // Only open (UNPAID) account lines can go to debt, and the amounts
+        // come from the DB — the client only nominates the sale ids. This
+        // keeps already-paid sales of the same day out of the conversion.
+        const dbSales = await prisma.sales.findMany({
+            where: { id: { in: sales.map((s) => s.id) }, status: "UNPAID" },
+            select: { id: true, total: true },
+        });
+
+        if (dbSales.length === 0) return { msg: "NO_UNPAID_SALES" };
+
+        const totalNewDebt = dbSales.reduce((sum, s) => sum + Number(s.total), 0);
 
         const operations: any[] = [];
 
-        sales.forEach((s) => {
+        dbSales.forEach((s) => {
             const debtorData = {
                 saleID: s.id,
                 customerID: customerId,
-                amount: s.total,
+                amount: s.total ?? 0,
                 status: SaleStatus.DEBT,
             };
 
@@ -225,11 +235,20 @@ export async function payAccount(customerID: number, sales: Sale[], paymentMetho
     if (!session?.user) return { msg: "UNAUTHORIZED" };
 
     try {
-        const now = new Date(); 
-        
+        const now = new Date();
+
+        // Mirror of toDebt: only sales actually in DEBT are collectable and
+        // the settled amounts come from the DB, not from the client payload.
+        const dbSales = await prisma.sales.findMany({
+            where: { id: { in: sales.map((s) => s.id) }, status: "DEBT" },
+            select: { id: true, total: true },
+        });
+
+        if (dbSales.length === 0) return { msg: "NO_DEBT_SALES" };
+
         const operations: any[] = []
 
-        sales.forEach((s) => {
+        dbSales.forEach((s) => {
             const debtorData = {
                 status: SaleStatus.PAID,
                 paidAt: now.toISOString(),
@@ -253,7 +272,7 @@ export async function payAccount(customerID: number, sales: Sale[], paymentMetho
 
 
         })
-        const totalNewDebt = sales.reduce((sum, s) => sum + Number(s.total), 0);
+        const totalNewDebt = dbSales.reduce((sum, s) => sum + Number(s.total), 0);
 
         operations.push(
             prisma.customer.update({
