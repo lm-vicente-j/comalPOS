@@ -29,19 +29,40 @@ export async function saveProduct(data: Product) {
     let { id, name, price, recipes } = data;
     id = id == undefined ? -1 : id;
 
+    // The sale price can never fall below the recipe's base cost.
+    if (recipes && recipes.length > 0) {
+        const supplyRows = await prisma.supplies.findMany({
+            where: { id: { in: recipes.map(r => r.supplyID) } },
+            select: { id: true, unitCost: true }
+        });
+        const costById = new Map(supplyRows.map(s => [s.id, Number(s.unitCost)]));
+        const baseCost = recipes.reduce((acc, r) => acc + (costById.get(r.supplyID) ?? 0) * r.quantityUsed, 0);
+
+        if (price < baseCost) {
+            return {
+                success: false,
+                error: "Datos inválidos",
+                fieldErrors: { price: ["El precio de venta no puede ser menor al costo base."] }
+            };
+        }
+    }
+
     try {
         await prisma.products.upsert({
             where: { id: id },
             update: {
                 name,
                 price,
-                recipes: {
-                    deleteMany: {},
-                    create: recipes?.map(r => ({
-                        supplyID: r.supplyID,
-                        quantityUsed: r.quantityUsed
-                    }))
-                }
+                // Leave the stored recipe untouched when the caller omits it.
+                ...(recipes !== undefined && {
+                    recipes: {
+                        deleteMany: {},
+                        create: recipes.map(r => ({
+                            supplyID: r.supplyID,
+                            quantityUsed: r.quantityUsed
+                        }))
+                    }
+                })
             },
             create: {
                 name,

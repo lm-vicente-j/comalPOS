@@ -64,4 +64,13 @@ describe("customers actions", () => {
         logout();
         expect(await getAllCustomers()).toEqual([]);
     });
+
+    it("creates a customer without a phone number", async () => {
+        loginAs("ADMIN");
+        const res = await saveCustomer({ customerName: "Cliente Sin Telefono", phone: "" });
+        expect(res).toMatchObject({ success: true });
+
+        const row = await prisma.customer.findFirstOrThrow({ where: { customerName: "Cliente Sin Telefono" } });
+        expect(row.phone).toBeNull();
+    });
 });
