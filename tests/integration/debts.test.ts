@@ -83,6 +83,22 @@ describe("debts actions", () => {
         expect(Number(customer.currentBalance)).toBe(0);
     });
 
+    it("toDebt and payAccount ignore sales in the wrong state", async () => {
+        loginAs("ADMIN", adminId);
+        const paidSale = await prisma.sales.create({
+            data: { total: 500, status: "PAID", payment_method: "CASH", source_type: "CL- Deudor Uno", placedBy: adminId },
+        });
+        const fake = [{ id: paidSale.id, total: 500 }] as unknown as Sale[];
+
+        // An already-paid sale can neither be converted to debt...
+        expect(await toDebt(customerId, fake)).toMatchObject({ msg: "NO_UNPAID_SALES" });
+        // ...nor collected again as one.
+        expect(await payAccount(customerId, fake, "CASH")).toMatchObject({ msg: "NO_DEBT_SALES" });
+
+        const customer = await prisma.customer.findUniqueOrThrow({ where: { id: customerId } });
+        expect(Number(customer.currentBalance)).toBe(0);
+    });
+
     it("debtor queries are empty without a session", async () => {
         logout();
         expect(await getAllDebtors()).toEqual([]);

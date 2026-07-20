@@ -90,14 +90,19 @@ export async function createSale(sale_items: { productID: number, quantity: numb
 
 
             // REGISTER SALE
+            // Sale lifecycle: UNPAID is the temporary state of open table and
+            // client accounts (paid later via closeAccountAction, or sent to
+            // debt via toDebt); PAID is an immediate venta libre; DEBT goes
+            // straight to fiado. The payment method is only known once money
+            // actually changes hands, so UNPAID/DEBT sales store none yet.
             const newSale = await tx.sales.create({
                 data: {
                     total: totalSale,
-                    status: "PAID",
+                    status: status,
                     source_type: source_type,
                     customerID: (customerID === -1 || !customerID) ? undefined : customerID,
                     placedBy: placedBy,
-                    payment_method: paymentMethod,
+                    payment_method: status === "PAID" ? paymentMethod : null,
                     jornadaId: activeJornada.id,
                     sale_items: {
                         create: itemsToInsert
@@ -105,18 +110,22 @@ export async function createSale(sale_items: { productID: number, quantity: numb
                 }
             });
 
-            // Register debtors
-            if (status === "DEBT" && customerID) {
+            // Register debtors (same bookkeeping as toDebt: visible DEBT
+            // entry plus the customer's running balance).
+            if (status === "DEBT" && customerID && customerID !== -1) {
                 await tx.debtors.create({
                     data: {
                         saleID: newSale.id,
                         customerID: customerID,
                         amount: totalSale,
-                        status: "UNPAID"
+                        status: "DEBT"
                     }
                 });
 
-
+                await tx.customer.update({
+                    where: { id: customerID },
+                    data: { currentBalance: { increment: totalSale } }
+                });
             }
 
             // Update consumption date

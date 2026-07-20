@@ -188,7 +188,9 @@ export async function getActiveJornadaWithStats() {
     const billsSum = Number(bills._sum.amount ?? 0);
     const depositsSum = Number(savingsDeposits._sum.amount ?? 0);
     const withdrawsSum = Number(savingsWithdraws._sum.amount ?? 0);
-    const expectedCash = opening + cashSum - billsSum - depositsSum - withdrawsSum;
+    // Savings live outside the register: a deposit takes cash out of the
+    // drawer and a withdraw puts it back in. Same formula as closeJornada.
+    const expectedCash = opening + cashSum - billsSum - depositsSum + withdrawsSum;
 
     const currentUserId = Number(session.user.id);
     const isMine = jornada.openedBy === currentUserId;
