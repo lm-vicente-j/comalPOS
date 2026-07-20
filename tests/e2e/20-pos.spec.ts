@@ -34,19 +34,17 @@ test.describe("pos", () => {
         await expect(row.getByRole("cell", { name: "1", exact: true })).toBeVisible();
     });
 
-    test("cancelling a sale keeps it listed for the day", async ({ page }) => {
+    test("cancelling a sale removes it from the recent orders list", async ({ page }) => {
         const rows = page.locator("tbody tr");
         const before = await rows.count();
 
         await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
         await expect(rows).toHaveCount(before + 1, { timeout: 15_000 });
 
-        const afterCreate = await rows.count();
         await page.getByRole("row").filter({ hasText: "Taco Pastor" }).first()
             .getByRole("button").nth(2).click();
 
-        // The sale is cancelled server-side but stays in today's list.
-        await page.waitForTimeout(1500);
-        expect(await rows.count()).toBe(afterCreate);
+        // The sale stays in the DB as CANCELLED but leaves today's list.
+        await expect(rows).toHaveCount(before, { timeout: 15_000 });
     });
 });

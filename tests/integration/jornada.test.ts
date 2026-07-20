@@ -61,6 +61,16 @@ describe("jornada actions", () => {
         await prisma.sales.create({
             data: { total: 200, status: "PAID", payment_method: "CASH", source_type: "VENTA_LIBRE", placedBy: adminId, jornadaId: jornada.id },
         });
+        // Neither of these ever put cash in the register, so the expected
+        // amount must ignore them even though their payment_method is CASH:
+        // a cancelled sale keeps its original payment_method...
+        await prisma.sales.create({
+            data: { total: 500, status: "CANCELLED", payment_method: "CASH", source_type: "VENTA_LIBRE", placedBy: adminId, jornadaId: jornada.id },
+        });
+        // ...and a sale converted to debt is collected on a later day.
+        await prisma.sales.create({
+            data: { total: 300, status: "DEBT", payment_method: "CASH", source_type: "CL- Deudor", placedBy: adminId, jornadaId: jornada.id },
+        });
         await prisma.bill.create({
             data: { amount: 50, category: "Otros", description: "Gasto jornada", date: new Date(), registered_by: adminId, jornadaId: jornada.id },
         });

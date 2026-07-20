@@ -372,7 +372,7 @@ async function main() {
       closedAt: isOpen ? null : closed,
       openedBy: rand(1, cfg.USERS),
       closedBy: isOpen ? null : rand(1, cfg.USERS),
-      status: isOpen ? JornadaStatus.OPEN : (chance(0.95) ? JornadaStatus.CLOSED : JornadaStatus.AUTO_CLOSED),
+      status: isOpen ? JornadaStatus.OPEN : JornadaStatus.CLOSED,
       openingAmount: opening,
       expectedClosingAmount: isOpen ? null : randFloat(opening + 1000, opening + 15000),
       actualClosingAmount: isOpen ? null : randFloat(opening + 800, opening + 15500),

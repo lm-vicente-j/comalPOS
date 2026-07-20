@@ -161,7 +161,6 @@ model jornada {
 enum JornadaStatus {
   OPEN
   CLOSED
-  AUTO_CLOSED
 }
 
 enum SaleStatus {
