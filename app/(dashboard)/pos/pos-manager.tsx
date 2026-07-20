@@ -20,7 +20,11 @@ interface PosManagerProps {
 }
 
 function FilterSales(sales:Sale[], src:string):Sale[]{
-    return sales.filter(s => s.source_type == src);
+    // Mesa/cliente views show only the open (UNPAID) account: once it is
+    // settled the table can be occupied again with a clean slate, so its
+    // settled history stays out of the POS view.
+    const isAccountView = src.startsWith("MESA_") || src.startsWith("CL-");
+    return sales.filter(s => s.source_type == src && (!isAccountView || s.status === "UNPAID"));
 }
 
 
