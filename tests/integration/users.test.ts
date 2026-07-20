@@ -98,4 +98,38 @@ describe("users actions", () => {
         logout();
         expect(await GetAllUsers()).toEqual([]);
     });
+
+    it("GetAllUsers flags stored credentials without exposing the hashes", async () => {
+        loginAs("ADMIN");
+        const rows = await GetAllUsers();
+
+        const admin = rows.find(u => u.email === "carlos@test.local")!;
+        expect(admin.hasPassword).toBe(true);
+        expect(admin).not.toHaveProperty("password");
+        expect(admin).not.toHaveProperty("pin");
+
+        const staff = rows.find(u => u.name === "Maria Lopez Garcia")!;
+        expect(staff.hasPin).toBe(true);
+    });
+
+    it("generates an email for ADMIN users created without one", async () => {
+        loginAs("ADMIN");
+        const res = await saveUser({ name: "Pedro Gomez Luna", role: "ADMIN", password: "clave123", active: true });
+        expect(res).toMatchObject({ success: true });
+
+        const row = await prisma.users.findFirstOrThrow({ where: { name: "Pedro Gomez Luna" } });
+        expect(row.email).toBe(`${row.username!.toLowerCase()}@bonfood.com`);
+    });
+
+    it("keeps the stored pin when a STAFF user is updated with a blank pin", async () => {
+        loginAs("ADMIN");
+        const before = await prisma.users.findFirstOrThrow({ where: { name: "Maria Lopez Garcia" } });
+
+        const res = await saveUser({ id: before.id, name: "Maria Editada Garcia", role: "STAFF", pin: null, password: null });
+        expect(res).toMatchObject({ success: true });
+
+        const after = await prisma.users.findUniqueOrThrow({ where: { id: before.id } });
+        expect(after.name).toBe("Maria Editada Garcia");
+        expect(after.pin).toBe(before.pin);
+    });
 });

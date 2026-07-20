@@ -39,10 +39,41 @@ export async function GetAllUsers() {
 
   try {
     const userList = await prisma.users.findMany({
-      select: { id: true, name: true, email: true, username: true, active: true, role: true },
+      select: { id: true, name: true, email: true, username: true, active: true, role: true, password: true, pin: true },
       orderBy: { name: 'asc' },
     });
-    return userList;
+    // Expose only whether a credential exists; hashes never leave the server.
+    return userList.map(({ password, pin, ...user }) => ({
+      ...user,
+      hasPassword: !!password,
+      hasPin: !!pin,
+    }));
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+}
+
+export async function searchUsers(query: string, limit = 20) {
+  const session = await auth();
+  if (!session?.user) return [];
+
+  const trimmed = query.trim();
+
+  try {
+    return await prisma.users.findMany({
+      where: trimmed
+        ? {
+            OR: [
+              { name: { contains: trimmed, mode: "insensitive" } },
+              { username: { contains: trimmed, mode: "insensitive" } },
+            ],
+          }
+        : undefined,
+      select: { id: true, name: true, username: true, registeredAt: true },
+      orderBy: { name: 'asc' },
+      take: limit,
+    });
   } catch (e) {
     console.error(e);
     return [];
@@ -122,6 +153,9 @@ export async function saveUser(data: Partial<User>) {
           },
         });
       } else {
+        // Admins log in with email + password, so one must always exist.
+        const adminEmail = email?.trim() ? email : `${username.toLowerCase()}@bonfood.com`;
+
         await prisma.users.create({
           data: {
             name,
@@ -129,7 +163,7 @@ export async function saveUser(data: Partial<User>) {
             active: active ?? true,
             password: hashedPass,
             username,
-            email,
+            email: adminEmail,
           },
         });
       }

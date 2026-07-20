@@ -60,16 +60,17 @@ export default function MobileCRMManager({ customers, staff }: { customers: Cust
 
     const openEdit = (item: any) => {
         setCurrentItem(item);
+        // Credentials are never loaded into the form; blank means "keep the current one".
         setFormData({
             name: item.name || "",
             customerName: item.customerName || "",
             phone: item.phone || "",
             role: item.role || "",
             active: item.active ?? true,
-            password: item.password || "",
-            pin: item.pin || "",
+            password: "",
+            pin: "",
         });
-        setPin(item.pin || "");
+        setPin("");
         setErrors({});
         setAlert(null);
         setIsDialogOpen(true);
@@ -95,13 +96,14 @@ export default function MobileCRMManager({ customers, staff }: { customers: Cust
                 phone: formData.phone,
             });
         } else {
+            // Send null when the credential was left blank so the server keeps the stored one.
             response = await saveUser({
                 id: currentItem?.id,
                 name: formData.name,
                 role: formData.role,
                 active: formData.active,
-                password: formData.role === "STAFF" ? null : formData.password,
-                pin: formData.role === "STAFF" ? pin : null,
+                password: formData.role === "STAFF" ? null : (formData.password || null),
+                pin: formData.role === "STAFF" ? (pin || null) : null,
             });
         }
 
@@ -122,6 +124,9 @@ export default function MobileCRMManager({ customers, staff }: { customers: Cust
         setFormData,
         handleInputChange,
         errors,
+        hasCredential: currentItem
+            ? (formData.role === "STAFF" ? !!currentItem.hasPin : !!currentItem.hasPassword)
+            : false,
     };
 
     const filteredCustomers = customers.filter(c =>
@@ -243,7 +248,7 @@ export default function MobileCRMManager({ customers, staff }: { customers: Cust
                                 {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName[0]}</p>}
                             </div>
                             <div>
-                                <label className="text-xs font-semibold uppercase">Teléfono</label>
+                                <label className="text-xs font-semibold uppercase">Teléfono (opcional)</label>
                                 <Input name="phone" type="text" value={formData.phone} onChange={handleInputChange} placeholder="XXXX-XXXX-XX" />
                                 {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
                             </div>

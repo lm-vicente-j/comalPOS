@@ -15,23 +15,34 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ChevronsUpDown } from "lucide-react";
 
 import { getSalaryHistory, saveSalaryPayment } from "@/lib/actions/payrolls";
-import { GetAllUsers } from "@/lib/actions/users";
-import { User, Salary } from "@/lib/actions/schemas";
+import { searchUsers } from "@/lib/actions/users";
+import { Salary } from "@/lib/actions/schemas";
 import { format } from "date-fns";
 
 const PAGE_SIZE = 30;
 
+type RosterUser = Awaited<ReturnType<typeof searchUsers>>[number];
+
 export default function RosterPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [selectedUserID, setSelectedUserID] = useState<string>("");
+  const [users, setUsers] = useState<RosterUser[]>([]);
+  const [userQuery, setUserQuery] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<RosterUser | null>(null);
   const [history, setHistory] = useState<Salary[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -43,31 +54,32 @@ export default function RosterPage() {
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [alert, setAlert] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
-  // Fetch users on mount
+  // Debounced server-side search so the picker scales to thousands of employees.
   useEffect(() => {
-    GetAllUsers().then((data) => setUsers(data as User[]));
-  }, []);
+    const timer = setTimeout(() => {
+      searchUsers(userQuery).then(setUsers);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userQuery]);
 
   // Fetch the first page of history when user changes
   useEffect(() => {
-    if (selectedUserID) {
-      getSalaryHistory(parseInt(selectedUserID), 0, PAGE_SIZE).then((res) => {
+    if (selectedUser?.id) {
+      getSalaryHistory(selectedUser.id, 0, PAGE_SIZE).then((res) => {
         setHistory(res.items);
         setHasMore(res.hasMore);
       });
     }
-  }, [selectedUserID]);
+  }, [selectedUser?.id]);
 
   const loadMoreHistory = async () => {
-    if (!selectedUserID) return;
+    if (!selectedUser?.id) return;
     setLoadingMore(true);
-    const res = await getSalaryHistory(parseInt(selectedUserID), history.length, PAGE_SIZE);
+    const res = await getSalaryHistory(selectedUser.id, history.length, PAGE_SIZE);
     setHistory((prev) => [...prev, ...res.items]);
     setHasMore(res.hasMore);
     setLoadingMore(false);
   };
-
-  const selectedUser = users.find(u => u.id === parseInt(selectedUserID));
 
   const handlePayment = async (type: "ADELANTO" | "BONO" | "SUELDO") => {
 
@@ -75,7 +87,7 @@ export default function RosterPage() {
     setAlert(null);
 
 
-    if (!selectedUserID) {
+    if (!selectedUser?.id) {
       setErrors({ userID: ["Seleccione un empleado"] });
       return;
     }
@@ -85,7 +97,7 @@ export default function RosterPage() {
     }
 
     const res = await saveSalaryPayment({
-      userID: parseInt(selectedUserID),
+      userID: selectedUser.id,
       amount: parseFloat(amount),
       period: `${type}: ${reason}`
     });
@@ -95,7 +107,7 @@ export default function RosterPage() {
       setReason("");
       setAlert({ message: "Pago registrado exitosamente.", type: 'success' });
       setTimeout(() => setAlert(null), 4000);
-      const updatedHistory = await getSalaryHistory(parseInt(selectedUserID), 0, PAGE_SIZE);
+      const updatedHistory = await getSalaryHistory(selectedUser.id, 0, PAGE_SIZE);
       setHistory(updatedHistory.items);
       setHasMore(updatedHistory.hasMore);
     } else {
@@ -115,18 +127,48 @@ export default function RosterPage() {
               {alert.message}
             </div>
           )}
-          <Select onValueChange={setSelectedUserID} value={selectedUserID}>
-            <SelectTrigger className="w-full md:w-75">
-              <SelectValue placeholder="Seleccionar Empleado" />
-            </SelectTrigger>
-            <SelectContent>
-              {users.map((user) => (
-                <SelectItem key={user.id} value={user.id?.toString() ?? "no id"}>
-                  {user.name} (@{user.username})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={pickerOpen}
+                className="w-full md:w-75 justify-between font-normal"
+              >
+                <span className="truncate">
+                  {selectedUser ? `${selectedUser.name} (@${selectedUser.username})` : "Seleccionar Empleado"}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+              {/* shouldFilter off: results already come filtered from the server */}
+              <Command shouldFilter={false}>
+                <CommandInput
+                  placeholder="Buscar por nombre o usuario..."
+                  value={userQuery}
+                  onValueChange={setUserQuery}
+                />
+                <CommandList>
+                  <CommandEmpty>No se encontraron empleados.</CommandEmpty>
+                  <CommandGroup>
+                    {users.map((user) => (
+                      <CommandItem
+                        key={user.id}
+                        value={user.id.toString()}
+                        onSelect={() => {
+                          setSelectedUser(user);
+                          setPickerOpen(false);
+                        }}
+                      >
+                        {user.name} (@{user.username})
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
           {errors.userID && <p className="text-red-500 text-xs mt-1">{errors.userID[0]}</p>}
 
         </div>

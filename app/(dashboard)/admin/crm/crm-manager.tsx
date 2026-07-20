@@ -144,6 +144,7 @@ export function PasswordField({
     setFormData,
     handleInputChange,
     errors,
+    hasCredential = false,
 }: {
     role: string;
     pin: string;
@@ -152,6 +153,7 @@ export function PasswordField({
     setFormData: (fn: (prev: any) => any) => void;
     handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
     errors: Record<string, string[]>;
+    hasCredential?: boolean;
 }) {
     return (
         <div>
@@ -170,11 +172,23 @@ export function PasswordField({
                             <InputOTPSlot index={3} />
                         </InputOTPGroup>
                     </InputOTP>
+                    {hasCredential && (
+                        <p className="text-xs text-muted-foreground mt-1">Ya existe un PIN registrado. Deje el campo vacío para conservarlo.</p>
+                    )}
                     {errors.pin && <p className="text-red-500 text-xs mt-1">{errors.pin[0]}</p>}
                 </>
             ) : (
                 <>
-                    <Input name="password" type="password" value={formData.password} onChange={handleInputChange} placeholder="Contraseña..." />
+                    <Input
+                        name="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        placeholder={hasCredential ? "••••••••" : "Contraseña..."}
+                    />
+                    {hasCredential && (
+                        <p className="text-xs text-muted-foreground mt-1">Ya existe una contraseña registrada. Deje el campo vacío para conservarla.</p>
+                    )}
                     {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password[0]}</p>}
                 </>
             )}
@@ -238,16 +252,16 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
         setPin("");
 
         if (currentItem) {
+            // Credentials are never loaded into the form; blank means "keep the current one".
             setFormData({
                 name: currentItem.name || "",
                 customerName: currentItem.customerName || "",
                 phone: currentItem.phone || "",
                 role: currentItem.role || "",
                 active: currentItem.active ?? true,
-                password: currentItem.password || "",
-                pin: currentItem.pin || "",
+                password: "",
+                pin: "",
             });
-            setPin(currentItem.pin || "");
         } else {
             setFormData({ name: "", customerName: "", phone: "", role: "", active: true, password: "", pin: "" });
         }
@@ -284,13 +298,14 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
                 phone: formData.phone,
             });
         } else {
+            // Send null when the credential was left blank so the server keeps the stored one.
             response = await saveUser({
                 id: currentItem?.id,
                 name: formData.name,
                 role: formData.role,
                 active: formData.active,
-                password: formData.role === "STAFF" ? null : formData.password,
-                pin: formData.role === "STAFF" ? pin : null,
+                password: formData.role === "STAFF" ? null : (formData.password || null),
+                pin: formData.role === "STAFF" ? (pin || null) : null,
             });
         }
 
@@ -318,6 +333,9 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
         setFormData,
         handleInputChange,
         errors,
+        hasCredential: currentItem
+            ? (formData.role === "STAFF" ? !!currentItem.hasPin : !!currentItem.hasPassword)
+            : false,
     };
 
     return (
@@ -451,7 +469,7 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
                                     {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName[0]}</p>}
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold uppercase">Teléfono</label>
+                                    <label className="text-xs font-semibold uppercase">Teléfono (opcional)</label>
                                     <Input name="phone" type="text" value={formData.phone} onChange={handleInputChange} />
                                     {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
                                 </div>
@@ -474,7 +492,7 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
                                     {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName[0]}</p>}
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold uppercase">Teléfono</label>
+                                    <label className="text-xs font-semibold uppercase">Teléfono (opcional)</label>
                                     <Input name="phone" type="text" value={formData.phone} onChange={handleInputChange} placeholder="XXXX-XXXX-XX" />
                                     {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone[0]}</p>}
                                 </div>
