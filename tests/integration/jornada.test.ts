@@ -53,6 +53,28 @@ describe("jornada actions", () => {
         expect(await getActiveJornadaWithStats()).toBeNull();
     });
 
+    it("refuses to close while table/client accounts are still open", async () => {
+        loginAs("ADMIN", adminId);
+        const jornada = await prisma.jornada.findFirstOrThrow({ where: { status: "OPEN" } });
+
+        const openSale = await prisma.sales.create({
+            data: { total: 80, status: "UNPAID", source_type: "MESA_1", placedBy: adminId, jornadaId: jornada.id },
+        });
+
+        const res = await closeJornada(jornada.id, 500);
+        expect(res).toMatchObject({
+            success: false,
+            error: "OPEN_ACCOUNTS",
+            openAccounts: [{ sourceType: "MESA_1", count: 1, total: 80 }],
+        });
+
+        const stillOpen = await prisma.jornada.findUniqueOrThrow({ where: { id: jornada.id } });
+        expect(stillOpen.status).toBe("OPEN");
+
+        // Resolving the account in the POS (here: cancelling it) unblocks the close.
+        await prisma.sales.update({ where: { id: openSale.id }, data: { status: "CANCELLED" } });
+    });
+
     it("closes the jornada computing the expected amount", async () => {
         loginAs("ADMIN", adminId);
         const jornada = await prisma.jornada.findFirstOrThrow({ where: { status: "OPEN" } });
