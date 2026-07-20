@@ -4,7 +4,7 @@ import Topbar from '@/components/layout/topbar';
 import StoreInitializer from '@/components/StoreInitializer';
 import { auth } from '@/lib/auth';
 import JornadaBanner from '@/components/layout/jornada-banner';
-import BannerRefresher from '@/components/layout/banner-refresher';
+import AutoRefresh from '@/components/layout/auto-refresh';
 
 export default async function DashboardLayout({
   children,
@@ -21,9 +21,9 @@ export default async function DashboardLayout({
   return (
     <div className="flex flex-col overflow-hidden h-screen bg-gray-50 text-gray-900">
       <StoreInitializer userId={userId} />
+      <AutoRefresh />
       <Topbar userName={staffName} />
       <JornadaBanner />
-      {/* <BannerRefresher/> */}
       <main className="flex flex-1 w-full overflow-hidden">
         <Sidebar userRole={role} />
 

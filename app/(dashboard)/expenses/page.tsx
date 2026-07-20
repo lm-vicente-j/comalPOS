@@ -19,6 +19,7 @@ import { useUserStore } from "@/lib/store";
 
 import { saveExpense, getExpenses } from "@/lib/actions/expenses";
 import { hasOpenJornada } from "@/lib/actions/jornada";
+import { usePolling } from "@/lib/use-polling";
 
 const PAGE_SIZE = 30;
 
@@ -66,6 +67,17 @@ export default function ExpensesPage() {
         // New expenses need an open jornada; the history stays available regardless.
         hasOpenJornada().then(setJornadaOpen);
     }, []);
+
+    // Keep the list and the jornada gate in sync with the other open sessions.
+    // Refetches the window already on screen so infinite scroll is preserved.
+    usePolling(() => {
+        getExpenses(0, Math.max(PAGE_SIZE, expenses.length)).then((res) => {
+            setExpenses(res.items);
+            setTotal(res.total);
+            setHasMore(res.hasMore);
+        });
+        hasOpenJornada().then(setJornadaOpen);
+    });
 
     const resetForm = () => {
         setAmount("");
