@@ -146,6 +146,43 @@ describe("sales actions", () => {
         expect(rows.every((r) => r.status === "PAID" && r.payment_method === "TRANSFER")).toBe(true);
     });
 
+    it("closeAccountAction leaves orphan unpaid sales of past jornadas untouched", async () => {
+        loginAs("ADMIN", adminId);
+
+        // An unpaid sale stranded in an already-closed jornada for the same table.
+        const closedJornada = await prisma.jornada.create({
+            data: { openedBy: adminId, openingAmount: 100, status: "CLOSED", closedAt: new Date(), closedBy: adminId },
+        });
+        const orphan = await prisma.sales.create({
+            data: { total: 99, status: "UNPAID", source_type: "MESA_7", placedBy: adminId, jornadaId: closedJornada.id },
+        });
+        // Today's account on the same table, in the open jornada.
+        const current = await prisma.sales.create({
+            data: { total: 40, status: "UNPAID", source_type: "MESA_7", placedBy: adminId, jornadaId },
+        });
+
+        const res = await closeAccountAction("MESA_7", "CASH");
+        expect(res).toMatchObject({ success: true });
+
+        const orphanAfter = await prisma.sales.findUniqueOrThrow({ where: { id: orphan.id } });
+        expect(orphanAfter.status).toBe("UNPAID");
+        expect(orphanAfter.payment_method).toBeNull();
+
+        const currentAfter = await prisma.sales.findUniqueOrThrow({ where: { id: current.id } });
+        expect(currentAfter.status).toBe("PAID");
+        expect(currentAfter.payment_method).toBe("CASH");
+    });
+
+    it("closeAccountAction fails with NO_OPEN_JORNADA when none is open", async () => {
+        loginAs("ADMIN", adminId);
+        await prisma.jornada.updateMany({ where: { status: "OPEN" }, data: { status: "CLOSED" } });
+
+        const res = await closeAccountAction("MESA_7", "CASH");
+        expect(res).toMatchObject({ success: false, message: "NO_OPEN_JORNADA" });
+
+        await prisma.jornada.update({ where: { id: jornadaId }, data: { status: "OPEN" } });
+    });
+
     it("fails with NO_OPEN_JORNADA when the jornada is closed", async () => {
         loginAs("ADMIN", adminId);
         await prisma.jornada.update({ where: { id: jornadaId }, data: { status: "CLOSED" } });
