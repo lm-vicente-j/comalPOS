@@ -13,7 +13,8 @@ import {
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose
 } from "@/components/ui/dialog";
-import { Plus, ArrowDownLeft, ArrowUpRight, Target, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, ArrowDownLeft, ArrowUpRight, Target, CheckCircle2, XCircle, PiggyBank } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Props = {
     pool: { balance: number; deposited: number; withdrawn: number };
@@ -23,10 +24,22 @@ type Props = {
 
 export default function SavingsManager({ pool, movements, goals }: Props) {
     return (
-        <div className="space-y-6">
-            <PoolCard pool={pool} movements={movements} />
-            <GoalsSection goals={goals} />
-        </div>
+        <Tabs defaultValue="pool" className="w-full gap-4">
+            <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+                <TabsTrigger value="pool" className="cursor-pointer">
+                    <PiggyBank className="h-4 w-4" /> Alcancía
+                </TabsTrigger>
+                <TabsTrigger value="goals" className="cursor-pointer">
+                    <Target className="h-4 w-4" /> Metas
+                </TabsTrigger>
+            </TabsList>
+            <TabsContent value="pool">
+                <PoolCard pool={pool} movements={movements} />
+            </TabsContent>
+            <TabsContent value="goals">
+                <GoalsSection goals={goals} />
+            </TabsContent>
+        </Tabs>
     );
 }
 
@@ -50,8 +63,8 @@ function PoolCard({ pool, movements }: { pool: Props["pool"]; movements: Props["
     };
 
     return (
-        <Card className="p-6">
-            <div className="flex items-start justify-between mb-4">
+        <Card className="p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                 <div>
                     <h2 className="text-lg font-semibold text-gray-700">Alcancia</h2>
                     <p className="text-3xl font-bold text-emerald-700 mt-1">${pool.balance.toFixed(2)}</p>
@@ -68,19 +81,19 @@ function PoolCard({ pool, movements }: { pool: Props["pool"]; movements: Props["
             ) : (
                 <div className="divide-y">
                     {items.map(m => (
-                        <div key={m.id} className="py-2.5 flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2.5">
+                        <div key={m.id} className="py-2.5 flex items-center justify-between gap-2 text-sm">
+                            <div className="flex items-center gap-2.5 min-w-0">
                                 {m.type === "DEPOSIT"
-                                    ? <ArrowDownLeft className="h-4 w-4 text-emerald-600" />
-                                    : <ArrowUpRight className="h-4 w-4 text-red-600" />}
-                                <div>
-                                    <p className="font-medium">{m.description || (m.type === "DEPOSIT" ? "Depósito" : "Retiro")}</p>
+                                    ? <ArrowDownLeft className="h-4 w-4 text-emerald-600 shrink-0" />
+                                    : <ArrowUpRight className="h-4 w-4 text-red-600 shrink-0" />}
+                                <div className="min-w-0">
+                                    <p className="font-medium break-words">{m.description || (m.type === "DEPOSIT" ? "Depósito" : "Retiro")}</p>
                                     <p className="text-xs text-gray-500">
                                         {new Date(m.createdAt).toLocaleString("es-MX")} · {m.userName}
                                     </p>
                                 </div>
                             </div>
-                            <span className={`font-semibold ${m.type === "DEPOSIT" ? "text-emerald-700" : "text-red-700"}`}>
+                            <span className={`font-semibold shrink-0 ${m.type === "DEPOSIT" ? "text-emerald-700" : "text-red-700"}`}>
                                 {m.type === "DEPOSIT" ? "+" : "−"}${m.amount.toFixed(2)}
                             </span>
                         </div>
@@ -130,7 +143,7 @@ function MovementDialog() {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button><Plus className="h-4 w-4 mr-1" /> Registrar movimiento</Button>
+                <Button className="w-full sm:w-auto shrink-0"><Plus className="h-4 w-4 mr-1" /> Registrar movimiento</Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
@@ -173,7 +186,7 @@ function GoalsSection({ goals }: { goals: Props["goals"] }) {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h2 className="text-lg font-semibold">Metas</h2>
                 <GoalDialog />
             </div>
@@ -215,7 +228,7 @@ function GoalCard({ goal }: { goal: Props["goals"][number] }) {
 
     return (
         <Card className={`p-4 ${isCancelled ? "opacity-60" : ""}`}>
-            <div className="flex items-start justify-between mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
                 <div>
                     <div className="flex items-center gap-2">
                         {isCompleted && <CheckCircle2 className="h-5 w-5 text-emerald-600" />}
@@ -231,7 +244,7 @@ function GoalCard({ goal }: { goal: Props["goals"][number] }) {
                     )}
                 </div>
                 {isActive && (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 shrink-0">
                         <ContributionDialog goalId={goal.id} goalName={goal.name} />
                         <Button variant="ghost" size="sm" onClick={handleCancel}>Cancelar</Button>
                     </div>
@@ -291,7 +304,7 @@ function GoalDialog() {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline"><Plus className="h-4 w-4 mr-1" /> Nueva meta</Button>
+                <Button variant="outline" className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-1" /> Nueva meta</Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>

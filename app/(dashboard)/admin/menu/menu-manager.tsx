@@ -144,7 +144,7 @@ interface MenuProps {
 }
 
 
-function InputSupply({
+export function InputSupply({
     supplyList,
     recipeItems,
     setRecipeItems

@@ -136,7 +136,7 @@ export const customerColumns: ColumnDef<Customer>[] = [
 ]
 
 
-function PasswordField({
+export function PasswordField({
     role,
     pin,
     setPin,

@@ -1,5 +1,11 @@
 "use client";
-import { ColumnDef } from "@tanstack/react-table"
+import { ColumnDef, RowData } from "@tanstack/react-table"
+
+declare module "@tanstack/react-table" {
+  interface ColumnMeta<TData extends RowData, TValue> {
+    className?: string;
+  }
+}
 import { Button } from "@/components/ui/button"
 import { useEffect } from "react";
 import {
@@ -51,6 +57,19 @@ import { useState } from "react";
 import { PaymentMethod } from "@/app/generated/prisma/enums";
 
 
+function DebtStatusBadge({ lastConsumption }: { lastConsumption?: string | Date | null }) {
+  if (!lastConsumption) return <Badge variant="outline">--</Badge>;
+
+  const dateDiff = new Date().getTime() - new Date(lastConsumption).getTime();
+  const diffDays = Math.floor(dateDiff / (1000 * 60 * 60 * 24));
+
+  return (
+    <Badge variant={diffDays >= 15 ? "destructive" : "default"}>
+      {diffDays >= 15 ? "Moroso" : "Pendiente"}
+    </Badge>
+  );
+}
+
 export const debtsColumns: ColumnDef<Debtor>[] = [
   {
     id: "customer",
@@ -59,9 +78,18 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
     cell: ({ row }) => {
       const customer = row.original.customer;
       return (
-        <div className="flex flex-col">
-          <span className="font-bold">{customer?.customerName}</span>
+        <div className="flex flex-col gap-0.5">
+          <span className="font-bold whitespace-normal break-words">{customer?.customerName}</span>
           <span className="text-xs text-muted-foreground">{customer?.alias}</span>
+          {/* Datos extra visibles solo en móvil, donde sus columnas están ocultas */}
+          <div className="flex flex-wrap items-center gap-1.5 md:hidden">
+            <DebtStatusBadge lastConsumption={customer?.lastConsumption} />
+            {customer?.lastConsumption && (
+              <span className="text-xs text-muted-foreground">
+                {new Date(customer.lastConsumption).toLocaleDateString()}
+              </span>
+            )}
+          </div>
         </div>
       );
     }
@@ -69,14 +97,17 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
   {
     accessorKey: 'customer.customerName',
     header: 'Nombre',
+    meta: { className: "hidden md:table-cell" },
   },
   {
     accessorKey: 'customer.alias',
     header: 'Alias',
+    meta: { className: "hidden md:table-cell" },
   },
   {
     accessorKey: 'customer.lastConsumption',
     header: 'Último consumo',
+    meta: { className: "hidden md:table-cell" },
     cell: ({ row }) => {
       const dateValue = row.original.customer?.lastConsumption;
       if (!dateValue) return <div>-</div>;
@@ -95,23 +126,11 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
   {
     header: () => <div className="flex items-center justify-center">Estado</div>,
     id: "status",
+    meta: { className: "hidden md:table-cell" },
     cell: ({ row }) => {
-      const lastConsumptionVal = row.original.customer?.lastConsumption;
-
-      if (!lastConsumptionVal) return <Badge variant="outline">--</Badge>;
-
-      const currentDate = new Date();
-      const lastConsumption = new Date(lastConsumptionVal);
-      const dateDiff = currentDate.getTime() - lastConsumption.getTime();
-      const diffDays = Math.floor(dateDiff / (1000 * 60 * 60 * 24));
-
-      const variant = diffDays >= 15 ? "destructive" : "default";
-
       return (
         <div className="flex items-center justify-center">
-          <Badge variant={variant}>
-            {diffDays >= 15 ? "Moroso" : "Pendiente"}
-          </Badge>
+          <DebtStatusBadge lastConsumption={row.original.customer?.lastConsumption} />
         </div>
       )
     }
@@ -147,7 +166,7 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                   <DialogHeader>
                     <DialogTitle>Cobrar cuenta de {customerName}</DialogTitle>
                   </DialogHeader>
-                  <div className="flex items-center justify-between gap-2 py-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 py-4">
                     <label>Total: </label>
                     <p>${Number(row.original.customer?.currentBalance)?.toFixed(2)}</p>
                     <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
@@ -175,10 +194,11 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                 <DialogTrigger className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground w-full">
                   Detalles
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="sm:max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>Historial de {customerName}</DialogTitle>
                   </DialogHeader>
+                  <div className="max-h-[60vh] overflow-y-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -212,6 +232,7 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
                         )}
                     </TableBody>
                   </Table>
+                  </div>
                 </DialogContent>
               </Dialog>
             </DropdownMenuContent>
