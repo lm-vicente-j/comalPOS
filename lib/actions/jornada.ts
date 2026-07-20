@@ -78,10 +78,37 @@ export async function closeJornada(
         return { success: false, error: "La jornada ya está cerrada" };
     }
 
+    // Open table/client accounts must be settled in the POS first (paid,
+    // sent to debt or cancelled): closing over them would strand the sales
+    // as UNPAID forever, with no UI left to resolve them.
+    const openAccounts = await prisma.sales.groupBy({
+        by: ["source_type"],
+        where: { jornadaId: jornada.id, status: "UNPAID" },
+        _count: { id: true },
+        _sum: { total: true },
+    });
+
+    if (openAccounts.length > 0) {
+        return {
+            success: false,
+            error: "OPEN_ACCOUNTS",
+            openAccounts: openAccounts.map((a) => ({
+                sourceType: a.source_type ?? "SIN ORIGEN",
+                count: a._count.id,
+                total: Number(a._sum.total ?? 0),
+            })),
+        };
+    }
+
+    // Same filter as getActiveJornadaWithStats: only PAID sales count as
+    // received cash. Without it, cancelled sales (which keep their original
+    // payment_method) and sales converted to debt inflated the expected
+    // closing amount with money that never reached the register.
     const cashSales = await prisma.sales.aggregate({
         where: {
             jornadaId: jornada.id,
-            payment_method: "CASH"
+            OR: [{ payment_method: "CASH" }, { payment_method: null }],
+            status: "PAID"
         },
         _sum: { total: true }
     });
@@ -183,7 +210,9 @@ export async function getActiveJornadaWithStats() {
     const billsSum = Number(bills._sum.amount ?? 0);
     const depositsSum = Number(savingsDeposits._sum.amount ?? 0);
     const withdrawsSum = Number(savingsWithdraws._sum.amount ?? 0);
-    const expectedCash = opening + cashSum - billsSum - depositsSum - withdrawsSum;
+    // Savings live outside the register: a deposit takes cash out of the
+    // drawer and a withdraw puts it back in. Same formula as closeJornada.
+    const expectedCash = opening + cashSum - billsSum - depositsSum + withdrawsSum;
 
     const currentUserId = Number(session.user.id);
     const isMine = jornada.openedBy === currentUserId;

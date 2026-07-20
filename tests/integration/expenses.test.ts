@@ -21,12 +21,13 @@ describe("expenses actions", () => {
         adminId = admin.id;
     });
 
+    // registered_by is no longer part of the payload: the action derives it
+    // from the authenticated session.
     const validExpense = () => ({
         amount: 120.5,
         category: "Insumos",
         description: "Compra de tortillas",
         date: new Date(),
-        registered_by: adminId,
     });
 
     it("rejects saveExpense without a session", async () => {

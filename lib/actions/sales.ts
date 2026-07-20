@@ -32,10 +32,15 @@ const SaleSchema = z.object({
 
 export type Sale = z.infer<typeof SaleSchema>;
 
-export async function createSale(sale_items: { productID: number, quantity: number }[], status: "UNPAID" | "PAID" | "DEBT", source_type: string, customerID: number, placedBy: number, paymentMethod: "CASH" | "TRANSFER" = "CASH") {
+export async function createSale(sale_items: { productID: number, quantity: number }[], status: "UNPAID" | "PAID" | "DEBT", source_type: string, customerID: number, paymentMethod: "CASH" | "TRANSFER" = "CASH") {
 
     const session = await auth();
     if (!session?.user) return { success: false, error: "UNAUTHORIZED" };
+
+    // Attribution comes from the authenticated session, never from the
+    // client, so a sale can't be registered on behalf of another user.
+    const placedBy = Number(session.user.id);
+    if (!Number.isInteger(placedBy)) return { success: false, error: "UNAUTHORIZED" };
 
     try {
 
@@ -85,14 +90,19 @@ export async function createSale(sale_items: { productID: number, quantity: numb
 
 
             // REGISTER SALE
+            // Sale lifecycle: UNPAID is the temporary state of open table and
+            // client accounts (paid later via closeAccountAction, or sent to
+            // debt via toDebt); PAID is an immediate venta libre; DEBT goes
+            // straight to fiado. The payment method is only known once money
+            // actually changes hands, so UNPAID/DEBT sales store none yet.
             const newSale = await tx.sales.create({
                 data: {
                     total: totalSale,
-                    status: "PAID",
+                    status: status,
                     source_type: source_type,
                     customerID: (customerID === -1 || !customerID) ? undefined : customerID,
                     placedBy: placedBy,
-                    payment_method: paymentMethod,
+                    payment_method: status === "PAID" ? paymentMethod : null,
                     jornadaId: activeJornada.id,
                     sale_items: {
                         create: itemsToInsert
@@ -100,18 +110,22 @@ export async function createSale(sale_items: { productID: number, quantity: numb
                 }
             });
 
-            // Register debtors
-            if (status === "DEBT" && customerID) {
+            // Register debtors (same bookkeeping as toDebt: visible DEBT
+            // entry plus the customer's running balance).
+            if (status === "DEBT" && customerID && customerID !== -1) {
                 await tx.debtors.create({
                     data: {
                         saleID: newSale.id,
                         customerID: customerID,
                         amount: totalSale,
-                        status: "UNPAID"
+                        status: "DEBT"
                     }
                 });
 
-
+                await tx.customer.update({
+                    where: { id: customerID },
+                    data: { currentBalance: { increment: totalSale } }
+                });
             }
 
             // Update consumption date
@@ -144,12 +158,25 @@ export async function closeAccountAction(sourceType: string, paymentMethod: "CAS
     if (!session?.user) return { success: false, message: "UNAUTHORIZED" };
 
     try {
+        // Scoped to the open jornada: "MESA_4" names a table, not one
+        // account, so without this filter stale unpaid sales from past
+        // jornadas would silently flip to PAID with today's payment
+        // method, corrupting past closing reports. Leftovers from other
+        // jornadas stay visible for an admin to resolve explicitly.
+        const activeJornada = await prisma.jornada.findFirst({
+            where: { status: "OPEN" },
+            select: { id: true }
+        });
 
+        if (!activeJornada) {
+            return { success: false, message: "NO_OPEN_JORNADA" };
+        }
 
         await prisma.sales.updateMany({
             where: {
                 source_type: sourceType,
-                status: "UNPAID"
+                status: "UNPAID",
+                jornadaId: activeJornada.id
             },
             data: {
                 status: "PAID",
@@ -206,7 +233,9 @@ export async function getTodaySalesHistory() {
                 gte: startOfDay,
                 lte: endOfDay,
             },
-
+            // Cancelled sales stay in the DB for auditing but leave the
+            // POS "pedidos recientes" list, so deleting a line visibly works.
+            status: { not: "CANCELLED" },
         },
         include: {
             customer: true,
@@ -273,7 +302,10 @@ export async function updateSaleQuantity(saleId: number, quantity: number, produ
     try {
         // CANCELL SALE
         if (quantity < 1) {
-            cancelSaleAction(saleId)
+            const cancelResult = await cancelSaleAction(saleId);
+            if (!("success" in cancelResult) || !cancelResult.success) {
+                return { success: false, message: "Error al cancelar la venta" };
+            }
             return { success: true, message: "PRODUCT CANCELLED" }
         }
 

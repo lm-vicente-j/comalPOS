@@ -50,14 +50,14 @@ describe("sales actions", () => {
 
     it("rejects createSale without a session", async () => {
         logout();
-        const res = await createSale([{ productID: productId, quantity: 1 }], "PAID", "VENTA_LIBRE", -1, adminId);
+        const res = await createSale([{ productID: productId, quantity: 1 }], "PAID", "VENTA_LIBRE", -1);
         expect(res).toMatchObject({ success: false, error: "UNAUTHORIZED" });
         expect(await prisma.sales.count()).toBe(0);
     });
 
     it("creates a sale with items, totals and stock decrement", async () => {
         loginAs("ADMIN", adminId);
-        const res = await createSale([{ productID: productId, quantity: 2 }], "PAID", "VENTA_LIBRE", -1, adminId, "CASH");
+        const res = await createSale([{ productID: productId, quantity: 2 }], "PAID", "VENTA_LIBRE", -1, "CASH");
         expect(res).toMatchObject({ success: true });
 
         const sale = await prisma.sales.findFirstOrThrow({ include: { sale_items: true } });
@@ -78,17 +78,41 @@ describe("sales actions", () => {
 
     it("registers a debtor entry when the sale goes to debt", async () => {
         loginAs("ADMIN", adminId);
-        const res = await createSale([{ productID: productId, quantity: 1 }], "DEBT", `CL- Cliente Venta`, customerId, adminId);
+        const res = await createSale([{ productID: productId, quantity: 1 }], "DEBT", `CL- Cliente Venta`, customerId);
         expect(res).toMatchObject({ success: true });
 
         const saleId = (res as { saleId: number }).saleId;
+        const sale = await prisma.sales.findUniqueOrThrow({ where: { id: saleId } });
+        expect(sale.status).toBe("DEBT");
+        expect(sale.payment_method).toBeNull();
+
         const debtor = await prisma.debtors.findUniqueOrThrow({ where: { saleID: saleId } });
         expect(debtor.customerID).toBe(customerId);
         expect(Number(debtor.amount)).toBe(50);
-        expect(debtor.status).toBe("UNPAID");
+        expect(debtor.status).toBe("DEBT");
 
         const customer = await prisma.customer.findUniqueOrThrow({ where: { id: customerId } });
         expect(customer.lastConsumption).not.toBeNull();
+        expect(Number(customer.currentBalance)).toBe(50);
+    });
+
+    it("keeps a table order UNPAID until the account is closed", async () => {
+        loginAs("ADMIN", adminId);
+        const res = await createSale([{ productID: productId, quantity: 1 }], "UNPAID", "MESA_2", -1);
+        expect(res).toMatchObject({ success: true });
+
+        const saleId = (res as { saleId: number }).saleId;
+        const sale = await prisma.sales.findUniqueOrThrow({ where: { id: saleId } });
+        expect(sale.status).toBe("UNPAID");
+        // The method is only known when the account is actually settled.
+        expect(sale.payment_method).toBeNull();
+
+        const close = await closeAccountAction("MESA_2", "TRANSFER");
+        expect(close).toMatchObject({ success: true });
+
+        const paid = await prisma.sales.findUniqueOrThrow({ where: { id: saleId } });
+        expect(paid.status).toBe("PAID");
+        expect(paid.payment_method).toBe("TRANSFER");
     });
 
     it("updateSaleQuantity adjusts item, totals and stock", async () => {
@@ -146,11 +170,48 @@ describe("sales actions", () => {
         expect(rows.every((r) => r.status === "PAID" && r.payment_method === "TRANSFER")).toBe(true);
     });
 
+    it("closeAccountAction leaves orphan unpaid sales of past jornadas untouched", async () => {
+        loginAs("ADMIN", adminId);
+
+        // An unpaid sale stranded in an already-closed jornada for the same table.
+        const closedJornada = await prisma.jornada.create({
+            data: { openedBy: adminId, openingAmount: 100, status: "CLOSED", closedAt: new Date(), closedBy: adminId },
+        });
+        const orphan = await prisma.sales.create({
+            data: { total: 99, status: "UNPAID", source_type: "MESA_7", placedBy: adminId, jornadaId: closedJornada.id },
+        });
+        // Today's account on the same table, in the open jornada.
+        const current = await prisma.sales.create({
+            data: { total: 40, status: "UNPAID", source_type: "MESA_7", placedBy: adminId, jornadaId },
+        });
+
+        const res = await closeAccountAction("MESA_7", "CASH");
+        expect(res).toMatchObject({ success: true });
+
+        const orphanAfter = await prisma.sales.findUniqueOrThrow({ where: { id: orphan.id } });
+        expect(orphanAfter.status).toBe("UNPAID");
+        expect(orphanAfter.payment_method).toBeNull();
+
+        const currentAfter = await prisma.sales.findUniqueOrThrow({ where: { id: current.id } });
+        expect(currentAfter.status).toBe("PAID");
+        expect(currentAfter.payment_method).toBe("CASH");
+    });
+
+    it("closeAccountAction fails with NO_OPEN_JORNADA when none is open", async () => {
+        loginAs("ADMIN", adminId);
+        await prisma.jornada.updateMany({ where: { status: "OPEN" }, data: { status: "CLOSED" } });
+
+        const res = await closeAccountAction("MESA_7", "CASH");
+        expect(res).toMatchObject({ success: false, message: "NO_OPEN_JORNADA" });
+
+        await prisma.jornada.update({ where: { id: jornadaId }, data: { status: "OPEN" } });
+    });
+
     it("fails with NO_OPEN_JORNADA when the jornada is closed", async () => {
         loginAs("ADMIN", adminId);
         await prisma.jornada.update({ where: { id: jornadaId }, data: { status: "CLOSED" } });
 
-        const res = await createSale([{ productID: productId, quantity: 1 }], "PAID", "VENTA_LIBRE", -1, adminId);
+        const res = await createSale([{ productID: productId, quantity: 1 }], "PAID", "VENTA_LIBRE", -1);
         expect(res.success).toBe(false);
 
         await prisma.jornada.update({ where: { id: jornadaId }, data: { status: "OPEN" } });

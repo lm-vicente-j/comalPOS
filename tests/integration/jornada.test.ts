@@ -53,6 +53,28 @@ describe("jornada actions", () => {
         expect(await getActiveJornadaWithStats()).toBeNull();
     });
 
+    it("refuses to close while table/client accounts are still open", async () => {
+        loginAs("ADMIN", adminId);
+        const jornada = await prisma.jornada.findFirstOrThrow({ where: { status: "OPEN" } });
+
+        const openSale = await prisma.sales.create({
+            data: { total: 80, status: "UNPAID", source_type: "MESA_1", placedBy: adminId, jornadaId: jornada.id },
+        });
+
+        const res = await closeJornada(jornada.id, 500);
+        expect(res).toMatchObject({
+            success: false,
+            error: "OPEN_ACCOUNTS",
+            openAccounts: [{ sourceType: "MESA_1", count: 1, total: 80 }],
+        });
+
+        const stillOpen = await prisma.jornada.findUniqueOrThrow({ where: { id: jornada.id } });
+        expect(stillOpen.status).toBe("OPEN");
+
+        // Resolving the account in the POS (here: cancelling it) unblocks the close.
+        await prisma.sales.update({ where: { id: openSale.id }, data: { status: "CANCELLED" } });
+    });
+
     it("closes the jornada computing the expected amount", async () => {
         loginAs("ADMIN", adminId);
         const jornada = await prisma.jornada.findFirstOrThrow({ where: { status: "OPEN" } });
@@ -60,6 +82,16 @@ describe("jornada actions", () => {
         // opening 500 + cash sales 200 - bills 50 - deposits 30 + withdraws 10 = 630
         await prisma.sales.create({
             data: { total: 200, status: "PAID", payment_method: "CASH", source_type: "VENTA_LIBRE", placedBy: adminId, jornadaId: jornada.id },
+        });
+        // Neither of these ever put cash in the register, so the expected
+        // amount must ignore them even though their payment_method is CASH:
+        // a cancelled sale keeps its original payment_method...
+        await prisma.sales.create({
+            data: { total: 500, status: "CANCELLED", payment_method: "CASH", source_type: "VENTA_LIBRE", placedBy: adminId, jornadaId: jornada.id },
+        });
+        // ...and a sale converted to debt is collected on a later day.
+        await prisma.sales.create({
+            data: { total: 300, status: "DEBT", payment_method: "CASH", source_type: "CL- Deudor", placedBy: adminId, jornadaId: jornada.id },
         });
         await prisma.bill.create({
             data: { amount: 50, category: "Otros", description: "Gasto jornada", date: new Date(), registered_by: adminId, jornadaId: jornada.id },
