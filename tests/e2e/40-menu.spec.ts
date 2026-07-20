@@ -11,7 +11,8 @@ test.describe("menu products", () => {
         // saveProduct revalidates other routes, so reload to see the fresh list.
         await page.waitForTimeout(1000);
         await page.reload();
-        await page.getByPlaceholder("Buscar producto...").fill("Producto E2E");
+        // Desktop and mobile managers coexist in the DOM; use the visible one.
+        await page.getByPlaceholder("Buscar producto...").filter({ visible: true }).fill("Producto E2E");
         await expect(page.getByRole("cell", { name: "Producto E2E" }).first()).toBeVisible();
     });
 });

@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveMovement, saveGoal, addContribution, cancelGoal, getRecentMovements } from "@/lib/actions/savings";
 import { InfiniteScroll } from "@/components/ui/infinite-scroll";
@@ -49,8 +49,20 @@ function PoolCard({ pool, movements, jornadaOpen }: { pool: Props["pool"]; movem
     const [hasMore, setHasMore] = useState(movements.hasMore);
     const [loadingMore, setLoadingMore] = useState(false);
 
-    // The server re-sends the first page after router.refresh(); resync.
+    const itemsRef = useRef(items);
     useEffect(() => {
+        itemsRef.current = items;
+    }, [items]);
+
+    // The server re-sends the first page after every router.refresh(); resync,
+    // but skip the reset when that page is already a prefix of what's on
+    // screen so the periodic AutoRefresh doesn't collapse the infinite scroll.
+    useEffect(() => {
+        const current = itemsRef.current;
+        const isPrefix = movements.items.length > 0 &&
+            movements.items.length <= current.length &&
+            movements.items.every((m, i) => current[i]?.id === m.id);
+        if (isPrefix) return;
         setItems(movements.items);
         setHasMore(movements.hasMore);
     }, [movements]);
