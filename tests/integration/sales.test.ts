@@ -50,14 +50,14 @@ describe("sales actions", () => {
 
     it("rejects createSale without a session", async () => {
         logout();
-        const res = await createSale([{ productID: productId, quantity: 1 }], "PAID", "VENTA_LIBRE", -1, adminId);
+        const res = await createSale([{ productID: productId, quantity: 1 }], "PAID", "VENTA_LIBRE", -1);
         expect(res).toMatchObject({ success: false, error: "UNAUTHORIZED" });
         expect(await prisma.sales.count()).toBe(0);
     });
 
     it("creates a sale with items, totals and stock decrement", async () => {
         loginAs("ADMIN", adminId);
-        const res = await createSale([{ productID: productId, quantity: 2 }], "PAID", "VENTA_LIBRE", -1, adminId, "CASH");
+        const res = await createSale([{ productID: productId, quantity: 2 }], "PAID", "VENTA_LIBRE", -1, "CASH");
         expect(res).toMatchObject({ success: true });
 
         const sale = await prisma.sales.findFirstOrThrow({ include: { sale_items: true } });
@@ -78,7 +78,7 @@ describe("sales actions", () => {
 
     it("registers a debtor entry when the sale goes to debt", async () => {
         loginAs("ADMIN", adminId);
-        const res = await createSale([{ productID: productId, quantity: 1 }], "DEBT", `CL- Cliente Venta`, customerId, adminId);
+        const res = await createSale([{ productID: productId, quantity: 1 }], "DEBT", `CL- Cliente Venta`, customerId);
         expect(res).toMatchObject({ success: true });
 
         const saleId = (res as { saleId: number }).saleId;
@@ -150,7 +150,7 @@ describe("sales actions", () => {
         loginAs("ADMIN", adminId);
         await prisma.jornada.update({ where: { id: jornadaId }, data: { status: "CLOSED" } });
 
-        const res = await createSale([{ productID: productId, quantity: 1 }], "PAID", "VENTA_LIBRE", -1, adminId);
+        const res = await createSale([{ productID: productId, quantity: 1 }], "PAID", "VENTA_LIBRE", -1);
         expect(res.success).toBe(false);
 
         await prisma.jornada.update({ where: { id: jornadaId }, data: { status: "OPEN" } });

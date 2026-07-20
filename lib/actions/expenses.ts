@@ -10,11 +10,14 @@ export async function saveExpense(data: {
   category: string;
   description: string;
   date: Date;
-  registered_by: number;
 }) {
 
   const session = await auth();
   if (!session?.user) return { success: false, error: "UNAUTHORIZED" };
+
+  // Attribution comes from the authenticated session, never from the client.
+  const registeredBy = Number(session.user.id);
+  if (!Number.isInteger(registeredBy)) return { success: false, error: "UNAUTHORIZED" };
 
   const activeJornada = await prisma.jornada.findFirst({
     where: { status: "OPEN" }
@@ -24,7 +27,10 @@ export async function saveExpense(data: {
     return { success: false, error: "NO_OPEN_JORNADA" };
   }
 
-  const parsed = BillSchema.omit({ id: true, receiptUrl: true }).safeParse(data);
+  const parsed = BillSchema.omit({ id: true, receiptUrl: true }).safeParse({
+    ...data,
+    registered_by: registeredBy,
+  });
 
 
   if (!parsed.success) {
@@ -42,7 +48,7 @@ export async function saveExpense(data: {
         category: data.category,
         description: data.description,
         date: data.date,
-        registered_by: data.registered_by,
+        registered_by: registeredBy,
         jornadaId: activeJornada.id
       },
     });

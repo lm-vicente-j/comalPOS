@@ -17,24 +17,6 @@ interface SidebarState {
 }
 
 
-type userState = {
-  id: number | null
-}
-
-type userAction = {
-    updateID :(id: number)=> void
-}
-
-export const useUserStore = create<userState & userAction>((set)=>({
-    id: null,
-    subMenu: "",
-
-    updateID: (newID: number) => set(()=>({id: newID}))
-}))
-
-
-
-
 export const useStore = create<AppState>()(
   persist(
     (set) => ({

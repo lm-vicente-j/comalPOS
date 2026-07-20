@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Banknote, CreditCard } from "lucide-react";
 import { createSale, Sale } from "@/lib/actions/sales";
 import { Product } from "@/lib/actions/schemas";
-import { useUserStore } from "@/lib/store";
 
 interface DataTableProps {
   data: Product[];
@@ -36,8 +35,6 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
     setDataProducts(filteredData);
   }
 
-  const placedBy = useUserStore((state) => state.id);
-
   const handleAddSale = async (productId: number, status: any, customerID: number) => {
     const items = [{ productID: productId, quantity: 1 }];
 
@@ -47,12 +44,12 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
       : (clientSelected ? `CL- ${clientName}` : "VENTA_LIBRE");
     const initialStatus = (isTable || clientSelected) ? "UNPAID" : "PAID";
 
+    // placedBy ya no viaja desde el cliente: el servidor lo toma de la sesión.
     const result = await createSale(
       items,
       initialStatus,
       sourceType,
       Number(customerID),
-      Number(placedBy),
       paymentMethod
     );
 

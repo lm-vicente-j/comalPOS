@@ -15,7 +15,6 @@ import {
 import { format } from "date-fns";
 import { Calendar as CalendarIcon, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useUserStore } from "@/lib/store";
 
 import { saveExpense, getExpenses } from "@/lib/actions/expenses";
 import { hasOpenJornada } from "@/lib/actions/jornada";
@@ -42,8 +41,6 @@ export default function ExpensesPage() {
 
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const [alert, setAlert] = useState<{ message: string; type: "success" | "error" } | null>(null);
-
-    const userId = useUserStore((state) => state.id);
 
     // Reloads the first page (used on mount and after saving an expense).
     const fetchData = async () => {
@@ -104,12 +101,12 @@ export default function ExpensesPage() {
         }
 
         setLoading(true);
+        // registered_by ya no viaja desde el cliente: el servidor lo toma de la sesión.
         const res = await saveExpense({
             amount: parseFloat(amount),
             category,
             description,
             date: date || new Date(),
-            registered_by: Number(userId ?? 1),
         });
 
         if (res.success) {
