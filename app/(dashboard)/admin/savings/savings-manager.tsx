@@ -20,9 +20,10 @@ type Props = {
     pool: { balance: number; deposited: number; withdrawn: number };
     movements: Awaited<ReturnType<typeof import("@/lib/actions/savings").getRecentMovements>>;
     goals: Awaited<ReturnType<typeof import("@/lib/actions/savings").getGoalsWithProgress>>;
+    jornadaOpen: boolean;
 };
 
-export default function SavingsManager({ pool, movements, goals }: Props) {
+export default function SavingsManager({ pool, movements, goals, jornadaOpen }: Props) {
     return (
         <Tabs defaultValue="pool" className="w-full gap-4">
             <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
@@ -34,7 +35,7 @@ export default function SavingsManager({ pool, movements, goals }: Props) {
                 </TabsTrigger>
             </TabsList>
             <TabsContent value="pool">
-                <PoolCard pool={pool} movements={movements} />
+                <PoolCard pool={pool} movements={movements} jornadaOpen={jornadaOpen} />
             </TabsContent>
             <TabsContent value="goals">
                 <GoalsSection goals={goals} />
@@ -43,7 +44,7 @@ export default function SavingsManager({ pool, movements, goals }: Props) {
     );
 }
 
-function PoolCard({ pool, movements }: { pool: Props["pool"]; movements: Props["movements"] }) {
+function PoolCard({ pool, movements, jornadaOpen }: { pool: Props["pool"]; movements: Props["movements"]; jornadaOpen: boolean }) {
     const [items, setItems] = useState(movements.items);
     const [hasMore, setHasMore] = useState(movements.hasMore);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -72,7 +73,7 @@ function PoolCard({ pool, movements }: { pool: Props["pool"]; movements: Props["
                         Depositado total: ${pool.deposited.toFixed(2)} · Retirado total: ${pool.withdrawn.toFixed(2)}
                     </p>
                 </div>
-                <MovementDialog />
+                <MovementDialog jornadaOpen={jornadaOpen} />
             </div>
 
             <h3 className="text-sm font-medium text-gray-700 mt-6 mb-2">Movimientos recientes</h3>
@@ -105,7 +106,7 @@ function PoolCard({ pool, movements }: { pool: Props["pool"]; movements: Props["
     );
 }
 
-function MovementDialog() {
+function MovementDialog({ jornadaOpen }: { jornadaOpen: boolean }) {
     const router = useRouter();
     const [open, setOpen] = useState(false);
     const [type, setType] = useState<"DEPOSIT" | "WITHDRAW">("DEPOSIT");
@@ -143,7 +144,10 @@ function MovementDialog() {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="w-full sm:w-auto shrink-0"><Plus className="h-4 w-4 mr-1" /> Registrar movimiento</Button>
+                {/* Movements post against the open jornada, so the button locks without one. */}
+                <Button className="w-full sm:w-auto shrink-0" disabled={!jornadaOpen}>
+                    <Plus className="h-4 w-4 mr-1" /> Registrar movimiento
+                </Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>

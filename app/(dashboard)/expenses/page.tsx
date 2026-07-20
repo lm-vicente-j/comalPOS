@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useUserStore } from "@/lib/store";
 
 import { saveExpense, getExpenses } from "@/lib/actions/expenses";
+import { hasOpenJornada } from "@/lib/actions/jornada";
 
 const PAGE_SIZE = 30;
 
@@ -30,6 +31,7 @@ export default function ExpensesPage() {
     const [loadingMore, setLoadingMore] = useState(false);
     const [loading, setLoading] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [jornadaOpen, setJornadaOpen] = useState(true);
 
     // Form States
     const [amount, setAmount] = useState("");
@@ -61,6 +63,8 @@ export default function ExpensesPage() {
 
     useEffect(() => {
         fetchData();
+        // New expenses need an open jornada; the history stays available regardless.
+        hasOpenJornada().then(setJornadaOpen);
     }, []);
 
     const resetForm = () => {
@@ -142,7 +146,7 @@ export default function ExpensesPage() {
 
                     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button className="cursor-pointer shrink-0" size="sm">
+                            <Button className="cursor-pointer shrink-0" size="sm" disabled={!jornadaOpen}>
                                 <Plus className="h-4 w-4" />
                                 Nuevo gasto
                             </Button>

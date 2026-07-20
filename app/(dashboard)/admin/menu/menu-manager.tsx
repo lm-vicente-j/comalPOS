@@ -393,6 +393,13 @@ export function MenuManager({ products, supplies }: MenuProps) {
                 }
             }
         } else {
+            // Never allow a sale price below the recipe's base cost.
+            if (Number(formData.price) < totalBaseCost) {
+                setAlert({ message: "El precio de venta no puede ser menor al costo base.", type: 'error' });
+                setErrors({ price: ["El precio de venta no puede ser menor al costo base."] });
+                return;
+            }
+
             const response = await saveProduct({
                 name: formData.name,
                 price: Number(formData.price),

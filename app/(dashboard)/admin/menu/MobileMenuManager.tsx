@@ -75,6 +75,13 @@ export function MobileMenuManager({ products, supplies }: { products: any[], sup
         setErrors({});
         setAlert(null);
 
+        // Never allow a sale price below the recipe's base cost.
+        if (!currentItem && Number(formData.price) < totalBaseCost) {
+            setAlert({ message: "El precio de venta no puede ser menor al costo base.", type: 'error' });
+            setErrors({ price: ["El precio de venta no puede ser menor al costo base."] });
+            return;
+        }
+
         const response = currentItem
             ? await saveProduct({ id: currentItem.id, name: formData.name, price: Number(formData.price) })
             : await saveProduct({
