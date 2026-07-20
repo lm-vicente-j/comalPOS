@@ -149,12 +149,25 @@ export async function closeAccountAction(sourceType: string, paymentMethod: "CAS
     if (!session?.user) return { success: false, message: "UNAUTHORIZED" };
 
     try {
+        // Scoped to the open jornada: "MESA_4" names a table, not one
+        // account, so without this filter stale unpaid sales from past
+        // jornadas would silently flip to PAID with today's payment
+        // method, corrupting past closing reports. Leftovers from other
+        // jornadas stay visible for an admin to resolve explicitly.
+        const activeJornada = await prisma.jornada.findFirst({
+            where: { status: "OPEN" },
+            select: { id: true }
+        });
 
+        if (!activeJornada) {
+            return { success: false, message: "NO_OPEN_JORNADA" };
+        }
 
         await prisma.sales.updateMany({
             where: {
                 source_type: sourceType,
-                status: "UNPAID"
+                status: "UNPAID",
+                jornadaId: activeJornada.id
             },
             data: {
                 status: "PAID",
