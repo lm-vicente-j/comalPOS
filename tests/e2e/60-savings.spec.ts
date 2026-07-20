@@ -18,6 +18,8 @@ test.describe("savings", () => {
     test("creates a goal and adds a contribution", async ({ page }) => {
         await page.goto("/admin/savings");
 
+        // Goals now live in their own tab next to the pool.
+        await page.getByRole("tab", { name: "Metas" }).click();
         await page.getByRole("button", { name: "Nueva meta" }).click();
         let dialog = page.getByRole("dialog");
         // The dialog labels are not linked to their inputs; use placeholders.

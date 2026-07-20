@@ -10,7 +10,8 @@ test.describe("crm", () => {
 
         await page.waitForTimeout(1000);
         await page.reload();
-        await page.getByPlaceholder("Buscar cliente...").fill("Cliente Playwright");
+        // Desktop and mobile managers coexist in the DOM; use the visible one.
+        await page.getByPlaceholder("Buscar cliente...").filter({ visible: true }).fill("Cliente Playwright");
         await expect(page.getByText("Cliente Playwright").first()).toBeVisible();
     });
 
@@ -30,7 +31,7 @@ test.describe("crm", () => {
         await page.waitForTimeout(1000);
         await page.reload();
         await page.getByRole("tab", { name: "Empleados" }).click();
-        await page.getByPlaceholder("Buscar empleado...").fill("Empleado Playwright");
+        await page.getByPlaceholder("Buscar empleado...").filter({ visible: true }).fill("Empleado Playwright");
         await expect(page.getByText("Empleado Playwright Prueba").first()).toBeVisible();
     });
 });
