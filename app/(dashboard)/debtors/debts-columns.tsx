@@ -117,7 +117,13 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
   },
   {
     accessorKey: "amount",
-    header: "Monto pendiente",
+    // Short header below md so the table fits very narrow screens
+    header: () => (
+      <>
+        <span className="md:hidden">Monto</span>
+        <span className="hidden md:inline">Monto pendiente</span>
+      </>
+    ),
     cell: ({ row }) => {
       const amount = row.original.amount;
       return <div className="font-bold text-red-600">${amount}</div>
@@ -136,7 +142,12 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
     }
   },
   {
-    header: () => <div className="flex items-center justify-center">Operaciones</div>,
+    header: () => (
+      <div className="flex items-center justify-center">
+        <span className="md:hidden">Ops.</span>
+        <span className="hidden md:inline">Operaciones</span>
+      </div>
+    ),
     id: "actions",
     cell: ({ row }) => {
 
