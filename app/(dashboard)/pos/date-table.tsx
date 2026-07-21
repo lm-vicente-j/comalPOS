@@ -155,8 +155,12 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
         </div>
       </ScrollArea>
 
-      {/* Mobile (< lg): vertical list, same card style as the other mobile modules */}
-      <ScrollArea className="lg:hidden h-[45vh] w-full rounded-md border p-2">
+      {/* Mobile (< lg): vertical list, same card style as the other mobile
+          modules. Plain overflow-y-auto instead of ScrollArea: Radix wraps
+          content in a display:table div sized to the intrinsic content
+          width, which defeats truncation and cut the price badges off on
+          narrow screens with long product names. */}
+      <div className="lg:hidden h-[45vh] w-full overflow-y-auto rounded-md border p-2">
         <div className="flex flex-col gap-2">
           {dataProducts.map((val: Product) => {
             const isPending = pendingId === val.id;
@@ -177,7 +181,7 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
             <p className="text-sm text-center text-muted-foreground py-8">No hay productos.</p>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
