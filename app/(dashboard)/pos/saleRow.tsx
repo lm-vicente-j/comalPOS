@@ -26,14 +26,17 @@ export function SalesRow({ sales }: { sales: Sale[] }) {
                             {sale.source_type}
                         </TableCell>
 
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{item.products?.name || "Cargando..."}</TableCell>
+                        <TableCell className="px-1 text-center sm:px-2 sm:text-left">{item.quantity}</TableCell>
+                        {/* Truncated on narrow screens so the operations column always fits */}
+                        <TableCell className="max-w-[72px] truncate px-1 sm:max-w-none sm:px-2">
+                            {item.products?.name || "Cargando..."}
+                        </TableCell>
 
-                        <TableCell className="text-right">
+                        <TableCell className="px-1 text-right sm:px-2">
                             ${Number(item.subtotal || 0).toFixed(2)}
                         </TableCell>
-                        
-                        <TableCell className="flex items-center justify-center gap-1 sm:gap-2">
+
+                        <TableCell className="flex items-center justify-center gap-1 px-1 sm:gap-2 sm:px-2">
                             <Button onClick={()=> handleUpdate(sale.id, item.quantity+1,item.productID)} className="cursor-pointer size-6" variant="outline" size="icon">
                                 <PlusIcon className="w-4 h-4" />
                             </Button>
