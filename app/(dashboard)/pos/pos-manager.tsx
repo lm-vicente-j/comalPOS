@@ -124,10 +124,18 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
                     <TableHeader>
                         <TableRow>
                             <TableHead className="hidden sm:table-cell">Cliente/Mesa</TableHead>
-                            <TableHead>Cantidad</TableHead>
-                            <TableHead>Platillo</TableHead>
-                            <TableHead className="text-right">Precio</TableHead>
-                            <TableHead className="text-center">Operacion</TableHead>
+                            {/* Short labels + tight padding below sm so the
+                                operations column never gets cut off. */}
+                            <TableHead className="px-1 sm:px-2">
+                                <span className="sm:hidden">Cant.</span>
+                                <span className="hidden sm:inline">Cantidad</span>
+                            </TableHead>
+                            <TableHead className="px-1 sm:px-2">Platillo</TableHead>
+                            <TableHead className="px-1 text-right sm:px-2">Precio</TableHead>
+                            <TableHead className="px-1 text-center sm:px-2">
+                                <span className="sm:hidden">Ops.</span>
+                                <span className="hidden sm:inline">Operacion</span>
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

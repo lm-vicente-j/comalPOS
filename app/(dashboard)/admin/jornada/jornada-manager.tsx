@@ -107,8 +107,10 @@ function ActiveJornadaPanel({ data, employees }: { data: any; employees: any[] }
 
             {/* Header de la jornada */}
             <Card className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                    <div>
+                {/* flex-wrap: on very narrow screens the close button drops
+                    below the title instead of colliding with it */}
+                <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
+                    <div className="min-w-0">
                         <h2 className="text-xl font-semibold">Jornada #{jornada.id}</h2>
                         <p className="text-sm text-gray-600 mt-1">
                             Abierta por <strong>{jornada.openedByUser?.name}</strong> · {new Date(jornada.openedAt).toLocaleString("es-MX")}
