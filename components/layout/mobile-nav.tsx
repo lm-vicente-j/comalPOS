@@ -17,6 +17,7 @@ import {
   UserRoundIcon,
   HandCoinsIcon,
   PiggyBankIcon,
+  SettingsIcon,
   LucideIcon,
 } from "lucide-react";
 
@@ -54,6 +55,12 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { name: "Salarios", href: "/admin/roster", icon: HandCoinsIcon },
       { name: "Ahorros", href: "/admin/savings", icon: PiggyBankIcon },
+    ],
+  },
+  {
+    title: "Sistema",
+    items: [
+      { name: "Ajustes", href: "/admin/settings", icon: SettingsIcon },
     ],
   },
 ];

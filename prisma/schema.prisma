@@ -225,3 +225,13 @@ model goal_contribution {
 
     @@index([goalId])
 }
+
+// Business-wide configuration shared by every device, stored as a simple
+// key/value table so new settings can be added without a migration. Values
+// that are specific to a single device (e.g. its terminal label) live in the
+// browser's localStorage instead, never here.
+model setting {
+    key       String   @id @db.VarChar(60)
+    value     String?
+    updatedAt DateTime @default(now()) @updatedAt
+}
