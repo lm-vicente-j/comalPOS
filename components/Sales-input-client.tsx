@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react";
-import { Input } from "@/components/ui/input";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 import { toDebt } from "@/lib/actions/debts";
@@ -11,18 +10,20 @@ import {
     CommandGroup,
     CommandItem,
     CommandList,
-    CommandEmpty
+    CommandEmpty,
+    CommandInput,
 } from "@/components/ui/command"
 import {
     Popover,
     PopoverContent,
-    PopoverAnchor,
+    PopoverTrigger,
 } from "@/components/ui/popover"
 
 import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
@@ -44,7 +45,8 @@ import {
 import { closeAccountAction } from "@/lib/actions/sales";
 import { Sale } from "@/lib/actions/sales";
 import { Customer } from "@/lib/actions/schemas";
-import { Banknote, CreditCard } from "lucide-react";
+import { searchCustomers } from "@/lib/actions/customers";
+import { Banknote, ChevronsUpDown, CreditCard } from "lucide-react";
 
 interface SalesInputProps {
     currentCustomerSales: Sale[];
@@ -63,27 +65,60 @@ interface SalesInputProps {
     currentCustomerID: number;
 }
 
+// Only the fields the picker needs; matches searchCustomers' selection so the
+// SSR list and the server search results share one shape.
+type PickerCustomer = { id: number; customerName: string | null; alias: string | null };
+
 
 
 export default function SalesInputClient({ currentCustomerSales, setSalesFilter,query, setQuery, clientSelected, setClientSelected, onClientSelect, tableNumber, setTableNumber, dialogOpen, setDialogOpen, customerList,setCurrentCustomerID,currentCustomerID}: SalesInputProps) {
 
-    const inputRef = useRef<HTMLInputElement>(null);
-    useEffect(() => {
-        // Autofocus only on desktop: on mobile it would pop the on-screen
-        // keyboard as soon as the POS opens.
-        if (window.matchMedia("(min-width: 1024px)").matches) {
-            inputRef.current?.focus();
-        }
-    }, []);
-    const [open, setOpen] = useState(false);
-
     const isAlreadyFreeSale = tableNumber === 0 && !clientSelected && query === "";
     const hasCustomers = Array.isArray(customerList) && customerList.length > 0;
-    const isInputDisabled = !hasCustomers;
+
+    // Customer picker copied from the Roster (Salarios) module: a combobox
+    // whose results come filtered from the server, so it scales past a
+    // client-side list. Seeded with the SSR list to avoid an empty first paint.
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const [customerQuery, setCustomerQuery] = useState("");
+    const [customers, setCustomers] = useState<PickerCustomer[]>(() =>
+        (customerList ?? []).map((c) => ({ id: c.id, customerName: c.customerName, alias: c.alias }))
+    );
+
+    // Debounced server-side search so the picker scales to thousands of clients.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            searchCustomers(customerQuery).then(setCustomers);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [customerQuery]);
 
     // How the account is being settled; asked in the close dialog since the
     // method is only known when the money actually changes hands.
     const [closeMethod, setCloseMethod] = useState<"CASH" | "TRANSFER">("CASH");
+
+    // Receipt shown in the close dialog: the open account's lines aggregated
+    // by product (each tap is its own UNPAID sale) plus the grand total.
+    const receiptLines = useMemo(() => {
+        const byProduct = new Map<string, { name: string; quantity: number; subtotal: number }>();
+        for (const sale of currentCustomerSales) {
+            for (const item of sale.sale_items) {
+                const name = item.products?.name ?? "Producto";
+                const acc = byProduct.get(name) ?? { name, quantity: 0, subtotal: 0 };
+                acc.quantity += item.quantity;
+                acc.subtotal += Number(item.subtotal);
+                byProduct.set(name, acc);
+            }
+        }
+        return Array.from(byProduct.values());
+    }, [currentCustomerSales]);
+
+    const receiptTotal = useMemo(
+        () => currentCustomerSales.reduce((acc, s) => acc + Number(s.total), 0),
+        [currentCustomerSales]
+    );
+
+    const accountLabel = query === "" ? `Mesa #${tableNumber}` : query;
 
     const handleCloseAccount = async () => {
         const sourceType = tableNumber !== 0 ? `MESA_${tableNumber}` : `CL- ${query}`;
@@ -117,40 +152,54 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
     return (
 
         <div className="flex flex-col items-stretch justify-between gap-3 my-4 lg:my-5 lg:h-20 lg:items-start lg:gap-0">
-            <Popover open={open} onOpenChange={setOpen}>
-                <PopoverAnchor asChild>
-                    <Input ref={inputRef} type="text"
-                        placeholder={isInputDisabled ? "No hay clientes registrados" : "Nombre de cliente"}
-                        disabled={isInputDisabled} value={query} onChange={(e) => {
-                            setQuery(e.target.value);
-                            setOpen(true);
-                        }} className="max-w" />
-                </PopoverAnchor>
-                <PopoverContent className="p-0 w-(--radix-popover-trigger-width)" onOpenAutoFocus={(e) => e.preventDefault()} >
-                    <Command>
+            <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={pickerOpen}
+                        disabled={!hasCustomers}
+                        className="w-full justify-between font-normal lg:w-75"
+                    >
+                        <span className="truncate">
+                            {clientSelected && query
+                                ? query
+                                : hasCustomers
+                                    ? "Nombre de cliente"
+                                    : "No hay clientes registrados"}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                    {/* shouldFilter off: results already come filtered from the server */}
+                    <Command shouldFilter={false}>
+                        <CommandInput
+                            placeholder="Buscar por nombre o alias..."
+                            value={customerQuery}
+                            onValueChange={setCustomerQuery}
+                        />
                         <CommandList>
                             <CommandEmpty>No se encontraron clientes.</CommandEmpty>
                             <CommandGroup>
-
-                                {Array.isArray(customerList) && customerList.length > 0 ? (
-                                    customerList.map((item) => (
-                                        <CommandItem
-                                            key={item.id}
-                                            value={item?.customerName || ""}
-                                            onSelect={() => {
-                                                onClientSelect(item?.customerName || "NONAME");
-                                                setClientSelected(true);
-                                                setTableNumber(0);
-                                                setOpen(false);
-                                                setCurrentCustomerID(item.id);
-                                                setSalesFilter("CL- " + item?.customerName)
-                                            }}
-                                            className="cursor-pointer"
-                                        >
-                                            {item?.alias} | {item?.customerName}
-                                        </CommandItem>
-                                    ))
-                                ) : null}
+                                {customers.map((item) => (
+                                    <CommandItem
+                                        key={item.id}
+                                        value={item.id.toString()}
+                                        onSelect={() => {
+                                            const name = item.customerName || "NONAME";
+                                            onClientSelect(name);
+                                            setClientSelected(true);
+                                            setTableNumber(0);
+                                            setCurrentCustomerID(item.id);
+                                            setSalesFilter("CL- " + name);
+                                            setPickerOpen(false);
+                                        }}
+                                        className="cursor-pointer"
+                                    >
+                                        {item.alias ? `${item.alias} | ` : ""}{item.customerName}
+                                    </CommandItem>
+                                ))}
                             </CommandGroup>
                         </CommandList>
                     </Command>
@@ -172,14 +221,16 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
                         <Button variant="destructive" className="cursor-pointer flex-1 lg:flex-none" disabled={!clientSelected}>Cerrar cuenta <span className="hidden lg:inline">{query}</span></Button>
 
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="max-h-[90dvh] overflow-y-auto">
                         <DialogHeader>
-                            <DialogTitle>Pago de cuenta {query === "" ? "Mesa #" + tableNumber : query}</DialogTitle>
+                            <DialogTitle>Pago de cuenta {accountLabel}</DialogTitle>
                             <DialogDescription>
                                 Asegurate de haber procesado el pago antes de continuar.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="flex items-center gap-3">
+                        {/* Payment method: wraps to its own line below sm so it
+                            never overflows on narrow phones. */}
+                        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
                             <span className="text-sm font-medium text-gray-700">Método de pago:</span>
                             <div className="inline-flex rounded-md border border-gray-200 bg-white p-0.5">
                                 <button
@@ -208,7 +259,42 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
                                 </button>
                             </div>
                         </div>
-                        <div className="flex justify-end gap-3 mt-4">
+
+                        {/* Receipt: the account's products and total, so the
+                            operator confirms exactly what is being charged. */}
+                        <div className="rounded-md border">
+                            <div className="border-b bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700">
+                                Recibo — {accountLabel}
+                            </div>
+                            {receiptLines.length === 0 ? (
+                                <p className="px-3 py-4 text-sm text-gray-500">
+                                    Esta cuenta no tiene productos.
+                                </p>
+                            ) : (
+                                <ul className="max-h-[35dvh] divide-y overflow-y-auto">
+                                    {receiptLines.map((line) => (
+                                        <li
+                                            key={line.name}
+                                            className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
+                                        >
+                                            <span className="min-w-0 flex-1 truncate">
+                                                <span className="font-medium text-gray-500">{line.quantity}×</span>{" "}
+                                                {line.name}
+                                            </span>
+                                            <span className="shrink-0 tabular-nums">
+                                                ${line.subtotal.toFixed(2)}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            <div className="flex items-center justify-between border-t px-3 py-2 text-base font-bold">
+                                <span>Total</span>
+                                <span className="tabular-nums">${receiptTotal.toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <DialogFooter>
                             <DialogClose asChild>
                                 <Button
                                     className="cursor-pointer"
@@ -228,8 +314,7 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
                                     Confirmar y Cerrar
                                 </Button>
                             </DialogClose>
-
-                        </div>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
                 <AlertDialog>
@@ -238,7 +323,10 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>¿Desea enviar la cuenta de "{query}" a deuda?</AlertDialogTitle>
+                            <AlertDialogTitle>¿Desea enviar la cuenta de &quot;{query}&quot; a deuda?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Total a registrar como deuda: ${receiptTotal.toFixed(2)}
+                            </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel asChild>
