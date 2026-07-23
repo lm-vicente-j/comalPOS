@@ -26,6 +26,36 @@ export async function getAllCustomers() {
 
 }
 
+// Debounced, server-side customer search for the POS picker. Mirrors
+// searchUsers (Roster): filtering happens in the database so the picker
+// scales past a client-side list, and only the fields the picker needs are
+// returned.
+export async function searchCustomers(query: string, limit = 20) {
+    const session = await auth();
+    if (!session?.user) return [];
+
+    const trimmed = query.trim();
+
+    try {
+        return await prisma.customer.findMany({
+            where: trimmed
+                ? {
+                      OR: [
+                          { customerName: { contains: trimmed, mode: "insensitive" } },
+                          { alias: { contains: trimmed, mode: "insensitive" } },
+                      ],
+                  }
+                : undefined,
+            select: { id: true, customerName: true, alias: true },
+            orderBy: { customerName: "asc" },
+            take: limit,
+        });
+    } catch (e) {
+        console.error(e);
+        return [];
+    }
+}
+
 export async function saveCustomer(data: Partial<Customer>){
 
     const session = await auth();
