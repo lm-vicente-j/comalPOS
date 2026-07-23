@@ -22,7 +22,8 @@ import {
   HandCoinsIcon,
   LucideIcon,
   BanknoteArrowDownIcon,
-  PackageCheckIcon
+  PackageCheckIcon,
+  SettingsIcon
 } from 'lucide-react';
 
 interface SubModule {
@@ -82,6 +83,11 @@ const MODULES: NavModule[] = [
       { name: 'Egresos', href: '/expenses', icon: BanknoteArrowDownIcon },
       { name: 'Estadísticas', href: '/admin/statistics', icon: ChartBarIcon, flag: "BETA" },
     ]
+  },
+  {
+    name: 'Ajustes',
+    href: '/admin/settings',
+    icon: SettingsIcon
   }
 ];
 
