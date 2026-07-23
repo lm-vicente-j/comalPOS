@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Landmark, MonitorSmartphone } from "lucide-react";
 import { saveSettings, type BusinessSettings } from "@/lib/actions/settings";
 import { useDeviceSettings, useDeviceSettingsHydration } from "@/lib/device-settings";
@@ -13,10 +14,22 @@ type Alert = { type: "success" | "error"; message: string };
 
 export default function SettingsManager({ settings }: { settings: BusinessSettings }) {
     return (
-        <div className="space-y-6">
-            <BusinessSettingsCard settings={settings} />
-            <DeviceSettingsCard />
-        </div>
+        <Tabs defaultValue="business" className="w-full gap-4">
+            <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+                <TabsTrigger value="business" className="cursor-pointer">
+                    <Landmark className="h-4 w-4" /> Negocio
+                </TabsTrigger>
+                <TabsTrigger value="device" className="cursor-pointer">
+                    <MonitorSmartphone className="h-4 w-4" /> Dispositivo
+                </TabsTrigger>
+            </TabsList>
+            <TabsContent value="business">
+                <BusinessSettingsCard settings={settings} />
+            </TabsContent>
+            <TabsContent value="device">
+                <DeviceSettingsCard />
+            </TabsContent>
+        </Tabs>
     );
 }
 
