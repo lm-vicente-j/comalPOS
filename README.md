@@ -40,6 +40,27 @@ Apply the database migration for the settings table before using the module:
 npx prisma migrate deploy   # or: npx prisma migrate dev
 ```
 
+## Database connections (runtime vs. migrations)
+
+The app runs on serverless (Vercel), so it needs **two connection strings** —
+they are read independently:
+
+- `DATABASE_URL` — the **runtime** connection used by the app
+  (`lib/prisma.ts`, via the `pg` driver adapter). On a pooled database use the
+  **transaction pooler** (Supabase: port `6543`, `?sslmode=require`), which
+  multiplexes many serverless clients over few connections. The adapter caps
+  each instance to a single connection (`max: 1`).
+- `DIRECT_URL` — used only by the Prisma CLI for `migrate deploy` / `db push`
+  (`prisma.config.ts`). Migrations need a real session (DDL and advisory
+  locks), so use a **session or direct** connection (Supabase: the **Session
+  pooler** on port `5432`; the true Direct connection is IPv6-only and
+  unreachable from Vercel's IPv4 build). Falls back to `DATABASE_URL` locally.
+
+Because `build` runs `prisma migrate deploy && next build`, set both variables
+in the deployment environment. Using the transaction pooler for migrations
+(`6543`) breaks them; using a session connection for the runtime exhausts its
+client limit — keep each URL to its role.
+
 ## Point of sale
 
 Closing a table or a client account opens the **Pago de cuenta** dialog, which

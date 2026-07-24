@@ -10,6 +10,13 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Used only by the Prisma CLI (migrate / db push / introspect). Point it
+    // at a session or direct connection so DDL and advisory locks work — on
+    // Supabase that's the Session pooler (the true Direct connection is
+    // IPv6-only and unreachable from Vercel's IPv4 build). The app's runtime
+    // connection is separate (lib/prisma.ts, DATABASE_URL), so this can be a
+    // different URL. Falls back to DATABASE_URL for local dev, where one
+    // database serves both.
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });
