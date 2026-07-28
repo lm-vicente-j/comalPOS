@@ -66,10 +66,10 @@ export default async function JornadaBanner() {
         <div className="bg-emerald-50 border-b border-emerald-200 px-4 md:px-6 py-2 flex items-center justify-between gap-3 text-sm">
             <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-4 text-emerald-900 min-w-0">
                 <span className="font-medium shrink-0">Jornada #{data.jornada.id}</span>
-                <span>
+                <span className='hidden sm:block'>
                     Esperado en caja: <strong>${expectedCash.toFixed(2)}</strong>
                 </span>
-                <span className="text-emerald-700/70 text-xs sm:text-sm">
+                <span className="hidden sm:block text-emerald-700/70  text-xs sm:text-sm">
                     Ventas efectivo: ${cashSales.toFixed(2)} · Egresos: ${bills.toFixed(2)}
                 </span>
             </div>

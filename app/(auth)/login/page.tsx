@@ -26,7 +26,7 @@ export default function LoginPage() {
 
       <Tabs defaultValue="admin" className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
         <div className="flex flex-row items-center justify-center my-2 ">
-          <Image src="/icon.svg" width={50} height={50} alt="BoonFood logo" />
+          <Image className="hidden sm:block" src="/icon.svg" width={50} height={50} alt="BoonFood logo" />
           <h1 className=" flex justify-center items-center text-2xl font-bold text-center m-6">Bon<span className="text-orange-500">Food</span>&nbsp; | Login</h1>
 
         </div>
