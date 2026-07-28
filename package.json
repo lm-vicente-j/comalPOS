@@ -71,5 +71,12 @@
     "@types/react-dom": "19.2.3",
     "postcss": ">=8.5.10",
     "@hono/node-server": ">=1.19.13"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "prisma@7.9.1": true,
+    "sharp@0.34.5": true,
+    "@prisma/engines@7.9.1": true,
+    "unrs-resolver@1.12.2": true
   }
 }
