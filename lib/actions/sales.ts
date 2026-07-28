@@ -33,37 +33,44 @@ const SaleSchema = z.object({
 export type Sale = z.infer<typeof SaleSchema>;
 
 export async function createSale(sale_items: { productID: number, quantity: number }[], status: "UNPAID" | "PAID" | "DEBT", source_type: string, customerID: number, paymentMethod: "CASH" | "TRANSFER" = "CASH") {
-
     const session = await auth();
     if (!session?.user) return { success: false, error: "UNAUTHORIZED" };
 
-    // Attribution comes from the authenticated session, never from the
-    // client, so a sale can't be registered on behalf of another user.
     const placedBy = Number(session.user.id);
     if (!Number.isInteger(placedBy)) return { success: false, error: "UNAUTHORIZED" };
 
-    try {
+    let transactionResult;
 
-        return await prisma.$transaction(async (tx) => {
-            const activeJornada = await prisma.jornada.findFirst({
+    try {
+        transactionResult = await prisma.$transaction(async (tx) => {
+            // 1. Fetch Open Jornada
+            const activeJornada = await tx.jornada.findFirst({
                 where: { status: "OPEN" }
             });
 
             if (!activeJornada) {
-                return { success: false, error: "NO_OPEN_JORNADA" };
+                // Notice this returns an object, it doesn't throw, so it won't hit the catch block
+                return { success: false, error: "NO_OPEN_JORNADA" }; 
             }
+
+            // 2. Pre-fetch ALL products in a single database query
+            const productIDs = sale_items.map((item) => item.productID);
+            const products = await tx.products.findMany({
+                where: { id: { in: productIDs } },
+                include: { recipes: true }
+            });
+
+            // Map for instant O(1) in-memory lookups
+            const productMap = new Map(products.map(p => [p.id, p]));
+
             let totalSale = 0;
+            const itemsToInsert = [];
+            const supplyDecrements: Record<number, number> = {}; 
 
-            // calulate sale total and check stock/sales
-            const itemsToInsert = []
-
+            // 3. Perform all math and supply aggregation in memory (Extremely fast)
             for (const item of sale_items) {
-                const product = await tx.products.findUnique({
-                    where: { id: item.productID },
-                    include: { recipes: true }
-                })
-
-                if (!product) throw new Error("PRODUCT ID" + item.productID + " NOT FOUND");
+                const product = productMap.get(item.productID);
+                if (!product) throw new Error("PRODUCT_NOT_FOUND"); 
 
                 const subtotal = product.price.toNumber() * item.quantity;
                 totalSale += subtotal;
@@ -73,28 +80,20 @@ export async function createSale(sale_items: { productID: number, quantity: numb
                     quantity: item.quantity,
                     unitPrice: product.price,
                     subtotal: subtotal,
-                })
+                });
 
-
-                //// INVENTORY
+                //// INVENTORY AGGREGATION
                 for (const recipe of product.recipes) {
                     if (recipe.quantityUsed) {
                         const quantity = Number(recipe.quantityUsed) * item.quantity;
-                        await tx.supplies.update({
-                            where: { id: recipe.supplyID },
-                            data: { currentStock: { decrement: quantity } }
-                        })
+                        const supplyID = recipe.supplyID;
+                        // Accumulate the needed decrements so we only hit the DB once per supply
+                        supplyDecrements[supplyID] = (supplyDecrements[supplyID] || 0) + quantity;
                     }
                 }
             }
 
-
-            // REGISTER SALE
-            // Sale lifecycle: UNPAID is the temporary state of open table and
-            // client accounts (paid later via closeAccountAction, or sent to
-            // debt via toDebt); PAID is an immediate venta libre; DEBT goes
-            // straight to fiado. The payment method is only known once money
-            // actually changes hands, so UNPAID/DEBT sales store none yet.
+            // 4. REGISTER SALE (Must happen first to get newSale.id)
             const newSale = await tx.sales.create({
                 data: {
                     total: totalSale,
@@ -110,49 +109,76 @@ export async function createSale(sale_items: { productID: number, quantity: numb
                 }
             });
 
-            // Register debtors (same bookkeeping as toDebt: visible DEBT
-            // entry plus the customer's running balance).
-            if (status === "DEBT" && customerID && customerID !== -1) {
-                await tx.debtors.create({
-                    data: {
-                        saleID: newSale.id,
-                        customerID: customerID,
-                        amount: totalSale,
-                        status: "DEBT"
-                    }
-                });
+            // 5. Prepare Parallel Writes for Inventory, Debtors, and Customers
+            const parallelWrites: Promise<any>[] = [];
+            const hasValidCustomer = customerID && customerID !== -1;
+            const isDebt = status === "DEBT";
 
-                await tx.customer.update({
-                    where: { id: customerID },
-                    data: { currentBalance: { increment: totalSale } }
-                });
+            // Push Inventory Updates
+            for (const [supplyID, totalQty] of Object.entries(supplyDecrements)) {
+                parallelWrites.push(
+                    tx.supplies.update({
+                        where: { id: Number(supplyID) },
+                        data: { currentStock: { decrement: totalQty } }
+                    })
+                );
             }
 
-            // Update consumption date
-            let currentDate: Date = new Date();
+            // Push Combined Customer & Debt Updates
+            if (hasValidCustomer) {
+                // Combine both updates (consumption date + balance) into one payload
+                const customerUpdateData: any = {
+                    lastConsumption: new Date().toISOString()
+                };
 
-            if (customerID && customerID !== -1) {
-                await tx.customer.update({
-                    where: { id: customerID },
-                    data: { lastConsumption: currentDate.toISOString() }
-                });
+                if (isDebt) {
+                    customerUpdateData.currentBalance = { increment: totalSale };
+                    
+                    // Add debtor creation
+                    parallelWrites.push(
+                        tx.debtors.create({
+                            data: {
+                                saleID: newSale.id,
+                                customerID: customerID,
+                                amount: totalSale,
+                                status: "DEBT"
+                            }
+                        })
+                    );
+                }
+
+                // Add single customer update
+                parallelWrites.push(
+                    tx.customer.update({
+                        where: { id: customerID },
+                        data: customerUpdateData
+                    })
+                );
             }
 
+            // 6. Execute all non-dependent writes at the exact same time
+            await Promise.all(parallelWrites);
 
-            revalidatePath("/pos")
-            revalidatePath("/debtors")
             return { success: true, saleId: newSale.id, message: "success" };
+        });
 
-        })
     } catch (e) {
-        if (e instanceof Error && e.message === "NO_OPEN_JORNADA") {
-            return { success: false, message: "NO_OPEN_JORNADA" }
+        console.error("createSale failed:", e);
+        if (e instanceof Error && e.message === "PRODUCT_NOT_FOUND") {
+            return { success: false, message: "PRODUCT_NOT_FOUND" };
         }
-        console.error("createSale failed:", e)
-        return { success: false, message: "INTERNAL ERROR" }
+        return { success: false, message: "INTERNAL ERROR" };
     }
-}
 
+    // 7. Revalidate Cache OUTSIDE the try/catch and transaction block
+    // We only trigger this if the database transaction safely succeeded.
+    if (transactionResult.success) {
+        revalidatePath("/pos");
+        revalidatePath("/debtors");
+    }
+
+    return transactionResult;
+}
 export async function closeAccountAction(sourceType: string, paymentMethod: "CASH" | "TRANSFER" = "CASH") {
     const session = await auth();
     if (!session?.user) return { success: false, message: "UNAUTHORIZED" };
