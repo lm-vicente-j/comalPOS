@@ -4,6 +4,14 @@ import z, { success, treeifyError } from "zod";
 import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "../auth";
+import {
+    FREE_SALE_SOURCE,
+    FREE_TICKET_PREFIX,
+    freeTicketNumber,
+    freeTicketSource,
+    isFreeTicket,
+    nextFreeTicketNumber,
+} from "../pos-source";
 
 const SaleSchema = z.object({
     id: z.number().int(),
@@ -179,6 +187,51 @@ export async function createSale(sale_items: { productID: number, quantity: numb
 
     return transactionResult;
 }
+// Explicit discriminated union so callers can narrow on `success` and reach
+// `sourceType` without a cast.
+type NextTicketResult =
+    | { success: true; sourceType: string }
+    | { success: false; message: string };
+
+/**
+ * Source type for a new walk-in ticket: the lowest number not already taken
+ * by an open one, so several walk-in accounts can be served at the same time.
+ *
+ * The number is assigned here and not in the browser on purpose: tickets can
+ * be opened from more than one terminal, and the POS only refreshes its copy
+ * of the sales every few seconds, so a client-side guess could hand the same
+ * number to two customers.
+ */
+export async function nextFreeSaleTicket(): Promise<NextTicketResult> {
+    const session = await auth();
+    if (!session?.user) return { success: false, message: "UNAUTHORIZED" };
+
+    const activeJornada = await prisma.jornada.findFirst({
+        where: { status: "OPEN" },
+        select: { id: true }
+    });
+
+    if (!activeJornada) {
+        return { success: false, message: "NO_OPEN_JORNADA" };
+    }
+
+    const openTickets = await prisma.sales.findMany({
+        where: {
+            jornadaId: activeJornada.id,
+            status: "UNPAID",
+            source_type: { startsWith: FREE_TICKET_PREFIX }
+        },
+        distinct: ["source_type"],
+        select: { source_type: true }
+    });
+
+    const taken = openTickets
+        .map((t) => freeTicketNumber(t.source_type ?? ""))
+        .filter((n): n is number => n !== null);
+
+    return { success: true, sourceType: freeTicketSource(nextFreeTicketNumber(taken)) };
+}
+
 export async function closeAccountAction(sourceType: string, paymentMethod: "CASH" | "TRANSFER" = "CASH") {
     const session = await auth();
     if (!session?.user) return { success: false, message: "UNAUTHORIZED" };
@@ -198,7 +251,7 @@ export async function closeAccountAction(sourceType: string, paymentMethod: "CAS
             return { success: false, message: "NO_OPEN_JORNADA" };
         }
 
-        await prisma.sales.updateMany({
+        const { count } = await prisma.sales.updateMany({
             where: {
                 source_type: sourceType,
                 status: "UNPAID",
@@ -207,11 +260,16 @@ export async function closeAccountAction(sourceType: string, paymentMethod: "CAS
             data: {
                 status: "PAID",
                 payment_method: paymentMethod,
+                // A walk-in ticket is a number handed out for the length of one
+                // account, not a real origin: once charged the sale goes back to
+                // plain VENTA_LIBRE, so history and reports group walk-in sales
+                // exactly as before tickets existed and the number is reusable.
+                ...(isFreeTicket(sourceType) ? { source_type: FREE_SALE_SOURCE } : {}),
             }
         });
 
         revalidatePath("/pos");
-        return { success: true };
+        return { success: true, count };
     } catch (e) {
         console.error(e);
         return { success: false, message: "Error al cerrar la cuenta" };

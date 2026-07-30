@@ -18,6 +18,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { AlertTriangle, CircleDollarSign, Users, Clock } from "lucide-react";
+import { formatSourceType } from "@/lib/pos-source";
 
 type Props = {
     data: Awaited<ReturnType<typeof import("@/lib/actions/jornada").getActiveJornadaWithStats>>;
@@ -180,13 +181,6 @@ function Stat({ label, value, positive, negative, highlight }: {
             </p>
         </div>
     );
-}
-
-// "MESA_4" -> "Mesa 4", "CL- Juan" -> "Cliente Juan"
-function formatSourceType(source: string): string {
-    if (source.startsWith("MESA_")) return `Mesa ${source.slice(5)}`;
-    if (source.startsWith("CL- ")) return `Cliente ${source.slice(4)}`;
-    return source;
 }
 
 type OpenAccount = { sourceType: string; count: number; total: number };

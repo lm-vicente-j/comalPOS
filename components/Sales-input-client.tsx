@@ -50,18 +50,18 @@ import { Banknote, ChevronsUpDown, CreditCard } from "lucide-react";
 
 interface SalesInputProps {
     currentCustomerSales: Sale[];
-    setSalesFilter: (val: string) => void;
+    // The account the POS is currently on (table, customer or walk-in
+    // ticket), already resolved by the parent; null when none is selected.
+    sourceType: string | null;
+    accountLabel: string;
     query: string;
-    setQuery: (val: string) => void;
     clientSelected: boolean;
-    setClientSelected: (val: boolean) => void;
-    onClientSelect: (name: string) => void;
-    tableNumber: number;
-    setTableNumber: (val: number) => void;
+    onClientSelect: (customer: { id: number; name: string }) => void;
+    onFreeSaleView: () => void;
+    onAccountSettled: () => void;
     setDialogOpen: (val: boolean) => void;
     dialogOpen: boolean;
     customerList: Customer[]
-    setCurrentCustomerID: (val: number) => void;
     currentCustomerID: number;
 }
 
@@ -71,9 +71,9 @@ type PickerCustomer = { id: number; customerName: string | null; alias: string |
 
 
 
-export default function SalesInputClient({ currentCustomerSales, setSalesFilter,query, setQuery, clientSelected, setClientSelected, onClientSelect, tableNumber, setTableNumber, dialogOpen, setDialogOpen, customerList,setCurrentCustomerID,currentCustomerID}: SalesInputProps) {
+export default function SalesInputClient({ currentCustomerSales, sourceType, accountLabel, query, clientSelected, onClientSelect, onFreeSaleView, onAccountSettled, dialogOpen, setDialogOpen, customerList, currentCustomerID}: SalesInputProps) {
 
-    const isAlreadyFreeSale = tableNumber === 0 && !clientSelected && query === "";
+    const isAlreadyFreeSale = sourceType === null;
     const hasCustomers = Array.isArray(customerList) && customerList.length > 0;
 
     // Customer picker copied from the Roster (Salarios) module: a combobox
@@ -118,22 +118,17 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
         [currentCustomerSales]
     );
 
-    const accountLabel = query === "" ? `Mesa #${tableNumber}` : query;
-
     const handleCloseAccount = async () => {
-        const sourceType = tableNumber !== 0 ? `MESA_${tableNumber}` : `CL- ${query}`;
+        if (!sourceType) return;
 
         const result = await closeAccountAction(sourceType, closeMethod);
 
         if (result.success) {
             // The account is settled: return to venta libre so the table
             // can be occupied again with a clean slate.
-            setClientSelected(false);
-            setQuery("");
-            setTableNumber(0);
+            onAccountSettled();
             setDialogOpen(false);
             setCloseMethod("CASH");
-            setSalesFilter("VENTA_LIBRE");
         }
     };
 
@@ -142,10 +137,7 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
         if (res.msg === "SUCCESS") {
             // Same as closing: the account was resolved (as debt), so the
             // POS returns to venta libre.
-            setClientSelected(false);
-            setQuery("");
-            setTableNumber(0);
-            setSalesFilter("VENTA_LIBRE");
+            onAccountSettled();
         }
     }
 
@@ -187,12 +179,7 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
                                         key={item.id}
                                         value={item.id.toString()}
                                         onSelect={() => {
-                                            const name = item.customerName || "NONAME";
-                                            onClientSelect(name);
-                                            setClientSelected(true);
-                                            setTableNumber(0);
-                                            setCurrentCustomerID(item.id);
-                                            setSalesFilter("CL- " + name);
+                                            onClientSelect({ id: item.id, name: item.customerName || "NONAME" });
                                             setPickerOpen(false);
                                         }}
                                         className="cursor-pointer"
@@ -208,13 +195,9 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
             {/* Wrapping action row: full-width touch buttons on mobile,
                 inline group on desktop. Long labels shrink on mobile. */}
             <div className="flex w-full flex-wrap gap-2 lg:w-fit">
-                <Button className="cursor-pointer flex-1 lg:flex-none" disabled={isAlreadyFreeSale} onClick={() => {
-                    setClientSelected(false);
-                    setQuery("");
-                    setTableNumber(0);
-                    setSalesFilter("VENTA_LIBRE");
-
-                }} ><span className="lg:hidden">Venta libre</span><span className="hidden lg:inline">Cambiar a venta libre</span></Button>
+                {/* Leaves the current account (without settling it) and puts
+                    the order list back on today's charged free sales. */}
+                <Button className="cursor-pointer flex-1 lg:flex-none" disabled={isAlreadyFreeSale} onClick={onFreeSaleView} ><span className="lg:hidden">Venta libre</span><span className="hidden lg:inline">Cambiar a venta libre</span></Button>
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
 

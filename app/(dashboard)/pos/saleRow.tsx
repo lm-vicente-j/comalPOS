@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2Icon, PlusIcon, MinusIcon } from "lucide-react";
 import { Sale } from "@/lib/actions/sales";
 import { TableCell,TableRow } from "@/components/ui/table";
+import { formatSourceType } from "@/lib/pos-source";
 
 export function SalesRow({ sales }: { sales: Sale[] }) {
 
@@ -23,7 +24,7 @@ export function SalesRow({ sales }: { sales: Sale[] }) {
                     <TableRow key={`${sale.id}-${k}`}>
                         {/* Hidden on phones: the active filter already gives the context */}
                         <TableCell className="hidden font-medium sm:table-cell">
-                            {sale.source_type}
+                            {formatSourceType(sale.source_type)}
                         </TableCell>
 
                         <TableCell className="px-1 text-center sm:px-2 sm:text-left">{item.quantity}</TableCell>

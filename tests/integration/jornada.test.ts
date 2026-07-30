@@ -75,6 +75,26 @@ describe("jornada actions", () => {
         await prisma.sales.update({ where: { id: openSale.id }, data: { status: "CANCELLED" } });
     });
 
+    it("refuses to close while a walk-in ticket is still open", async () => {
+        loginAs("ADMIN", adminId);
+        const jornada = await prisma.jornada.findFirstOrThrow({ where: { status: "OPEN" } });
+
+        // A walk-in ticket nobody charged is as blocking as an open table:
+        // closing over it would strand the sales as UNPAID forever.
+        const ticketSale = await prisma.sales.create({
+            data: { total: 45, status: "UNPAID", source_type: "VL-2", placedBy: adminId, jornadaId: jornada.id },
+        });
+
+        const res = await closeJornada(jornada.id, 500);
+        expect(res).toMatchObject({
+            success: false,
+            error: "OPEN_ACCOUNTS",
+            openAccounts: [{ sourceType: "VL-2", count: 1, total: 45 }],
+        });
+
+        await prisma.sales.update({ where: { id: ticketSale.id }, data: { status: "CANCELLED" } });
+    });
+
     it("closes the jornada computing the expected amount", async () => {
         loginAs("ADMIN", adminId);
         const jornada = await prisma.jornada.findFirstOrThrow({ where: { status: "OPEN" } });

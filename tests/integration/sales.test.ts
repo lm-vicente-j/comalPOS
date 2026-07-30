@@ -12,6 +12,7 @@ import {
     cancelSaleAction,
     closeAccountAction,
     createSale,
+    nextFreeSaleTicket,
     updateSaleQuantity,
 } from "@/lib/actions/sales";
 
@@ -197,6 +198,46 @@ describe("sales actions", () => {
         expect(currentAfter.payment_method).toBe("CASH");
     });
 
+    it("keeps several walk-in tickets open at once and charges them one by one", async () => {
+        loginAs("ADMIN", adminId);
+
+        const first = await nextFreeSaleTicket();
+        expect(first).toMatchObject({ success: true, sourceType: "VL-1" });
+
+        const saleOne = await createSale([{ productID: productId, quantity: 1 }], "UNPAID", "VL-1", -1);
+        const idOne = (saleOne as { saleId: number }).saleId;
+
+        // A second walk-in customer arrives before the first one has paid:
+        // they get their own ticket instead of joining the open one.
+        const second = await nextFreeSaleTicket();
+        expect(second).toMatchObject({ success: true, sourceType: "VL-2" });
+
+        const saleTwo = await createSale([{ productID: productId, quantity: 2 }], "UNPAID", "VL-2", -1);
+        const idTwo = (saleTwo as { saleId: number }).saleId;
+
+        expect(await nextFreeSaleTicket()).toMatchObject({ sourceType: "VL-3" });
+
+        // Charging one ticket settles only its own sales...
+        const close = await closeAccountAction("VL-2", "TRANSFER");
+        expect(close).toMatchObject({ success: true, count: 1 });
+
+        const charged = await prisma.sales.findUniqueOrThrow({ where: { id: idTwo } });
+        expect(charged.status).toBe("PAID");
+        expect(charged.payment_method).toBe("TRANSFER");
+        // ...and the ticket number stops being an origin of its own, so
+        // history and reports keep grouping walk-in sales as before.
+        expect(charged.source_type).toBe("VENTA_LIBRE");
+
+        const stillOpen = await prisma.sales.findUniqueOrThrow({ where: { id: idOne } });
+        expect(stillOpen.status).toBe("UNPAID");
+        expect(stillOpen.source_type).toBe("VL-1");
+
+        // The number the charged ticket gave back is handed out again.
+        expect(await nextFreeSaleTicket()).toMatchObject({ sourceType: "VL-2" });
+
+        expect(await closeAccountAction("VL-1", "CASH")).toMatchObject({ success: true, count: 1 });
+    });
+
     it("closeAccountAction fails with NO_OPEN_JORNADA when none is open", async () => {
         loginAs("ADMIN", adminId);
         await prisma.jornada.updateMany({ where: { status: "OPEN" }, data: { status: "CLOSED" } });
@@ -213,6 +254,9 @@ describe("sales actions", () => {
 
         const res = await createSale([{ productID: productId, quantity: 1 }], "PAID", "VENTA_LIBRE", -1);
         expect(res.success).toBe(false);
+
+        // Walk-in ticket numbers are scoped to the open jornada too.
+        expect(await nextFreeSaleTicket()).toMatchObject({ success: false, message: "NO_OPEN_JORNADA" });
 
         await prisma.jornada.update({ where: { id: jornadaId }, data: { status: "OPEN" } });
     });
