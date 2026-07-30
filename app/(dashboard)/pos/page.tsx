@@ -9,23 +9,27 @@ import { auth } from "@/lib/auth";
 
 export default async function Home(){
 
-    const rawProducts = await getProductsData();
+    // One parallel batch instead of a sequential waterfall: with the wider
+    // Prisma pool these queries overlap on the database instead of each one
+    // waiting for the previous round-trip to come back.
+    const [rawProducts, sales, rawCustomerList, jornadaOpen, session] = await Promise.all([
+        getProductsData(),
+        getTodaySalesHistory(),
+        getAllCustomers(),
+        hasOpenJornada(),
+        auth(),
+    ]);
+
+    // Products and customers still carry Decimal fields from their shared
+    // queries (also used by /admin/menu and the CRM), so they keep the plain
+    // JSON wash; sales already come back serialized from the action.
     const products = JSON.parse(JSON.stringify(rawProducts));
-
-
-    const rawSales = await getTodaySalesHistory();
-    const sales = JSON.parse(JSON.stringify(rawSales));
-
-    const rawCustomerList = await getAllCustomers();
     const customerList = JSON.parse(JSON.stringify(rawCustomerList));
-
-    const jornadaOpen = await hasOpenJornada();
 
     // The desktop banner hides the cash summary on phones; the mobile POS
     // surfaces it in its bottom bar instead. Same rule as the banner: only
     // ADMIN sees cash expectations, and only for their own open jornada.
     let jornadaInfo: MobileJornadaInfo | null = null;
-    const session = await auth();
     if (session?.user?.role === "ADMIN") {
         const data = await getActiveJornadaWithStats();
         if (data?.state === "OWN_OPEN") {

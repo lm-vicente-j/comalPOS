@@ -7,11 +7,12 @@ const globalForPrisma = global as unknown as {
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
-  // Serverless: keep each instance to a single pooled connection and let the
-  // database pooler (e.g. Supabase's transaction pooler on :6543) fan out.
-  // Without this, node-postgres opens up to 10 per instance and concurrent
-  // invocations exhaust the pooler's client limit.
-  max: 1,
+  // Serverless against a transaction pooler (e.g. Supabase's :6543), which
+  // absorbs far more clients than a direct connection would. A small pool
+  // per instance lets parallel queries (the POS page loads in one
+  // Promise.all batch) actually overlap; max: 1 serialized every query on a
+  // single socket and made each reload pay ~15 round-trips in a queue.
+  max: 4,
 })
 
 const prisma = globalForPrisma.prisma || new PrismaClient({
