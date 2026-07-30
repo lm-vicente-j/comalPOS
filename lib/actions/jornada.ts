@@ -1,10 +1,13 @@
 "use server"
+import { cache } from "react";
 import prisma from "../prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "../auth";
 
-// Lightweight check used by the UI to disable controls that need an open jornada.
-export async function hasOpenJornada() {
+// React.cache memoizes per server request: the dashboard layout (banner)
+// and the /pos page ask for the same jornada data in a single render, so
+// the query work runs once per render instead of once per caller.
+const hasOpenJornadaCached = cache(async () => {
     const session = await auth();
     if (!session?.user) return false;
 
@@ -13,6 +16,11 @@ export async function hasOpenJornada() {
         select: { id: true }
     });
     return !!jornada;
+});
+
+// Lightweight check used by the UI to disable controls that need an open jornada.
+export async function hasOpenJornada() {
+    return hasOpenJornadaCached();
 }
 
 export async function openJornada(openingAmount: number) {
@@ -157,7 +165,10 @@ export async function closeJornada(
     }
 }
 
-export async function getActiveJornadaWithStats() {
+// Wrapped in React.cache for the same reason as hasOpenJornada: JornadaBanner
+// and the /pos page both need these stats in the same render, and the six
+// aggregate queries are the heaviest part of a POS reload.
+const getActiveJornadaWithStatsCached = cache(async () => {
     const session = await auth();
     if (!session?.user) return null;
 
@@ -242,6 +253,10 @@ export async function getActiveJornadaWithStats() {
         stats: { cashSales: cashSum, transferSales: transferSum, bills: billsSum, expectedCash },
         currentUserId
     };
+});
+
+export async function getActiveJornadaWithStats() {
+    return getActiveJornadaWithStatsCached();
 }
 
 
