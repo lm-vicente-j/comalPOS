@@ -7,10 +7,9 @@ interface TablesProps {
   tableNumber: number;
   setTableNumber: (num: number) => void;
   setDialogOpen: (val:boolean) => void;
-  setSalesFilter: (val: string) => void;
 }
 
-export default function Seatings({ tableNumber, setTableNumber,setDialogOpen, setSalesFilter }: TablesProps){
+export default function Seatings({ tableNumber, setTableNumber,setDialogOpen }: TablesProps){
 
     return(
         <>
@@ -23,11 +22,7 @@ export default function Seatings({ tableNumber, setTableNumber,setDialogOpen, se
 
           return (
             <Button
-              onClick={() => {
-                setTableNumber(currentTable);
-                setSalesFilter("MESA_" + currentTable);
-              }
-              }
+              onClick={() => setTableNumber(currentTable)}
               key={index}
               className={cn(
                 "border text-black flex outline cursor-pointer hover:bg-gray-200 items-center justify-center bg-white rounded-sm shrink-0 w-11 h-11 lg:w-10 lg:h-10 transition-colors",
