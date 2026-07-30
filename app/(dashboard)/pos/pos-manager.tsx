@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useOptimistic, useRef, useState, startTransition } from "react";
 import Seatings from "@/components/Seatings";
 import FreeSaleTickets, { FreeSaleTicket } from "@/components/FreeSaleTickets";
 import SalesInputClient from "@/components/Sales-input-client";
@@ -9,9 +9,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCaption, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { Product } from "@/lib/actions/schemas";
-import { Sale, nextFreeSaleTicket } from "@/lib/actions/sales";
+import { Sale, createSale, nextFreeSaleTicket } from "@/lib/actions/sales";
 import { SalesRow } from "./saleRow";
 import { Customer } from "@/lib/actions/schemas";
+import { makeOptimisticSale } from "./optimistic-sale";
 import {
     FREE_SALE_SOURCE,
     customerSource,
@@ -51,13 +52,28 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
     const [currentCustomerID, setCurrentCustomerID] = useState(0);
     const [dialogOpen, setDialogOpen] = useState(false);
 
+    // Optimistic overlay: a tapped product shows up in the order list, the
+    // ticket totals and the close-account receipt in the same instant,
+    // before createSale answers. When the revalidated sales arrive, the
+    // placeholder is swapped for the real row. If the action fails, the
+    // overlay simply reverts to the props.
+    const [optimisticSales, addOptimisticSale] = useOptimistic(
+        sales,
+        (current: Sale[], sale: Sale) => [sale, ...current]
+    );
+
+    // Per-tap feedback: the pressed product darkens while its sale is being
+    // registered (and further taps on it are ignored meanwhile).
+    const [pendingId, setPendingId] = useState<number | null>(null);
+    const optimisticIdRef = useRef(0);
+
     // Open walk-in tickets, derived from the sales the server component
     // already loaded — no extra query, and the layout's AutoRefresh keeps
     // them in sync with the other terminals.
     const openTickets = useMemo(() => {
         const byNumber = new Map<number, FreeSaleTicket>();
 
-        for (const sale of sales) {
+        for (const sale of optimisticSales) {
             if (sale.status !== "UNPAID") continue;
             const number = freeTicketNumber(sale.source_type);
             if (number === null) continue;
@@ -69,7 +85,7 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
         }
 
         return byNumber;
-    }, [sales]);
+    }, [optimisticSales]);
 
     // A ticket that was just opened has no sales yet, so it only exists in
     // this component's state until the first product is tapped.
@@ -91,7 +107,7 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
 
     // Derived instead of a second piece of state: keeping a `salesFilter`
     // in sync by hand meant every selector had to remember to update both.
-    const visibleSales = FilterSales(sales, activeSource ?? FREE_SALE_SOURCE);
+    const visibleSales = FilterSales(optimisticSales, activeSource ?? FREE_SALE_SOURCE);
 
     const resetToFreeSaleView = () => {
         setTableNumber(0);
@@ -152,6 +168,41 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
     const ensureSourceType = async (): Promise<string | null> =>
         activeSource ?? (await openNewTicket());
 
+    // Optimistic add: the line, the totals and the receipt update instantly;
+    // the server action runs inside the transition and its revalidated
+    // payload replaces the placeholder when it lands.
+    const handleProductTap = (product: Product) => {
+        if (pendingId !== null) return;
+        const productId = product.id ?? -1;
+
+        setPendingId(productId);
+        void ensureSourceType().then((sourceType) => {
+            if (!sourceType) {
+                setPendingId(null);
+                return;
+            }
+
+            startTransition(async () => {
+                addOptimisticSale(makeOptimisticSale(--optimisticIdRef.current, product, sourceType));
+                try {
+                    const result = await createSale(
+                        [{ productID: productId, quantity: 1 }],
+                        "UNPAID",
+                        sourceType,
+                        Number(currentCustomerID)
+                    );
+                    if (!result.success) {
+                        alert(result.message === "NO_OPEN_JORNADA"
+                            ? "No hay jornada activa. Pide al administrador que abra la jornada antes de registrar ventas."
+                            : "No se pudo registrar la venta. Revisa la consola del servidor para más detalle.");
+                    }
+                } finally {
+                    setPendingId(null);
+                }
+            });
+        });
+    };
+
     return (
         // Mobile (< lg): single scrollable column ordered for the 3-tap sale
         // flow (context selector -> product grid -> recent orders).
@@ -162,7 +213,7 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
                 aria-disabled={!jornadaOpen}
                 className={`order-2 lg:order-none lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:flex lg:h-full lg:items-center lg:justify-center ${!jornadaOpen ? "pointer-events-none opacity-50 select-none" : ""}`}
             >
-                <DataTable data={products} ensureSourceType={ensureSourceType} customerID={currentCustomerID} />
+                <DataTable data={products} onProductTap={handleProductTap} pendingId={pendingId} />
             </div>
 
             <div
