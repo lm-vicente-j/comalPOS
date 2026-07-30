@@ -4,15 +4,16 @@ import { Trash2Icon, PlusIcon, MinusIcon } from "lucide-react";
 import { Sale } from "@/lib/actions/sales";
 import { TableCell,TableRow } from "@/components/ui/table";
 import { formatSourceType } from "@/lib/pos-source";
+import { trackAction } from "@/lib/action-tracker";
 
 export function SalesRow({ sales }: { sales: Sale[] }) {
 
     const handleDelete = async (id: number) =>{
-        await cancelSaleAction(id)
+        await trackAction(cancelSaleAction(id))
     }
 
     const handleUpdate= async (id: number, quant: number, productId: number) =>{
-        await updateSaleQuantity(id,quant,productId)
+        await trackAction(updateSaleQuantity(id,quant,productId))
     }
 
     

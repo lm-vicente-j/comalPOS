@@ -47,6 +47,7 @@ import { Sale } from "@/lib/actions/sales";
 import { Customer } from "@/lib/actions/schemas";
 import { searchCustomers } from "@/lib/actions/customers";
 import { TABLE_PREFIX } from "@/lib/pos-source";
+import { trackAction } from "@/lib/action-tracker";
 import { Banknote, ChevronsUpDown, CreditCard } from "lucide-react";
 
 interface SalesInputProps {
@@ -125,7 +126,7 @@ export default function SalesInputClient({ currentCustomerSales, sourceType, acc
     const handleCloseAccount = async () => {
         if (!sourceType) return;
 
-        const result = await closeAccountAction(sourceType, closeMethod);
+        const result = await trackAction(closeAccountAction(sourceType, closeMethod));
 
         if (result.success) {
             // The account is settled: return to venta libre so the table
@@ -137,7 +138,7 @@ export default function SalesInputClient({ currentCustomerSales, sourceType, acc
     };
 
     const handleToDebt = async (idCustomer: number, sales: Sale[]) => {
-        const res = await toDebt(idCustomer, sales);
+        const res = await trackAction(toDebt(idCustomer, sales));
         if (res.msg === "SUCCESS") {
             // Same as closing: the account was resolved (as debt), so the
             // POS returns to venta libre.
