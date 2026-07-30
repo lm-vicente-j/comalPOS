@@ -32,6 +32,7 @@ import {
 import { searchCustomers } from "@/lib/actions/customers";
 import { toDebt } from "@/lib/actions/debts";
 import { makeOptimisticSale } from "./optimistic-sale";
+import { trackAction } from "@/lib/action-tracker";
 import {
     customerSource,
     formatSourceType,
@@ -281,7 +282,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     const openNewTicket = async (): Promise<string | null> => {
         setCreatingTicket(true);
         try {
-            const result = await nextFreeSaleTicket();
+            const result = await trackAction(nextFreeSaleTicket());
 
             if (!result.success) {
                 alert(result.message === "NO_OPEN_JORNADA"
@@ -324,12 +325,12 @@ export default function MobilePosManager({ products, sales, customerList, jornad
             startTransition(async () => {
                 addOptimisticSale(makeOptimisticSale(--optimisticIdRef.current, product, sourceType));
                 try {
-                    const result = await createSale(
+                    const result = await trackAction(createSale(
                         [{ productID: productId, quantity: 1 }],
                         "UNPAID",
                         sourceType,
                         Number(currentCustomerID)
-                    );
+                    ));
                     if (!result.success) {
                         alert("No se pudo registrar la venta. Revisa la consola del servidor para más detalle.");
                     }
@@ -344,7 +345,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
         if (!activeSource || settling) return;
         setSettling(true);
         try {
-            const result = await closeAccountAction(activeSource, closeMethod);
+            const result = await trackAction(closeAccountAction(activeSource, closeMethod));
             if (result.success) {
                 // Settled: back to venta libre so the table or ticket number
                 // is free for the next customer. closeAccountAction already
@@ -360,7 +361,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     };
 
     const handleToDebt = async () => {
-        const res = await toDebt(currentCustomerID, accountSales);
+        const res = await trackAction(toDebt(currentCustomerID, accountSales));
         if (res.msg === "SUCCESS") {
             // Resolved as debt: same clean slate as after charging. toDebt
             // already revalidates "/pos", no extra refresh needed.
@@ -371,11 +372,11 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     // Both actions revalidate "/pos" themselves; the action response already
     // carries the updated account lines.
     const handleUpdateQuantity = async (saleId: number, quantity: number, productId: number) => {
-        await updateSaleQuantity(saleId, quantity, productId);
+        await trackAction(updateSaleQuantity(saleId, quantity, productId));
     };
 
     const handleDeleteLine = async (saleId: number) => {
-        await cancelSaleAction(saleId);
+        await trackAction(cancelSaleAction(saleId));
     };
 
     const gated = !jornadaOpen ? "pointer-events-none opacity-50 select-none" : "";

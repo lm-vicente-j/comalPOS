@@ -13,6 +13,7 @@ import { Sale, createSale, nextFreeSaleTicket } from "@/lib/actions/sales";
 import { SalesRow } from "./saleRow";
 import { Customer } from "@/lib/actions/schemas";
 import { makeOptimisticSale } from "./optimistic-sale";
+import { trackAction } from "@/lib/action-tracker";
 import {
     FREE_SALE_SOURCE,
     customerSource,
@@ -143,7 +144,7 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
     const openNewTicket = async (): Promise<string | null> => {
         setCreatingTicket(true);
         try {
-            const result = await nextFreeSaleTicket();
+            const result = await trackAction(nextFreeSaleTicket());
 
             if (!result.success) {
                 alert(result.message === "NO_OPEN_JORNADA"
@@ -185,12 +186,12 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
             startTransition(async () => {
                 addOptimisticSale(makeOptimisticSale(--optimisticIdRef.current, product, sourceType));
                 try {
-                    const result = await createSale(
+                    const result = await trackAction(createSale(
                         [{ productID: productId, quantity: 1 }],
                         "UNPAID",
                         sourceType,
                         Number(currentCustomerID)
-                    );
+                    ));
                     if (!result.success) {
                         alert(result.message === "NO_OPEN_JORNADA"
                             ? "No hay jornada activa. Pide al administrador que abra la jornada antes de registrar ventas."
