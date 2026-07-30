@@ -6,10 +6,11 @@ import { cn } from "@/lib/utils";
 interface TablesProps {
   tableNumber: number;
   setTableNumber: (num: number) => void;
-  setDialogOpen: (val:boolean) => void;
 }
 
-export default function Seatings({ tableNumber, setTableNumber,setDialogOpen }: TablesProps){
+// Just the table chips: settling any account (tables included) goes through
+// the single "Cerrar cuenta" button next to the customer picker.
+export default function Seatings({ tableNumber, setTableNumber }: TablesProps){
 
     return(
         <>
@@ -36,22 +37,6 @@ export default function Seatings({ tableNumber, setTableNumber,setDialogOpen }: 
           );
         })}
       </div>
-
-      <Button
-        disabled={tableNumber === 0}
-        className={cn(
-          "cursor-pointer mt-3 w-full lg:mt-5 lg:w-fit",
-          // On mobile the button only appears once a table is selected,
-          // keeping the context selector compact above the product grid.
-          { "hidden lg:inline-flex": tableNumber === 0 }
-        )}
-        onClick={()=> {
-
-          setDialogOpen(true)
-        }}
-      >
-        Cerrar Mesa {tableNumber > 0 && `#${tableNumber}`}
-      </Button>
     </>
     );
 }

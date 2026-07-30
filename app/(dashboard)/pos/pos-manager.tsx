@@ -226,7 +226,6 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
                     <Seatings
                         tableNumber={tableNumber}
                         setTableNumber={handleTableSelect}
-                        setDialogOpen={setDialogOpen}
                     />
                 </div>
 
