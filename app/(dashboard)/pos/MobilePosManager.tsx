@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useOptimistic, useRef, useState, startTransition } from "react";
 import Link from "next/link";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,7 @@ import {
 } from "@/lib/actions/sales";
 import { searchCustomers } from "@/lib/actions/customers";
 import { toDebt } from "@/lib/actions/debts";
+import { makeOptimisticSale } from "./optimistic-sale";
 import {
     customerSource,
     formatSourceType,
@@ -112,6 +113,15 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     const [productQuery, setProductQuery] = useState("");
     const [pendingId, setPendingId] = useState<number | null>(null);
 
+    // Optimistic overlay, same pattern as the desktop PosManager: a tapped
+    // product appears in the account (lines, count and totals) in the same
+    // instant and the revalidated payload swaps it for the real sale.
+    const [optimisticSales, addOptimisticSale] = useOptimistic(
+        sales,
+        (current: Sale[], sale: Sale) => [sale, ...current]
+    );
+    const optimisticIdRef = useRef(0);
+
     const [sheetOpen, setSheetOpen] = useState(false);
     const [jornadaSheetOpen, setJornadaSheetOpen] = useState(false);
     const [closeMethod, setCloseMethod] = useState<"CASH" | "TRANSFER">("CASH");
@@ -141,7 +151,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     const openTickets = useMemo(() => {
         const byNumber = new Map<number, { sourceType: string; number: number; total: number }>();
 
-        for (const sale of sales) {
+        for (const sale of optimisticSales) {
             if (sale.status !== "UNPAID") continue;
             const number = freeTicketNumber(sale.source_type);
             if (number === null) continue;
@@ -153,7 +163,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
         }
 
         return byNumber;
-    }, [sales]);
+    }, [optimisticSales]);
 
     // A ticket that was just opened has no sales yet, so it only exists in
     // this component's state until the first product is tapped.
@@ -174,8 +184,8 @@ export default function MobilePosManager({ products, sales, customerList, jornad
         : null;
 
     const accountSales = useMemo(
-        () => sales.filter((s) => s.source_type === activeSource && s.status === "UNPAID"),
-        [sales, activeSource]
+        () => optimisticSales.filter((s) => s.source_type === activeSource && s.status === "UNPAID"),
+        [optimisticSales, activeSource]
     );
 
     // One row per sale_item, like the desktop order list: each tap is its own
@@ -190,6 +200,9 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                     name: item.products?.name ?? "Producto",
                     quantity: item.quantity,
                     subtotal: Number(item.subtotal || 0),
+                    // Placeholder lines keep their controls disabled: the
+                    // steppers and trash need the real sale id.
+                    optimistic: sale.id < 0,
                 }))
             ),
         [accountSales]
@@ -294,32 +307,37 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     const ensureSourceType = async (): Promise<string | null> =>
         activeSource ?? (await openNewTicket());
 
-    const handleProductTap = async (product: Product) => {
+    // Optimistic add: the bottom bar total, the sheet lines and the ticket
+    // chip update instantly; createSale runs inside the transition and its
+    // revalidated payload replaces the placeholder when it lands.
+    const handleProductTap = (product: Product) => {
         if (pendingId !== null) return;
         const productId = product.id ?? -1;
 
         setPendingId(productId);
-        try {
-            const sourceType = await ensureSourceType();
-            if (!sourceType) return;
-
-            const result = await createSale(
-                [{ productID: productId, quantity: 1 }],
-                "UNPAID",
-                sourceType,
-                Number(currentCustomerID)
-            );
-
-            if (!result.success) {
-                alert("No se pudo registrar la venta. Revisa la consola del servidor para más detalle.");
+        void ensureSourceType().then((sourceType) => {
+            if (!sourceType) {
+                setPendingId(null);
                 return;
             }
 
-            // Sin router.refresh(): createSale ya revalida "/pos" y la
-            // respuesta de la acción trae la vista actualizada.
-        } finally {
-            setPendingId(null);
-        }
+            startTransition(async () => {
+                addOptimisticSale(makeOptimisticSale(--optimisticIdRef.current, product, sourceType));
+                try {
+                    const result = await createSale(
+                        [{ productID: productId, quantity: 1 }],
+                        "UNPAID",
+                        sourceType,
+                        Number(currentCustomerID)
+                    );
+                    if (!result.success) {
+                        alert("No se pudo registrar la venta. Revisa la consola del servidor para más detalle.");
+                    }
+                } finally {
+                    setPendingId(null);
+                }
+            });
+        });
     };
 
     const handleCloseAccount = async () => {
@@ -638,7 +656,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                         ) : (
                             <ul className="flex-1 overflow-y-auto px-5">
                                 {accountLines.map((line) => (
-                                    <li key={line.key} className="border-b border-gray-100 py-3 last:border-0">
+                                    <li key={line.key} className={cn("border-b border-gray-100 py-3 last:border-0", line.optimistic && "opacity-60")}>
                                         <div className="flex items-start justify-between gap-3">
                                             <p className="min-w-0 flex-1 text-sm font-medium text-gray-800">
                                                 <span className="text-gray-500">{line.quantity}×</span> {line.name}
@@ -652,6 +670,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                                 <button
                                                     type="button"
                                                     aria-label="Reducir cantidad"
+                                                    disabled={line.optimistic}
                                                     onClick={() => handleUpdateQuantity(line.saleId, line.quantity - 1, line.productID)}
                                                     className="flex h-9 w-9 items-center justify-center rounded-full border bg-white text-gray-700 shadow-sm cursor-pointer active:bg-gray-200"
                                                 >
@@ -661,6 +680,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                                 <button
                                                     type="button"
                                                     aria-label="Aumentar cantidad"
+                                                    disabled={line.optimistic}
                                                     onClick={() => handleUpdateQuantity(line.saleId, line.quantity + 1, line.productID)}
                                                     className="flex h-9 w-9 items-center justify-center rounded-full border bg-white text-gray-700 shadow-sm cursor-pointer active:bg-gray-200"
                                                 >
@@ -670,6 +690,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                             <button
                                                 type="button"
                                                 aria-label="Eliminar línea"
+                                                disabled={line.optimistic}
                                                 onClick={() => handleDeleteLine(line.saleId)}
                                                 className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-600 cursor-pointer active:bg-red-100"
                                             >

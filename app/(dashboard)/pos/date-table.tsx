@@ -5,18 +5,17 @@ import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { createSale } from "@/lib/actions/sales";
 import { Product } from "@/lib/actions/schemas";
 
 interface DataTableProps {
   data: Product[];
-  // Resolves the account the sale belongs to, opening a walk-in ticket when
-  // nothing is selected. Null means the sale can't be registered right now.
-  ensureSourceType: () => Promise<string | null>;
-  customerID: number;
+  // The parent owns the tap (optimistic add + createSale); this grid is
+  // presentational. pendingId darkens the pressed product meanwhile.
+  onProductTap: (product: Product) => void;
+  pendingId: number | null;
 }
 
-export default function DataTable({ data, ensureSourceType, customerID }: DataTableProps) {
+export default function DataTable({ data, onProductTap, pendingId }: DataTableProps) {
 
   const [dataProducts, setDataProducts] = useState(data);
 
@@ -29,54 +28,6 @@ export default function DataTable({ data, ensureSourceType, customerID }: DataTa
     const filteredData = data.filter((p) => p.name.toLowerCase().includes(searchLower));
     setDataProducts(filteredData);
   }
-
-  // Per-tap feedback: the pressed product simply darkens while the sale is
-  // being registered (and taps are ignored meanwhile).
-  const [pendingId, setPendingId] = useState<number | null>(null);
-
-  const handleProductTap = async (product: Product) => {
-    if (pendingId !== null) return;
-    const productId = product.id ?? -1;
-
-    setPendingId(productId);
-    try {
-      await handleAddSale(productId, customerID);
-    } finally {
-      setPendingId(null);
-    }
-  };
-
-  const handleAddSale = async (productId: number, customerID: number) => {
-    // Every sale now lands in an account (table, customer or walk-in ticket)
-    // and stays UNPAID until it is charged, so the payment method is picked
-    // once at checkout instead of before each tap.
-    const sourceType = await ensureSourceType();
-    if (!sourceType) return false;
-
-    const items = [{ productID: productId, quantity: 1 }];
-
-    // placedBy ya no viaja desde el cliente: el servidor lo toma de la sesión.
-    const result = await createSale(
-      items,
-      "UNPAID",
-      sourceType,
-      Number(customerID)
-    );
-
-    if (!result.success) {
-      if (result.message === "NO_OPEN_JORNADA") {
-        alert("No hay jornada activa. Pide al administrador que abra la jornada antes de registrar ventas.");
-      } else {
-        alert("No se pudo registrar la venta. Revisa la consola del servidor para más detalle.");
-      }
-      return false;
-    }
-
-    // No hace falta router.refresh(): createSale ya llama revalidatePath
-    // ("/pos"), así que la respuesta de la propia acción trae el server
-    // component actualizado con la nueva venta.
-    return true;
-  };
 
   return (
     <div className="w-full lg:h-full lg:mx-10">
@@ -96,7 +47,7 @@ export default function DataTable({ data, ensureSourceType, customerID }: DataTa
             const isPending = pendingId === val.id;
             return (
               <Button
-                onClick={() => handleProductTap(val)}
+                onClick={() => onProductTap(val)}
                 disabled={isPending}
                 variant="outline"
                 key={val.id}
@@ -124,7 +75,7 @@ export default function DataTable({ data, ensureSourceType, customerID }: DataTa
             return (
               <button
                 type="button"
-                onClick={() => handleProductTap(val)}
+                onClick={() => onProductTap(val)}
                 disabled={isPending}
                 key={val.id}
                 className={`w-full p-4 rounded-xl shadow-sm border flex justify-between items-center gap-2 text-left transition-colors active:bg-gray-300 ${isPending ? "bg-gray-300" : "bg-white"}`}
