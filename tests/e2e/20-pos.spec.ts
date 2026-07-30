@@ -10,7 +10,7 @@ import { test, expect, type Page } from "@playwright/test";
 // the "one sale in flight" guard.
 //
 // The suite runs in both projects. The desktop POS keeps the open account in
-// the order table and charges from "Cerrar cuenta" / "Cerrar Mesa"; the
+// the order table and charges every account kind from "Cerrar cuenta"; the
 // mobile POS keeps it in a bottom sheet that opens from the account bar
 // ("Abrir cuenta") and charges from the sheet's "Cobrar $…" button. The
 // helpers below branch on the project so each test asserts the same behavior
@@ -47,17 +47,17 @@ test.describe("pos", () => {
         await expect(page.getByRole("dialog")).toHaveCount(0);
     };
 
-    // Charges whatever account is open. Desktop goes through the charge
-    // dialog ("Cerrar cuenta" for walk-ins and customers, "Cerrar Mesa" for
-    // tables); mobile opens the account sheet and confirms from there.
-    const chargeAccount = async (page: Page, isMobile: boolean, total: string, ticket = true) => {
+    // Charges whatever account is open. Desktop goes through the shared
+    // "Cerrar cuenta" dialog (tables, walk-ins and customers alike); mobile
+    // opens the account sheet and confirms from there.
+    const chargeAccount = async (page: Page, isMobile: boolean, total: string) => {
         if (isMobile) {
             if ((await page.getByRole("dialog").count()) === 0) await openAccountSheet(page);
             await expect(page.getByRole("dialog")).toContainText(total);
             await page.getByRole("dialog").getByRole("button", { name: /^Cobrar \$/ }).click();
             await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 15_000 });
         } else {
-            await page.getByRole("button", { name: ticket ? /Cerrar cuenta/ : /Cerrar Mesa/ }).click();
+            await page.getByRole("button", { name: /Cerrar cuenta/ }).click();
             await expect(page.getByRole("dialog")).toContainText(total);
             await page.getByRole("button", { name: "Confirmar y Cerrar" }).click();
         }
@@ -235,8 +235,9 @@ test.describe("pos", () => {
             await expect(accountLines(page, false)).toHaveCount(1, { timeout: 15_000 });
         }
 
-        // Close the table (pay the account).
-        await chargeAccount(page, isMobile, "$35.00", false);
+        // Close the table (pay the account) through the same "Cerrar cuenta"
+        // dialog as every other account kind.
+        await chargeAccount(page, isMobile, "$35.00");
 
         // Reselecting the table shows a clean slate: its settled history is
         // gone from the POS, ready for the next customers.
