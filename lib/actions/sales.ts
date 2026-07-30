@@ -321,23 +321,50 @@ export async function getTodaySalesHistory() {
             // POS "pedidos recientes" list, so deleting a line visibly works.
             status: { not: "CANCELLED" },
         },
-        include: {
-            customer: true,
-            users: true,
+        // Only what the POS renders: the full customer/users rows were
+        // transferred on every reload and nothing in /pos reads them.
+        select: {
+            id: true,
+            customerID: true,
+            placedBy: true,
+            status: true,
+            source_type: true,
+            total: true,
+            createdAt: true,
             sale_items: {
-                include: { products: true }
+                select: {
+                    productID: true,
+                    quantity: true,
+                    unitPrice: true,
+                    subtotal: true,
+                    products: {
+                        select: { id: true, name: true, price: true }
+                    }
+                }
             }
         },
         orderBy: { createdAt: 'desc' }
 
     });
 
+    // Plain numbers/strings instead of Decimals and Dates, so the page can
+    // pass the result straight to client components without a JSON
+    // round-trip through stringify/parse. The cast is the same contract the
+    // old JSON wash papered over: nullable columns arrive filled in practice.
     return sales.map(s => ({
         ...s,
         total: Number(s.total),
         createdAt: s.createdAt?.toISOString(),
-        itemsCount: s.sale_items.length
-    }))
+        itemsCount: s.sale_items.length,
+        sale_items: s.sale_items.map(item => ({
+            ...item,
+            unitPrice: Number(item.unitPrice),
+            subtotal: Number(item.subtotal),
+            products: item.products
+                ? { ...item.products, price: Number(item.products.price) }
+                : item.products
+        }))
+    })) as Sale[]
 }
 
 export async function cancelSaleAction(saleId: number) {
