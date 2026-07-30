@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -102,8 +101,6 @@ type ContextTab = "tables" | "tickets" | "customer";
  * walk-in ticket) -> tap products -> charge from the sheet.
  */
 export default function MobilePosManager({ products, sales, customerList, jornadaOpen, jornadaInfo }: MobilePosManagerProps) {
-    const router = useRouter();
-
     const [tableNumber, setTableNumber] = useState(0);
     const [freeTicket, setFreeTicket] = useState(0);
     const [creatingTicket, setCreatingTicket] = useState(false);
@@ -318,7 +315,8 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                 return;
             }
 
-            router.refresh();
+            // Sin router.refresh(): createSale ya revalida "/pos" y la
+            // respuesta de la acción trae la vista actualizada.
         } finally {
             setPendingId(null);
         }
@@ -331,10 +329,10 @@ export default function MobilePosManager({ products, sales, customerList, jornad
             const result = await closeAccountAction(activeSource, closeMethod);
             if (result.success) {
                 // Settled: back to venta libre so the table or ticket number
-                // is free for the next customer.
+                // is free for the next customer. closeAccountAction already
+                // revalidates "/pos", no extra refresh needed.
                 resetToFreeSaleView();
                 setCloseMethod("CASH");
-                router.refresh();
             } else {
                 alert("No se pudo cerrar la cuenta. Intenta de nuevo.");
             }
@@ -346,20 +344,20 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     const handleToDebt = async () => {
         const res = await toDebt(currentCustomerID, accountSales);
         if (res.msg === "SUCCESS") {
-            // Resolved as debt: same clean slate as after charging.
+            // Resolved as debt: same clean slate as after charging. toDebt
+            // already revalidates "/pos", no extra refresh needed.
             resetToFreeSaleView();
-            router.refresh();
         }
     };
 
+    // Both actions revalidate "/pos" themselves; the action response already
+    // carries the updated account lines.
     const handleUpdateQuantity = async (saleId: number, quantity: number, productId: number) => {
         await updateSaleQuantity(saleId, quantity, productId);
-        router.refresh();
     };
 
     const handleDeleteLine = async (saleId: number) => {
         await cancelSaleAction(saleId);
-        router.refresh();
     };
 
     const gated = !jornadaOpen ? "pointer-events-none opacity-50 select-none" : "";

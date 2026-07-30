@@ -2,7 +2,6 @@
 
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +18,6 @@ interface DataTableProps {
 
 export default function DataTable({ data, ensureSourceType, customerID }: DataTableProps) {
 
-  const router = useRouter();
   const [dataProducts, setDataProducts] = useState(data);
 
   function setFilterData(query: string) {
@@ -74,9 +72,9 @@ export default function DataTable({ data, ensureSourceType, customerID }: DataTa
       return false;
     }
 
-    // Forzar refetch del server component para que la nueva venta
-    // aparezca en la "Lista de pedidos recientes".
-    router.refresh();
+    // No hace falta router.refresh(): createSale ya llama revalidatePath
+    // ("/pos"), así que la respuesta de la propia acción trae el server
+    // component actualizado con la nueva venta.
     return true;
   };
 
