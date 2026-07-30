@@ -185,7 +185,6 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
                         activeTicket={freeTicket}
                         onSelect={handleTicketSelect}
                         onNew={openNewTicket}
-                        onCharge={() => setDialogOpen(true)}
                         creating={creatingTicket}
                     />
                 </div>

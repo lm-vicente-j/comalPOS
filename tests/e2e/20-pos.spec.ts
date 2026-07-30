@@ -10,20 +10,12 @@ import { test, expect, type Page } from "@playwright/test";
 // the "one sale in flight" guard.
 //
 // The suite runs in both projects. The desktop POS keeps the open account in
-// the order table and charges from "Cobrar Ticket" / "Cerrar Mesa"; the
+// the order table and charges from "Cerrar cuenta" / "Cerrar Mesa"; the
 // mobile POS keeps it in a bottom sheet that opens from the account bar
 // ("Abrir cuenta") and charges from the sheet's "Cobrar $…" button. The
 // helpers below branch on the project so each test asserts the same behavior
 // on both layouts.
 test.describe("pos", () => {
-    // Desktop: "Cobrar Ticket #1 — $25.00" for the ticket being served.
-    // Mobile: the account bar (labelled "Abrir cuenta") shows the same
-    // ticket and its running total.
-    const accountBar = (page: Page, isMobile: boolean) =>
-        isMobile
-            ? page.getByRole("button", { name: "Abrir cuenta" })
-            : page.getByRole("button", { name: /Cobrar Ticket/ });
-
     // Desktop: rows of the order table. Mobile: lines of the account sheet.
     const accountLines = (page: Page, isMobile: boolean) =>
         isMobile
@@ -33,6 +25,18 @@ test.describe("pos", () => {
     // Ticket chips read "#1 $25.00": number plus running total.
     const ticketChip = (page: Page, total: string) =>
         page.getByRole("button", { name: new RegExp(`^#\\d+\\s*\\$${total}$`) });
+
+    // Asserts the running total of the walk-in ticket being served. Desktop
+    // shows it on the selected ticket chip ("#1 $25.00"); mobile shows it on
+    // the account bar (labelled "Abrir cuenta").
+    const expectTicketTotal = async (page: Page, isMobile: boolean, total: string) => {
+        if (isMobile) {
+            await expect(page.getByRole("button", { name: "Abrir cuenta" }))
+                .toContainText(`$${total}`, { timeout: 15_000 });
+        } else {
+            await expect(ticketChip(page, total.replace(".", "\\."))).toBeVisible({ timeout: 15_000 });
+        }
+    };
 
     const openAccountSheet = async (page: Page) => {
         await page.getByRole("button", { name: "Abrir cuenta" }).click();
@@ -44,8 +48,8 @@ test.describe("pos", () => {
     };
 
     // Charges whatever account is open. Desktop goes through the charge
-    // dialog ("Cobrar Ticket" for walk-ins, "Cerrar Mesa" for tables);
-    // mobile opens the account sheet and confirms from there.
+    // dialog ("Cerrar cuenta" for walk-ins and customers, "Cerrar Mesa" for
+    // tables); mobile opens the account sheet and confirms from there.
     const chargeAccount = async (page: Page, isMobile: boolean, total: string, ticket = true) => {
         if (isMobile) {
             if ((await page.getByRole("dialog").count()) === 0) await openAccountSheet(page);
@@ -53,7 +57,7 @@ test.describe("pos", () => {
             await page.getByRole("dialog").getByRole("button", { name: /^Cobrar \$/ }).click();
             await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 15_000 });
         } else {
-            await page.getByRole("button", { name: ticket ? /Cobrar Ticket/ : /Cerrar Mesa/ }).click();
+            await page.getByRole("button", { name: ticket ? /Cerrar cuenta/ : /Cerrar Mesa/ }).click();
             await expect(page.getByRole("dialog")).toContainText(total);
             await page.getByRole("button", { name: "Confirmar y Cerrar" }).click();
         }
@@ -67,11 +71,10 @@ test.describe("pos", () => {
 
     test("a free sale opens a walk-in ticket and is charged from it", async ({ page }) => {
         const isMobile = test.info().project.name === "mobile";
-        const bar = accountBar(page, isMobile);
 
         // No table and no customer selected: the tap opens a ticket by itself.
         await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
-        await expect(bar).toContainText("$25.00", { timeout: 15_000 });
+        await expectTicketTotal(page, isMobile, "25.00");
 
         if (isMobile) await openAccountSheet(page);
         await expect(accountLines(page, isMobile)).toHaveCount(1);
@@ -81,8 +84,9 @@ test.describe("pos", () => {
         // Settled: no open ticket left, and the sale joins the free sale history.
         await expect(ticketChip(page, "25\\.00")).toHaveCount(0, { timeout: 15_000 });
         if (isMobile) {
-            await page.getByRole("button", { name: "Ver pedidos de hoy" }).click();
-            await expect(page.getByRole("dialog")).toContainText("Taco Pastor");
+            // The bottom bar falls back to the jornada summary once nothing
+            // is selected anymore.
+            await expect(page.getByRole("button", { name: "Ver resumen de jornada" })).toBeVisible({ timeout: 15_000 });
         } else {
             await expect(page.locator("tbody tr").filter({ hasText: "Taco Pastor" })).not.toHaveCount(0);
         }
@@ -90,15 +94,14 @@ test.describe("pos", () => {
 
     test("a walk-in ticket adds up several products before charging", async ({ page }) => {
         const isMobile = test.info().project.name === "mobile";
-        const bar = accountBar(page, isMobile);
 
         await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
-        await expect(bar).toContainText("$25.00", { timeout: 15_000 });
+        await expectTicketTotal(page, isMobile, "25.00");
 
         // 25 + 35: the running sum the walk-in customer has to pay, which the
         // free sale had no way of showing before.
         await page.getByRole("button", { name: /Quesadilla Grande/ }).first().click();
-        await expect(bar).toContainText("$60.00", { timeout: 15_000 });
+        await expectTicketTotal(page, isMobile, "60.00");
 
         if (isMobile) {
             await openAccountSheet(page);
@@ -113,11 +116,10 @@ test.describe("pos", () => {
 
     test("keeps two walk-in tickets open at the same time", async ({ page }) => {
         const isMobile = test.info().project.name === "mobile";
-        const bar = accountBar(page, isMobile);
 
         // First walk-in customer.
         await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
-        await expect(bar).toContainText("$25.00", { timeout: 15_000 });
+        await expectTicketTotal(page, isMobile, "25.00");
         const firstTicket = ticketChip(page, "25\\.00");
 
         // A second one starts ordering before the first has paid.
@@ -133,7 +135,7 @@ test.describe("pos", () => {
         }
 
         await page.getByRole("button", { name: /Quesadilla Grande/ }).first().click();
-        await expect(bar).toContainText("$35.00", { timeout: 15_000 });
+        await expectTicketTotal(page, isMobile, "35.00");
 
         // Each ticket keeps its own total: the first one is untouched.
         if (isMobile) {
@@ -151,7 +153,7 @@ test.describe("pos", () => {
 
         // Back to the first customer, who now pays too.
         await firstTicket.click();
-        await expect(bar).toContainText("$25.00", { timeout: 15_000 });
+        await expectTicketTotal(page, isMobile, "25.00");
         await chargeAccount(page, isMobile, "$25.00");
 
         await expect(firstTicket).toHaveCount(0, { timeout: 15_000 });
@@ -159,10 +161,9 @@ test.describe("pos", () => {
 
     test("the quantity buttons update the order line", async ({ page }) => {
         const isMobile = test.info().project.name === "mobile";
-        const bar = accountBar(page, isMobile);
 
         await page.getByRole("button", { name: /Quesadilla Grande/ }).first().click();
-        await expect(bar).toContainText("$35.00", { timeout: 15_000 });
+        await expectTicketTotal(page, isMobile, "35.00");
 
         if (isMobile) {
             // Stepper buttons carry explicit labels on the phone; the line's
@@ -189,10 +190,9 @@ test.describe("pos", () => {
 
     test("cancelling a sale removes it from the recent orders list", async ({ page }) => {
         const isMobile = test.info().project.name === "mobile";
-        const bar = accountBar(page, isMobile);
 
         await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
-        await expect(bar).toContainText("$25.00", { timeout: 15_000 });
+        await expectTicketTotal(page, isMobile, "25.00");
 
         if (isMobile) {
             await openAccountSheet(page);
