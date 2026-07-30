@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,6 @@ import {
 import { searchCustomers } from "@/lib/actions/customers";
 import { toDebt } from "@/lib/actions/debts";
 import {
-    FREE_SALE_SOURCE,
     customerSource,
     formatSourceType,
     freeTicketNumber,
@@ -44,7 +44,6 @@ import {
     ChevronUp,
     ChevronsUpDown,
     CreditCard,
-    History,
     Minus,
     Plus,
     Search,
@@ -57,6 +56,24 @@ interface MobilePosManagerProps {
     sales: Sale[];
     customerList: Customer[];
     jornadaOpen: boolean;
+    jornadaInfo: MobileJornadaInfo | null;
+}
+
+/**
+ * The jornada summary the desktop banner hides on phones ("Esperado en
+ * caja", "Ventas efectivo · Egresos"), assembled by the server page. Null
+ * for STAFF — the banner keeps cash expectations away from that role — and
+ * whenever there is no open jornada of their own.
+ */
+export interface MobileJornadaInfo {
+    id: number;
+    openedBy: string | null;
+    openedAt: string | null;
+    openingAmount: number;
+    cashSales: number;
+    transferSales: number;
+    bills: number;
+    expectedCash: number;
 }
 
 // Only the fields the picker needs; matches searchCustomers' selection so the
@@ -76,14 +93,15 @@ type ContextTab = "tables" | "tickets" | "customer";
  *      with a single chip row underneath, so picking where the sale goes
  *      never pushes the products off screen.
  *   2. Product grid — gets every pixel left over and scrolls internally.
- *   3. Account bar — always above the bottom nav: the open account with its
- *      live total, or today's charged free sales when nothing is selected.
- *      Both open a bottom sheet (same sheet idiom as the mobile nav menu).
+ *   3. Bottom bar — always above the bottom nav: the open account with its
+ *      live total once something is selected, or the jornada cash summary
+ *      the desktop banner hides on phones (admin only) until then. Both
+ *      open a bottom sheet (same sheet idiom as the mobile nav menu).
  *
  * The sale itself stays a 3-tap flow: context (or nothing, which opens a
  * walk-in ticket) -> tap products -> charge from the sheet.
  */
-export default function MobilePosManager({ products, sales, customerList, jornadaOpen }: MobilePosManagerProps) {
+export default function MobilePosManager({ products, sales, customerList, jornadaOpen, jornadaInfo }: MobilePosManagerProps) {
     const router = useRouter();
 
     const [tableNumber, setTableNumber] = useState(0);
@@ -98,7 +116,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     const [pendingId, setPendingId] = useState<number | null>(null);
 
     const [sheetOpen, setSheetOpen] = useState(false);
-    const [historyOpen, setHistoryOpen] = useState(false);
+    const [jornadaSheetOpen, setJornadaSheetOpen] = useState(false);
     const [closeMethod, setCloseMethod] = useState<"CASH" | "TRANSFER">("CASH");
     const [settling, setSettling] = useState(false);
     const [debtConfirm, setDebtConfirm] = useState(false);
@@ -197,17 +215,6 @@ export default function MobilePosManager({ products, sales, customerList, jornad
             ? `Ticket #${freeTicketNumber(activeSource)}`
             : formatSourceType(activeSource)
         : null;
-
-    // Today's charged walk-in sales, shown in the history sheet when no
-    // account is selected — the mobile counterpart of the desktop order list.
-    const settledFreeSales = useMemo(
-        () => sales.filter((s) => s.source_type === FREE_SALE_SOURCE),
-        [sales]
-    );
-    const settledTotal = useMemo(
-        () => settledFreeSales.reduce((acc, s) => acc + Number(s.total), 0),
-        [settledFreeSales]
-    );
 
     const filteredProducts = useMemo(() => {
         const q = productQuery.trim().toLowerCase();
@@ -553,46 +560,49 @@ export default function MobilePosManager({ products, sales, customerList, jornad
             </div>
 
             {/* 3. Bottom bar, pinned above the mobile nav: the open account
-                with its live total, or today's charged sales otherwise. */}
-            <div className="shrink-0 border-t border-gray-100 bg-white px-3 py-2.5 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
-                {activeSource ? (
-                    <div aria-disabled={!jornadaOpen} className={cn(gated)}>
-                        <button
-                            type="button"
-                            aria-label="Abrir cuenta"
-                            onClick={() => { setDebtConfirm(false); setSheetOpen(true); }}
-                            className="flex w-full items-center justify-between gap-3 rounded-2xl bg-gray-900 px-4 py-3 text-white shadow-sm transition-colors cursor-pointer active:bg-gray-700"
-                        >
-                            <span className="min-w-0 truncate text-left">
-                                <span className="block text-sm font-semibold">{accountLabel}</span>
-                                <span className="block text-xs text-gray-300">
+                with its live total once something is selected, or the
+                jornada cash summary the phone banner hides (admin only)
+                until then. */}
+            {(activeSource || jornadaInfo) && (
+                <div className="shrink-0 border-t border-gray-100 bg-white px-3 py-2.5 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+                    {activeSource ? (
+                        <div aria-disabled={!jornadaOpen} className={cn("flex items-center gap-3 rounded-xl border bg-white px-3 py-2 shadow-sm", gated)}>
+                            <button
+                                type="button"
+                                aria-label="Abrir cuenta"
+                                onClick={() => { setDebtConfirm(false); setSheetOpen(true); }}
+                                className="min-w-0 flex-1 cursor-pointer text-left"
+                            >
+                                <span className="block truncate text-sm font-semibold text-gray-800">{accountLabel}</span>
+                                <span className="block text-xs tabular-nums text-gray-500">
                                     {accountCount} art. · ${accountTotal.toFixed(2)}
                                 </span>
-                            </span>
-                            <span className="flex shrink-0 items-center gap-1 rounded-full bg-amber-400 px-3 py-1.5 text-sm font-bold text-black">
+                            </button>
+                            <Button
+                                onClick={() => { setDebtConfirm(false); setSheetOpen(true); }}
+                                className="shrink-0 cursor-pointer"
+                            >
                                 Cobrar
-                                <ChevronUp className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ) : jornadaInfo ? (
+                        <button
+                            type="button"
+                            aria-label="Ver resumen de jornada"
+                            onClick={() => setJornadaSheetOpen(true)}
+                            className="flex w-full items-center justify-between gap-3 rounded-xl border bg-white px-3 py-2 shadow-sm transition-colors cursor-pointer active:bg-gray-100"
+                        >
+                            <span className="min-w-0 text-left">
+                                <span className="block text-xs text-gray-500">Jornada #{jornadaInfo.id}</span>
+                                <span className="block truncate text-sm font-bold tabular-nums text-gray-800">
+                                    Esperado en caja ${jornadaInfo.expectedCash.toFixed(2)}
+                                </span>
                             </span>
+                            <ChevronUp className="h-4 w-4 shrink-0 text-gray-400" />
                         </button>
-                    </div>
-                ) : (
-                    <button
-                        type="button"
-                        aria-label="Ver pedidos de hoy"
-                        onClick={() => setHistoryOpen(true)}
-                        className="flex w-full items-center justify-between gap-3 rounded-2xl border bg-white px-4 py-3 shadow-sm transition-colors cursor-pointer active:bg-gray-100"
-                    >
-                        <span className="flex min-w-0 items-center gap-2 text-left">
-                            <History className="h-5 w-5 shrink-0 text-gray-400" />
-                            <span className="truncate text-sm font-semibold text-gray-800">Pedidos de hoy</span>
-                        </span>
-                        <span className="flex shrink-0 items-center gap-1 text-sm tabular-nums text-gray-600">
-                            {settledFreeSales.length} · ${settledTotal.toFixed(2)}
-                            <ChevronUp className="h-4 w-4 text-gray-400" />
-                        </span>
-                    </button>
-                )}
-            </div>
+                    ) : null}
+                </div>
+            )}
 
             {/* Account sheet: the open account's lines with quantity controls,
                 the payment method and the charge button. Same bottom-sheet
@@ -710,7 +720,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                             <Button
                                 onClick={handleCloseAccount}
                                 disabled={accountLines.length === 0 || settling}
-                                className="h-12 w-full cursor-pointer rounded-xl text-base font-bold"
+                                className="h-12 w-full cursor-pointer text-base font-bold"
                             >
                                 Cobrar ${accountTotal.toFixed(2)}
                             </Button>
@@ -719,7 +729,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                 <Button
                                     variant="outline"
                                     onClick={resetToFreeSaleView}
-                                    className="h-11 flex-1 cursor-pointer rounded-xl"
+                                    className="h-11 flex-1 cursor-pointer"
                                 >
                                     Salir de la cuenta
                                 </Button>
@@ -727,7 +737,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                     <Button
                                         onClick={() => setDebtConfirm(true)}
                                         disabled={accountLines.length === 0}
-                                        className="h-11 flex-1 cursor-pointer rounded-xl bg-amber-500 text-black hover:bg-amber-400"
+                                        className="h-11 flex-1 cursor-pointer bg-amber-500 text-black hover:bg-amber-400"
                                     >
                                         A deuda
                                     </Button>
@@ -745,13 +755,13 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                         <Button
                                             variant="outline"
                                             onClick={() => setDebtConfirm(false)}
-                                            className="h-10 flex-1 cursor-pointer rounded-lg"
+                                            className="h-10 flex-1 cursor-pointer"
                                         >
                                             Cancelar
                                         </Button>
                                         <Button
                                             onClick={handleToDebt}
-                                            className="h-10 flex-1 cursor-pointer rounded-lg bg-amber-500 text-black hover:bg-amber-400"
+                                            className="h-10 flex-1 cursor-pointer bg-amber-500 text-black hover:bg-amber-400"
                                         >
                                             Sí, a deuda
                                         </Button>
@@ -763,10 +773,9 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                 </DialogPrimitive.Portal>
             </DialogPrimitive.Root>
 
-            {/* History sheet: today's charged walk-in sales, read-only. The
-                desktop shows them in the order table; on the phone they live
-                one tap away instead of hogging the screen. */}
-            <DialogPrimitive.Root open={historyOpen} onOpenChange={setHistoryOpen}>
+            {/* Jornada sheet: the cash summary the desktop banner hides on
+                phones, one tap away while no account is selected. */}
+            <DialogPrimitive.Root open={jornadaSheetOpen} onOpenChange={setJornadaSheetOpen}>
                 <DialogPrimitive.Portal>
                     <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
                     <DialogPrimitive.Content
@@ -780,7 +789,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                             <div className="h-1.5 w-10 rounded-full bg-gray-300" />
                             <div className="mt-3 flex w-full items-center justify-between px-5">
                                 <DialogPrimitive.Title className="text-lg font-bold text-gray-900">
-                                    Pedidos de hoy
+                                    Jornada #{jornadaInfo?.id}
                                 </DialogPrimitive.Title>
                                 <DialogPrimitive.Close className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 outline-none">
                                     <X size={18} />
@@ -789,40 +798,48 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                             </div>
                         </div>
                         <DialogPrimitive.Description className="sr-only">
-                            Ventas libres cobradas hoy.
+                            Resumen de caja de la jornada abierta.
                         </DialogPrimitive.Description>
 
-                        {settledFreeSales.length === 0 ? (
-                            <p className="px-5 py-6 text-center text-sm text-gray-500">
-                                Sin ventas libres cobradas hoy.
-                            </p>
-                        ) : (
-                            <ul className="flex-1 space-y-2 overflow-y-auto px-5 pb-6">
-                                {settledFreeSales.map((sale) => (
-                                    <li key={sale.id} className="rounded-xl border bg-gray-50 p-3">
-                                        <ul className="space-y-0.5">
-                                            {sale.sale_items.map((item, k) => (
-                                                <li key={`${sale.id}-${k}`} className="flex items-center justify-between gap-2 text-sm">
-                                                    <span className="min-w-0 flex-1 truncate text-gray-700">
-                                                        <span className="text-gray-500">{item.quantity}×</span> {item.products?.name ?? "Producto"}
-                                                    </span>
-                                                    <span className="shrink-0 tabular-nums text-gray-600">
-                                                        ${Number(item.subtotal || 0).toFixed(2)}
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                        <div className="mt-1.5 flex items-center justify-between border-t border-gray-200 pt-1.5 text-sm font-bold">
-                                            <span className="font-normal text-gray-500">
-                                                {sale.createdAt
-                                                    ? new Date(sale.createdAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
-                                                    : ""}
-                                            </span>
-                                            <span className="tabular-nums">${Number(sale.total).toFixed(2)}</span>
+                        {jornadaInfo && (
+                            <div className="flex-1 overflow-y-auto px-5 pb-6">
+                                <div className="rounded-xl border bg-emerald-50 px-4 py-3">
+                                    <p className="text-xs font-medium text-emerald-800">Esperado en caja</p>
+                                    <p className="text-2xl font-bold tabular-nums text-emerald-900">
+                                        ${jornadaInfo.expectedCash.toFixed(2)}
+                                    </p>
+                                </div>
+
+                                <dl className="mt-3 divide-y rounded-xl border">
+                                    {[
+                                        ["Ventas en efectivo", jornadaInfo.cashSales],
+                                        ["Ventas por transferencia", jornadaInfo.transferSales],
+                                        ["Egresos", jornadaInfo.bills],
+                                        ["Fondo inicial", jornadaInfo.openingAmount],
+                                    ].map(([label, value]) => (
+                                        <div key={label as string} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                                            <dt className="text-gray-600">{label}</dt>
+                                            <dd className="font-semibold tabular-nums text-gray-800">
+                                                ${Number(value).toFixed(2)}
+                                            </dd>
                                         </div>
-                                    </li>
-                                ))}
-                            </ul>
+                                    ))}
+                                </dl>
+
+                                <p className="mt-3 text-xs text-gray-500">
+                                    {jornadaInfo.openedBy ? `Abierta por ${jornadaInfo.openedBy}` : ""}
+                                    {jornadaInfo.openedAt
+                                        ? ` · ${new Date(jornadaInfo.openedAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`
+                                        : ""}
+                                </p>
+
+                                <Link
+                                    href="/admin/jornada"
+                                    className="mt-3 block rounded-md bg-emerald-600 px-3 py-2 text-center text-sm font-medium text-white hover:bg-emerald-700"
+                                >
+                                    Ver detalles
+                                </Link>
+                            </div>
                         )}
                     </DialogPrimitive.Content>
                 </DialogPrimitive.Portal>

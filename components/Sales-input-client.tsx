@@ -46,6 +46,7 @@ import { closeAccountAction } from "@/lib/actions/sales";
 import { Sale } from "@/lib/actions/sales";
 import { Customer } from "@/lib/actions/schemas";
 import { searchCustomers } from "@/lib/actions/customers";
+import { TABLE_PREFIX } from "@/lib/pos-source";
 import { Banknote, ChevronsUpDown, CreditCard } from "lucide-react";
 
 interface SalesInputProps {
@@ -74,6 +75,9 @@ type PickerCustomer = { id: number; customerName: string | null; alias: string |
 export default function SalesInputClient({ currentCustomerSales, sourceType, accountLabel, query, clientSelected, onClientSelect, onFreeSaleView, onAccountSettled, dialogOpen, setDialogOpen, customerList, currentCustomerID}: SalesInputProps) {
 
     const isAlreadyFreeSale = sourceType === null;
+    // Tables keep their own "Cerrar Mesa" next to the table chips; this
+    // button charges customer and walk-in ticket accounts.
+    const isTableAccount = sourceType?.startsWith(TABLE_PREFIX) ?? false;
     const hasCustomers = Array.isArray(customerList) && customerList.length > 0;
 
     // Customer picker copied from the Roster (Salarios) module: a combobox
@@ -201,7 +205,7 @@ export default function SalesInputClient({ currentCustomerSales, sourceType, acc
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
 
-                        <Button variant="destructive" className="cursor-pointer flex-1 lg:flex-none" disabled={!clientSelected}>Cerrar cuenta <span className="hidden lg:inline">{query}</span></Button>
+                        <Button variant="destructive" className="cursor-pointer flex-1 lg:flex-none" disabled={!sourceType || isTableAccount}>Cerrar cuenta <span className="hidden lg:inline">{query}</span></Button>
 
                     </DialogTrigger>
                     <DialogContent className="max-h-[90dvh] overflow-y-auto">
