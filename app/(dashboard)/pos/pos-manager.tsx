@@ -9,13 +9,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCaption, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { Product } from "@/lib/actions/schemas";
-import { Sale, createSale, nextFreeSaleTicket } from "@/lib/actions/sales";
+import { Sale, cancelSaleAction, createSale, nextFreeSaleTicket, updateSaleQuantity } from "@/lib/actions/sales";
 import { SalesRow } from "./saleRow";
 import { Customer } from "@/lib/actions/schemas";
-import { makeOptimisticSale } from "./optimistic-sale";
+import { makeOptimisticSale, salesOptimisticReducer } from "./optimistic-sale";
 import { trackAction } from "@/lib/action-tracker";
 import {
-    FREE_SALE_SOURCE,
     customerSource,
     formatSourceType,
     freeTicketNumber,
@@ -58,10 +57,7 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
     // before createSale answers. When the revalidated sales arrive, the
     // placeholder is swapped for the real row. If the action fails, the
     // overlay simply reverts to the props.
-    const [optimisticSales, addOptimisticSale] = useOptimistic(
-        sales,
-        (current: Sale[], sale: Sale) => [sale, ...current]
-    );
+    const [optimisticSales, applyOptimistic] = useOptimistic(sales, salesOptimisticReducer);
 
     // Per-tap feedback: the pressed product darkens while its sale is being
     // registered (and further taps on it are ignored meanwhile).
@@ -99,7 +95,7 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
     }, [openTickets, freeTicket]);
 
     // The account every new sale goes to; null means no account is selected
-    // and the order list below is just showing today's settled free sales.
+    // and the order list below stays empty until the next tap opens a ticket.
     const activeSource =
         tableNumber > 0 ? tableSource(tableNumber)
         : clientSelected && query !== "" ? customerSource(query)
@@ -108,7 +104,13 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
 
     // Derived instead of a second piece of state: keeping a `salesFilter`
     // in sync by hand meant every selector had to remember to update both.
-    const visibleSales = FilterSales(optimisticSales, activeSource ?? FREE_SALE_SOURCE);
+    // With no account selected the list stays clean: a settled account must
+    // not keep showing its products as if the sale were still open (the
+    // day's history lives in the reports, not in the order list).
+    const visibleSales = useMemo(
+        () => (activeSource ? FilterSales(optimisticSales, activeSource) : []),
+        [optimisticSales, activeSource]
+    );
 
     const resetToFreeSaleView = () => {
         setTableNumber(0);
@@ -184,7 +186,7 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
             }
 
             startTransition(async () => {
-                addOptimisticSale(makeOptimisticSale(--optimisticIdRef.current, product, sourceType));
+                applyOptimistic({ type: "add", sale: makeOptimisticSale(--optimisticIdRef.current, product, sourceType) });
                 try {
                     const result = await trackAction(createSale(
                         [{ productID: productId, quantity: 1 }],
@@ -201,6 +203,24 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
                     setPendingId(null);
                 }
             });
+        });
+    };
+
+    // Same instant feedback as the product tap: the stepper's new quantity
+    // and the removed line show immediately, and the action's revalidated
+    // payload confirms them (quantity under one cancels the sale, mirroring
+    // updateSaleQuantity).
+    const handleUpdateQuantity = (saleId: number, quantity: number, productId: number) => {
+        startTransition(async () => {
+            applyOptimistic({ type: "setQuantity", saleId, productId, quantity });
+            await trackAction(updateSaleQuantity(saleId, quantity, productId));
+        });
+    };
+
+    const handleDeleteLine = (saleId: number) => {
+        startTransition(async () => {
+            applyOptimistic({ type: "remove", saleId });
+            await trackAction(cancelSaleAction(saleId));
         });
     };
 
@@ -258,7 +278,7 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
 
             <ScrollArea className="order-3 h-[50vh] w-full rounded-md border p-2 lg:order-none lg:col-start-2 lg:row-start-2 lg:mx-5 lg:mb-5 lg:h-auto lg:w-auto lg:p-4">
                 <Table>
-                    <TableCaption>Lista de pedidos recientes.</TableCaption>
+                    <TableCaption>Pedidos de la cuenta seleccionada.</TableCaption>
                     <TableHeader>
                         <TableRow>
                             <TableHead className="hidden sm:table-cell">Cliente/Mesa</TableHead>
@@ -277,10 +297,21 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <SalesRow sales={visibleSales} />
+                        <SalesRow
+                            sales={visibleSales}
+                            onUpdateQuantity={handleUpdateQuantity}
+                            onDeleteLine={handleDeleteLine}
+                        />
 
                     </TableBody>
                 </Table>
+                {visibleSales.length === 0 && (
+                    <p className="py-6 text-center text-sm text-muted-foreground">
+                        {activeSource
+                            ? "Esta cuenta no tiene productos."
+                            : "Sin cuenta seleccionada: toca un producto para abrir un ticket, o elige una mesa, ticket o cliente."}
+                    </p>
+                )}
             </ScrollArea>
         </div>
     );

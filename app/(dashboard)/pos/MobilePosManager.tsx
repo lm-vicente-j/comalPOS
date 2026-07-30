@@ -31,7 +31,7 @@ import {
 } from "@/lib/actions/sales";
 import { searchCustomers } from "@/lib/actions/customers";
 import { toDebt } from "@/lib/actions/debts";
-import { makeOptimisticSale } from "./optimistic-sale";
+import { makeOptimisticSale, salesOptimisticReducer } from "./optimistic-sale";
 import { trackAction } from "@/lib/action-tracker";
 import {
     customerSource,
@@ -117,10 +117,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     // Optimistic overlay, same pattern as the desktop PosManager: a tapped
     // product appears in the account (lines, count and totals) in the same
     // instant and the revalidated payload swaps it for the real sale.
-    const [optimisticSales, addOptimisticSale] = useOptimistic(
-        sales,
-        (current: Sale[], sale: Sale) => [sale, ...current]
-    );
+    const [optimisticSales, applyOptimistic] = useOptimistic(sales, salesOptimisticReducer);
     const optimisticIdRef = useRef(0);
 
     const [sheetOpen, setSheetOpen] = useState(false);
@@ -323,7 +320,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
             }
 
             startTransition(async () => {
-                addOptimisticSale(makeOptimisticSale(--optimisticIdRef.current, product, sourceType));
+                applyOptimistic({ type: "add", sale: makeOptimisticSale(--optimisticIdRef.current, product, sourceType) });
                 try {
                     const result = await trackAction(createSale(
                         [{ productID: productId, quantity: 1 }],
@@ -369,14 +366,22 @@ export default function MobilePosManager({ products, sales, customerList, jornad
         }
     };
 
-    // Both actions revalidate "/pos" themselves; the action response already
-    // carries the updated account lines.
-    const handleUpdateQuantity = async (saleId: number, quantity: number, productId: number) => {
-        await trackAction(updateSaleQuantity(saleId, quantity, productId));
+    // Same instant feedback as the product tap: the new quantity or the
+    // removed line shows immediately, and the action's revalidated payload
+    // confirms it (quantity under one cancels the sale, mirroring
+    // updateSaleQuantity).
+    const handleUpdateQuantity = (saleId: number, quantity: number, productId: number) => {
+        startTransition(async () => {
+            applyOptimistic({ type: "setQuantity", saleId, productId, quantity });
+            await trackAction(updateSaleQuantity(saleId, quantity, productId));
+        });
     };
 
-    const handleDeleteLine = async (saleId: number) => {
-        await trackAction(cancelSaleAction(saleId));
+    const handleDeleteLine = (saleId: number) => {
+        startTransition(async () => {
+            applyOptimistic({ type: "remove", saleId });
+            await trackAction(cancelSaleAction(saleId));
+        });
     };
 
     const gated = !jornadaOpen ? "pointer-events-none opacity-50 select-none" : "";
