@@ -1,29 +1,31 @@
-import { cancelSaleAction , updateSaleQuantity} from "@/lib/actions/sales";
 import { Button } from "@/components/ui/button";
 import { Trash2Icon, PlusIcon, MinusIcon } from "lucide-react";
 import { Sale } from "@/lib/actions/sales";
 import { TableCell,TableRow } from "@/components/ui/table";
+import { formatSourceType } from "@/lib/pos-source";
 
-export function SalesRow({ sales }: { sales: Sale[] }) {
+interface SalesRowProps {
+    sales: Sale[];
+    // The parent owns the optimistic update + server action; these rows are
+    // presentational. Only open (UNPAID) account lines are ever rendered
+    // here, so every row can offer its quantity and delete controls.
+    onUpdateQuantity: (saleId: number, quantity: number, productId: number) => void;
+    onDeleteLine: (saleId: number) => void;
+}
 
-    const handleDelete = async (id: number) =>{
-        await cancelSaleAction(id)
-    }
-
-    const handleUpdate= async (id: number, quant: number, productId: number) =>{
-        await updateSaleQuantity(id,quant,productId)
-    }
-
-    
+export function SalesRow({ sales, onUpdateQuantity, onDeleteLine }: SalesRowProps) {
 
     return (
         <>
-            {sales.map((sale) => 
+            {sales.map((sale) =>
                 sale.sale_items.map((item, k) => (
-                    <TableRow key={`${sale.id}-${k}`}>
+                    // Negative ids are optimistic placeholders: their
+                    // operations stay disabled until the real sale (and its
+                    // id) arrives from the server.
+                    <TableRow key={`${sale.id}-${k}`} className={sale.id < 0 ? "opacity-60" : undefined}>
                         {/* Hidden on phones: the active filter already gives the context */}
                         <TableCell className="hidden font-medium sm:table-cell">
-                            {sale.source_type}
+                            {formatSourceType(sale.source_type)}
                         </TableCell>
 
                         <TableCell className="px-1 text-center sm:px-2 sm:text-left">{item.quantity}</TableCell>
@@ -37,13 +39,13 @@ export function SalesRow({ sales }: { sales: Sale[] }) {
                         </TableCell>
 
                         <TableCell className="flex items-center justify-center gap-1 px-1 sm:gap-2 sm:px-2">
-                            <Button onClick={()=> handleUpdate(sale.id, item.quantity+1,item.productID)} className="cursor-pointer size-6" variant="outline" size="icon">
+                            <Button disabled={sale.id < 0} onClick={()=> onUpdateQuantity(sale.id, item.quantity+1,item.productID)} className="cursor-pointer size-6" variant="outline" size="icon">
                                 <PlusIcon className="w-4 h-4" />
                             </Button>
-                            <Button onClick={()=> handleUpdate(sale.id, item.quantity-1,item.productID)} className="cursor-pointer size-6" variant="outline" size="icon">
+                            <Button disabled={sale.id < 0} onClick={()=> onUpdateQuantity(sale.id, item.quantity-1,item.productID)} className="cursor-pointer size-6" variant="outline" size="icon">
                                 <MinusIcon className="w-4 h-4" />
                             </Button>
-                            <Button onClick={()=> handleDelete(sale.id)} className="cursor-pointer size-6" variant="destructive" size="icon">
+                            <Button disabled={sale.id < 0} onClick={()=> onDeleteLine(sale.id)} className="cursor-pointer size-6" variant="destructive" size="icon">
                                 <Trash2Icon className="w-4 h-4" />
                             </Button>
                         </TableCell>

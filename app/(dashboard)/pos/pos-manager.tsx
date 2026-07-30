@@ -1,16 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useOptimistic, useRef, useState, startTransition } from "react";
 import Seatings from "@/components/Seatings";
+import FreeSaleTickets, { FreeSaleTicket } from "@/components/FreeSaleTickets";
 import SalesInputClient from "@/components/Sales-input-client";
 import DataTable from "./date-table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCaption, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { Product } from "@/lib/actions/schemas";
-import { Sale } from "@/lib/actions/sales";
+import { Sale, cancelSaleAction, createSale, nextFreeSaleTicket, updateSaleQuantity } from "@/lib/actions/sales";
 import { SalesRow } from "./saleRow";
 import { Customer } from "@/lib/actions/schemas";
+import { makeOptimisticSale, salesOptimisticReducer } from "./optimistic-sale";
+import { trackAction } from "@/lib/action-tracker";
+import {
+    customerSource,
+    formatSourceType,
+    freeTicketNumber,
+    freeTicketSource,
+    isAccountSource,
+    tableSource,
+} from "@/lib/pos-source";
 
 interface PosManagerProps {
     products: Product[];
@@ -20,58 +31,198 @@ interface PosManagerProps {
 }
 
 function FilterSales(sales:Sale[], src:string):Sale[]{
-    // Mesa/cliente views show only the open (UNPAID) account: once it is
-    // settled the table can be occupied again with a clean slate, so its
-    // settled history stays out of the POS view.
-    const isAccountView = src.startsWith("MESA_") || src.startsWith("CL-");
+    // Account views (table, customer, walk-in ticket) show only the open
+    // (UNPAID) account: once it is settled the table can be occupied again
+    // with a clean slate, so its settled history stays out of the POS view.
+    const isAccountView = isAccountSource(src);
     return sales.filter(s => s.source_type == src && (!isAccountView || s.status === "UNPAID"));
 }
 
 
 export default function PosManager({ products, sales, customerList, jornadaOpen }: PosManagerProps) {
 
-    const [salesHistory, setSalesHistory] = useState<{ productID: number; quantity: number; name: string; price: number }[]>([]);
     const [tableNumber, setTableNumber] = useState(0);
     const [query, setQuery] = useState("");
     const [clientSelected, setClientSelected] = useState(false);
+    // Walk-in ticket being served, 0 when none. Mutually exclusive with the
+    // table and customer selections: a sale belongs to exactly one account.
+    const [freeTicket, setFreeTicket] = useState(0);
+    const [creatingTicket, setCreatingTicket] = useState(false);
 
     const [currentCustomerID, setCurrentCustomerID] = useState(0);
+    const [dialogOpen, setDialogOpen] = useState(false);
 
-    // Filter sales
-    const [salesFilter, setSalesFilter] = useState("VENTA_LIBRE");
-    sales = FilterSales(sales, salesFilter);
+    // Optimistic overlay: a tapped product shows up in the order list, the
+    // ticket totals and the close-account receipt in the same instant,
+    // before createSale answers. When the revalidated sales arrive, the
+    // placeholder is swapped for the real row. If the action fails, the
+    // overlay simply reverts to the props.
+    const [optimisticSales, applyOptimistic] = useOptimistic(sales, salesOptimisticReducer);
 
-    const addToHistory = (product: Product)=>{
-        setSalesHistory((prev) => {
-            const existing = prev.find((item) => item.productID === product.id);
-            if (existing) {
-                return prev.map((item) =>
-                    item.productID === product.id
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                );
-            }
-            return [...prev, { productID: product.id!, quantity: 1, name: product.name, price: product.price }];
-        });
-    }
+    // Per-tap feedback: the pressed product darkens while its sale is being
+    // registered (and further taps on it are ignored meanwhile).
+    const [pendingId, setPendingId] = useState<number | null>(null);
+    const optimisticIdRef = useRef(0);
+
+    // Open walk-in tickets, derived from the sales the server component
+    // already loaded — no extra query, and the layout's AutoRefresh keeps
+    // them in sync with the other terminals.
+    const openTickets = useMemo(() => {
+        const byNumber = new Map<number, FreeSaleTicket>();
+
+        for (const sale of optimisticSales) {
+            if (sale.status !== "UNPAID") continue;
+            const number = freeTicketNumber(sale.source_type);
+            if (number === null) continue;
+
+            const ticket = byNumber.get(number)
+                ?? { sourceType: sale.source_type, number, total: 0 };
+            ticket.total += Number(sale.total);
+            byNumber.set(number, ticket);
+        }
+
+        return byNumber;
+    }, [optimisticSales]);
+
+    // A ticket that was just opened has no sales yet, so it only exists in
+    // this component's state until the first product is tapped.
+    const tickets = useMemo(() => {
+        const list = Array.from(openTickets.values());
+        if (freeTicket > 0 && !openTickets.has(freeTicket)) {
+            list.push({ sourceType: freeTicketSource(freeTicket), number: freeTicket, total: 0 });
+        }
+        return list.sort((a, b) => a.number - b.number);
+    }, [openTickets, freeTicket]);
+
+    // The account every new sale goes to; null means no account is selected
+    // and the order list below stays empty until the next tap opens a ticket.
+    const activeSource =
+        tableNumber > 0 ? tableSource(tableNumber)
+        : clientSelected && query !== "" ? customerSource(query)
+        : freeTicket > 0 ? freeTicketSource(freeTicket)
+        : null;
+
+    // Derived instead of a second piece of state: keeping a `salesFilter`
+    // in sync by hand meant every selector had to remember to update both.
+    // With no account selected the list stays clean: a settled account must
+    // not keep showing its products as if the sale were still open (the
+    // day's history lives in the reports, not in the order list).
+    const visibleSales = useMemo(
+        () => (activeSource ? FilterSales(optimisticSales, activeSource) : []),
+        [optimisticSales, activeSource]
+    );
+
+    const resetToFreeSaleView = () => {
+        setTableNumber(0);
+        setQuery("");
+        setClientSelected(false);
+        // Cleared with the rest: a stale customer id would otherwise get
+        // attached to the next walk-in sale (and touch that customer's
+        // lastConsumption) long after leaving their account.
+        setCurrentCustomerID(0);
+        setFreeTicket(0);
+    };
 
     const handleTableSelect = (num: number) => {
+        resetToFreeSaleView();
         setTableNumber(num);
-        if (num !== 0) {
-            setQuery("");
-            setClientSelected(false);
+    };
+
+    const handleClientSelect = (customer: { id: number; name: string }) => {
+        resetToFreeSaleView();
+        setQuery(customer.name);
+        setClientSelected(true);
+        setCurrentCustomerID(customer.id);
+    };
+
+    const handleTicketSelect = (ticketNumber: number) => {
+        resetToFreeSaleView();
+        setFreeTicket(ticketNumber);
+    };
+
+    // Opening a ticket doesn't close the others: it only changes which one
+    // receives the next products. The number comes from the server so two
+    // terminals can't hand the same one to two different customers.
+    const openNewTicket = async (): Promise<string | null> => {
+        setCreatingTicket(true);
+        try {
+            const result = await trackAction(nextFreeSaleTicket());
+
+            if (!result.success) {
+                alert(result.message === "NO_OPEN_JORNADA"
+                    ? "No hay jornada activa. Pide al administrador que abra la jornada antes de registrar ventas."
+                    : "No se pudo abrir el ticket. Intenta de nuevo.");
+                return null;
+            }
+
+            const number = freeTicketNumber(result.sourceType);
+            if (number === null) return null;
+
+            handleTicketSelect(number);
+            return result.sourceType;
+        } finally {
+            setCreatingTicket(false);
         }
     };
 
-    const handleClientSelect = (clientName: string) => {
-        setQuery(clientName);
-        setClientSelected(true);
-        setTableNumber(0);
+    // Tapping a product with nothing selected opens a walk-in ticket on the
+    // spot, so the quick "tap and done" flow survives: the only change is
+    // that the sale now waits in an account until it is charged.
+    const ensureSourceType = async (): Promise<string | null> =>
+        activeSource ?? (await openNewTicket());
+
+    // Optimistic add: the line, the totals and the receipt update instantly;
+    // the server action runs inside the transition and its revalidated
+    // payload replaces the placeholder when it lands.
+    const handleProductTap = (product: Product) => {
+        if (pendingId !== null) return;
+        const productId = product.id ?? -1;
+
+        setPendingId(productId);
+        void ensureSourceType().then((sourceType) => {
+            if (!sourceType) {
+                setPendingId(null);
+                return;
+            }
+
+            startTransition(async () => {
+                applyOptimistic({ type: "add", sale: makeOptimisticSale(--optimisticIdRef.current, product, sourceType) });
+                try {
+                    const result = await trackAction(createSale(
+                        [{ productID: productId, quantity: 1 }],
+                        "UNPAID",
+                        sourceType,
+                        Number(currentCustomerID)
+                    ));
+                    if (!result.success) {
+                        alert(result.message === "NO_OPEN_JORNADA"
+                            ? "No hay jornada activa. Pide al administrador que abra la jornada antes de registrar ventas."
+                            : "No se pudo registrar la venta. Revisa la consola del servidor para más detalle.");
+                    }
+                } finally {
+                    setPendingId(null);
+                }
+            });
+        });
     };
-    const [dialogOpen, setDialogOpen] = useState(false);
 
+    // Same instant feedback as the product tap: the stepper's new quantity
+    // and the removed line show immediately, and the action's revalidated
+    // payload confirms them (quantity under one cancels the sale, mirroring
+    // updateSaleQuantity).
+    const handleUpdateQuantity = (saleId: number, quantity: number, productId: number) => {
+        startTransition(async () => {
+            applyOptimistic({ type: "setQuantity", saleId, productId, quantity });
+            await trackAction(updateSaleQuantity(saleId, quantity, productId));
+        });
+    };
 
-
+    const handleDeleteLine = (saleId: number) => {
+        startTransition(async () => {
+            applyOptimistic({ type: "remove", saleId });
+            await trackAction(cancelSaleAction(saleId));
+        });
+    };
 
     return (
         // Mobile (< lg): single scrollable column ordered for the 3-tap sale
@@ -83,7 +234,7 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
                 aria-disabled={!jornadaOpen}
                 className={`order-2 lg:order-none lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:flex lg:h-full lg:items-center lg:justify-center ${!jornadaOpen ? "pointer-events-none opacity-50 select-none" : ""}`}
             >
-                <DataTable data={products} onSelect={addToHistory} tableNumber={tableNumber} clientName={query} clientSelected={clientSelected} customerID={currentCustomerID} />
+                <DataTable data={products} onProductTap={handleProductTap} pendingId={pendingId} />
             </div>
 
             <div
@@ -93,34 +244,41 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
                 <div className="flex flex-col rounded-md">
                     <p className="font-bold mb-2">Mesas</p>
                     <Seatings
-                        setSalesFilter={setSalesFilter}
                         tableNumber={tableNumber}
                         setTableNumber={handleTableSelect}
-                        setDialogOpen={setDialogOpen}
+                    />
+                </div>
+
+                <div className="flex flex-col rounded-md mt-4">
+                    <p className="font-bold mb-2">Clientes de paso</p>
+                    <FreeSaleTickets
+                        tickets={tickets}
+                        activeTicket={freeTicket}
+                        onSelect={handleTicketSelect}
+                        onNew={openNewTicket}
+                        creating={creatingTicket}
                     />
                 </div>
 
                 <SalesInputClient
-                    currentCustomerSales={FilterSales(sales,salesFilter)}
-                    setSalesFilter={setSalesFilter}
+                    currentCustomerSales={visibleSales}
+                    sourceType={activeSource}
+                    accountLabel={activeSource ? formatSourceType(activeSource) : "Venta libre"}
                     query={query}
-                    setQuery={setQuery}
                     clientSelected={clientSelected}
-                    setClientSelected={setClientSelected}
                     onClientSelect={handleClientSelect}
-                    tableNumber={tableNumber}
-                    setTableNumber={setTableNumber}
+                    onFreeSaleView={resetToFreeSaleView}
+                    onAccountSettled={resetToFreeSaleView}
                     setDialogOpen={setDialogOpen}
                     dialogOpen={dialogOpen}
                     customerList={customerList}
-                    setCurrentCustomerID={setCurrentCustomerID}
                     currentCustomerID={currentCustomerID}
                 />
             </div>
 
             <ScrollArea className="order-3 h-[50vh] w-full rounded-md border p-2 lg:order-none lg:col-start-2 lg:row-start-2 lg:mx-5 lg:mb-5 lg:h-auto lg:w-auto lg:p-4">
                 <Table>
-                    <TableCaption>Lista de pedidos recientes.</TableCaption>
+                    <TableCaption>Pedidos de la cuenta seleccionada.</TableCaption>
                     <TableHeader>
                         <TableRow>
                             <TableHead className="hidden sm:table-cell">Cliente/Mesa</TableHead>
@@ -139,10 +297,21 @@ export default function PosManager({ products, sales, customerList, jornadaOpen 
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <SalesRow sales={sales} />
+                        <SalesRow
+                            sales={visibleSales}
+                            onUpdateQuantity={handleUpdateQuantity}
+                            onDeleteLine={handleDeleteLine}
+                        />
 
                     </TableBody>
                 </Table>
+                {visibleSales.length === 0 && (
+                    <p className="py-6 text-center text-sm text-muted-foreground">
+                        {activeSource
+                            ? "Esta cuenta no tiene productos."
+                            : "Sin cuenta seleccionada: toca un producto para abrir un ticket, o elige una mesa, ticket o cliente."}
+                    </p>
+                )}
             </ScrollArea>
         </div>
     );
