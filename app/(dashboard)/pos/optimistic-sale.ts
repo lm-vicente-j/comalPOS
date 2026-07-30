@@ -33,3 +33,39 @@ export function makeOptimisticSale(id: number, product: Product, sourceType: str
 export function isOptimisticSale(sale: Sale): boolean {
     return sale.id < 0;
 }
+
+// Every instant update the POS can apply to its sales before the server
+// confirms: a tapped product, a quantity change from the steppers, or a
+// deleted line. The server action's revalidated payload replaces the
+// optimistic result when it lands, so both stay consistent.
+export type SalesOptimisticAction =
+    | { type: "add"; sale: Sale }
+    | { type: "remove"; saleId: number }
+    | { type: "setQuantity"; saleId: number; productId: number; quantity: number };
+
+export function salesOptimisticReducer(current: Sale[], action: SalesOptimisticAction): Sale[] {
+    switch (action.type) {
+        case "add":
+            return [action.sale, ...current];
+        case "remove":
+            return current.filter((sale) => sale.id !== action.saleId);
+        case "setQuantity":
+            // Mirrors updateSaleQuantity: less than one cancels the sale.
+            if (action.quantity < 1) {
+                return current.filter((sale) => sale.id !== action.saleId);
+            }
+            return current.map((sale) => {
+                if (sale.id !== action.saleId) return sale;
+                const items = sale.sale_items.map((item) =>
+                    item.productID === action.productId
+                        ? { ...item, quantity: action.quantity, subtotal: Number(item.unitPrice) * action.quantity }
+                        : item
+                );
+                return {
+                    ...sale,
+                    sale_items: items,
+                    total: items.reduce((acc, item) => acc + Number(item.subtotal), 0),
+                };
+            });
+    }
+}

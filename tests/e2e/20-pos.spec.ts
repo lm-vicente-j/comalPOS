@@ -4,10 +4,11 @@ import { test, expect, type Page } from "@playwright/test";
 // charged, so each test settles what it opens: an unpaid leftover would make
 // 90-jornada.spec.ts fail to close the shared jornada (OPEN_ACCOUNTS).
 //
-// Taps are awaited on the account total rather than on a row count: the free
-// sale view already holds the sales charged by earlier tests, so a count can
-// match before the new sale exists and the next tap would then be dropped by
-// the "one sale in flight" guard.
+// The order list shows only the selected account: once the account is
+// charged the list goes back to empty, so a settled sale never keeps showing
+// its products as if it were still open. Taps are still awaited on the
+// account total rather than on a fixed delay so the revalidation can't drop
+// the next tap under the "one sale in flight" guard.
 //
 // The suite runs in both projects. The desktop POS keeps the open account in
 // the order table and charges every account kind from "Cerrar cuenta"; the
@@ -81,14 +82,15 @@ test.describe("pos", () => {
 
         await chargeAccount(page, isMobile, "$25.00");
 
-        // Settled: no open ticket left, and the sale joins the free sale history.
+        // Settled: no open ticket left, and the order list is clean again —
+        // nothing of the charged ticket keeps showing as an open sale.
         await expect(ticketChip(page, "25\\.00")).toHaveCount(0, { timeout: 15_000 });
         if (isMobile) {
             // The bottom bar falls back to the jornada summary once nothing
             // is selected anymore.
             await expect(page.getByRole("button", { name: "Ver resumen de jornada" })).toBeVisible({ timeout: 15_000 });
         } else {
-            await expect(page.locator("tbody tr").filter({ hasText: "Taco Pastor" })).not.toHaveCount(0);
+            await expect(accountLines(page, false)).toHaveCount(0, { timeout: 15_000 });
         }
     });
 
