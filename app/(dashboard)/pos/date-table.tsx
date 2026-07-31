@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Banknote, CreditCard } from "lucide-react";
 import { createSale, Sale } from "@/lib/actions/sales";
 import { Product } from "@/lib/actions/schemas";
+import CashCheckout from "@/components/Cash-checkout";
 
 interface DataTableProps {
   data: Product[];
@@ -39,14 +40,38 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
   // being registered (and taps are ignored meanwhile).
   const [pendingId, setPendingId] = useState<number | null>(null);
 
-  const handleProductTap = async (product: Product) => {
-    if (pendingId !== null) return;
-    const productId = product.id ?? -1;
+  // Cash walk-in sales are charged through the cobro dialog (money received,
+  // change to hand back) before the sale is registered. Account taps stay
+  // UNPAID until the account closes, and transfers involve no change, so
+  // neither goes through the dialog.
+  const [checkoutProduct, setCheckoutProduct] = useState<Product | null>(null);
 
+  const registerTap = async (product: Product) => {
+    const productId = product.id ?? -1;
     setPendingId(productId);
     onSelect(product);
-    await handleAddSale(productId, "PAID", customerID);
+    const ok = await handleAddSale(productId, "PAID", customerID);
     setPendingId(null);
+    return ok;
+  };
+
+  const handleProductTap = async (product: Product) => {
+    if (pendingId !== null) return;
+    const isAccount = tableNumber > 0 || clientSelected;
+
+    if (!isAccount && paymentMethod === "CASH") {
+      setCheckoutProduct(product);
+      return;
+    }
+    await registerTap(product);
+  };
+
+  const handleCheckoutConfirm = async () => {
+    if (!checkoutProduct) return;
+    const ok = await registerTap(checkoutProduct);
+    // Only a registered sale leaves the cobro; on failure it stays open so
+    // the operator can retry or cancel.
+    if (ok) setCheckoutProduct(null);
   };
 
   const handleAddSale = async (productId: number, status: any, customerID: number) => {
@@ -182,6 +207,16 @@ export default function DataTable({ data, onSelect, tableNumber, clientSelected,
           )}
         </div>
       </div>
+
+      {/* Full screen on mobile, centered dialog on desktop; canceling or
+          finishing it always lands back on the POS. */}
+      <CashCheckout
+        open={checkoutProduct !== null}
+        onOpenChange={(open) => { if (!open) setCheckoutProduct(null); }}
+        total={checkoutProduct?.price ?? 0}
+        concept={checkoutProduct?.name ?? "Venta libre"}
+        onConfirm={handleCheckoutConfirm}
+      />
     </div>
   );
 }

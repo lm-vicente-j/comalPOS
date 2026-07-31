@@ -47,6 +47,8 @@ import { Sale } from "@/lib/actions/sales";
 import { Customer } from "@/lib/actions/schemas";
 import { searchCustomers } from "@/lib/actions/customers";
 import { Banknote, ChevronsUpDown, CreditCard } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { CashChangeHint, checkoutDialogClasses, parseCashReceived } from "@/components/Cash-checkout";
 
 interface SalesInputProps {
     currentCustomerSales: Sale[];
@@ -97,6 +99,10 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
     // method is only known when the money actually changes hands.
     const [closeMethod, setCloseMethod] = useState<"CASH" | "TRANSFER">("CASH");
 
+    // Cash only: the money the customer handed over; the change is derived
+    // from it. Transfers skip this — there is no change to give back.
+    const [cashReceived, setCashReceived] = useState("");
+
     // Receipt shown in the close dialog: the open account's lines aggregated
     // by product (each tap is its own UNPAID sale) plus the grand total.
     const receiptLines = useMemo(() => {
@@ -120,6 +126,16 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
 
     const accountLabel = query === "" ? `Mesa #${tableNumber}` : query;
 
+    const received = parseCashReceived(cashReceived);
+    const enoughCash = received >= receiptTotal;
+
+    // Closing the dialog (cobro done or cancelled) always resets the cash
+    // input, so the next account starts with a clean slate.
+    const handleDialogChange = (open: boolean) => {
+        setDialogOpen(open);
+        if (!open) setCashReceived("");
+    };
+
     const handleCloseAccount = async () => {
         const sourceType = tableNumber !== 0 ? `MESA_${tableNumber}` : `CL- ${query}`;
 
@@ -133,6 +149,7 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
             setTableNumber(0);
             setDialogOpen(false);
             setCloseMethod("CASH");
+            setCashReceived("");
             setSalesFilter("VENTA_LIBRE");
         }
     };
@@ -215,13 +232,15 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
                     setSalesFilter("VENTA_LIBRE");
 
                 }} ><span className="lg:hidden">Venta libre</span><span className="hidden lg:inline">Cambiar a venta libre</span></Button>
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
                     <DialogTrigger asChild>
 
                         <Button variant="destructive" className="cursor-pointer flex-1 lg:flex-none" disabled={!clientSelected}>Cerrar cuenta <span className="hidden lg:inline">{query}</span></Button>
 
                     </DialogTrigger>
-                    <DialogContent className="max-h-[90dvh] overflow-y-auto">
+                    {/* Same cobro as the walk-in sale: full screen on mobile,
+                        centered dialog on desktop. */}
+                    <DialogContent className={`overflow-y-auto lg:max-h-[90dvh] ${checkoutDialogClasses}`}>
                         <DialogHeader>
                             <DialogTitle>Pago de cuenta {accountLabel}</DialogTitle>
                             <DialogDescription>
@@ -259,6 +278,26 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
                                 </button>
                             </div>
                         </div>
+
+                        {/* Cash only: the money handed over and the change to
+                            give back. The cobro stays disabled until the
+                            received amount covers the total. */}
+                        {closeMethod === "CASH" && (
+                            <div className="flex flex-col gap-2">
+                                <label htmlFor="close-cash-received" className="text-sm font-medium text-gray-700">
+                                    Efectivo recibido
+                                </label>
+                                <Input
+                                    id="close-cash-received"
+                                    inputMode="decimal"
+                                    placeholder="0.00"
+                                    value={cashReceived}
+                                    onChange={(e) => setCashReceived(e.target.value)}
+                                    className="h-12 text-lg tabular-nums"
+                                />
+                                <CashChangeHint received={received} total={receiptTotal} />
+                            </div>
+                        )}
 
                         {/* Receipt: the account's products and total, so the
                             operator confirms exactly what is being charged. */}
@@ -307,11 +346,12 @@ export default function SalesInputClient({ currentCustomerSales, setSalesFilter,
                             <DialogClose asChild>
                                 <Button
                                     className="cursor-pointer"
+                                    disabled={closeMethod === "CASH" && !enoughCash}
                                     onClick={() => {
                                         handleCloseAccount()
                                     }}
                                 >
-                                    Confirmar y Cerrar
+                                    {closeMethod === "CASH" ? "Cobrar" : "Confirmar y Cerrar"}
                                 </Button>
                             </DialogClose>
                         </DialogFooter>
