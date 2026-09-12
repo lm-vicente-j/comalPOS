@@ -197,7 +197,7 @@ export default function SalesInputClient({ currentCustomerSales, sourceType, acc
             </Popover>
             {/* Wrapping action row: full-width touch buttons on mobile,
                 inline group on desktop. Long labels shrink on mobile. */}
-            <div className="flex w-full flex-wrap gap-2 lg:w-fit">
+            <div className="flex w-full flex-nowrap gap-2 lg:w-fit">
                 {/* Leaves the current account (without settling it) and puts
                     the order list back on today's charged free sales. */}
                 <Button className="cursor-pointer flex-1 lg:flex-none" disabled={isAlreadyFreeSale} onClick={onFreeSaleView} ><span className="lg:hidden">Venta libre</span><span className="hidden lg:inline">Cambiar a venta libre</span></Button>
@@ -305,7 +305,7 @@ export default function SalesInputClient({ currentCustomerSales, sourceType, acc
                 </Dialog>
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button className="cursor-pointer flex-1 lg:flex-none bg-amber-500 text-black hover:bg-amber-400" disabled={!clientSelected}>A deuda <span className="hidden lg:inline">{query}</span></Button>
+                        <Button className="cursor-pointer flex-1 lg:flex-none bg-amber-500 text-black hover:bg-amber-400" disabled={!clientSelected}>A deuda <span className="hidden lg:inline truncate  max-w-24">{query}</span></Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
