@@ -244,13 +244,13 @@ async function main() {
 
   // ---------- USERS ----------
   console.log(`\n👥 Generando ${cfg.USERS} usuarios...`)
-  const passHash = await bcrypt.hash("Djw9zfq33nl7dgy", 10)
+  const passHash = await bcrypt.hash("demopass123", 10)
   const pinHash = await bcrypt.hash("1234", 10)
 
   const usersData: any[] = [
     {
       id: 1,
-      email: "admin@bonfood.com",
+      email: "admin@demo.com",
       username: "admin",
       password: passHash,
       pin: pinHash,
@@ -263,7 +263,7 @@ async function main() {
   for (let i = 2; i <= cfg.USERS; i++) {
     usersData.push({
       id: i,
-      email: `staff${i}@bonfood.com`,
+      email: `staff${i}@demo.com`,
       username: `staff${i}`,
       password: passHash,
       pin: pinHash,
@@ -713,7 +713,7 @@ async function main() {
   console.log(`   • savings_movement:  ${cfg.SAVINGS_MOVS}`)
   console.log(`   • savings_goal:      ${cfg.SAVINGS_GOALS}`)
   console.log(`   • goal_contribution: ${contribsData.length}`)
-  console.log(`\n🔐 Credenciales: admin / Djw9zfq33nl7dgy   (PIN: 1234)`)
+  console.log(`\n🔐 Credenciales: admin / demopass123   (PIN: 1234)`)
 }
 
 main()

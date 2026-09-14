@@ -154,7 +154,7 @@ export async function saveUser(data: Partial<User>) {
         });
       } else {
         // Admins log in with email + password, so one must always exist.
-        const adminEmail = email?.trim() ? email : `${username.toLowerCase()}@bonfood.com`;
+        const adminEmail = email?.trim() ? email : `${username.toLowerCase()}@demo.com`;
 
         await prisma.users.create({
           data: {

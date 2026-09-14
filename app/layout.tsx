@@ -20,8 +20,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BoonFood | Managment System",
-  description: "POS by starsux",
+  title: "ComalPOS | Management System",
+  description: "POS by ComalPOS",
 };
 
 export default async function RootLayout({

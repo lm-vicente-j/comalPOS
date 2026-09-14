@@ -118,7 +118,7 @@ describe("users actions", () => {
         expect(res).toMatchObject({ success: true });
 
         const row = await prisma.users.findFirstOrThrow({ where: { name: "Pedro Gomez Luna" } });
-        expect(row.email).toBe(`${row.username!.toLowerCase()}@bonfood.com`);
+        expect(row.email).toBe(`${row.username!.toLowerCase()}@demo.com`);
     });
 
     it("keeps the stored pin when a STAFF user is updated with a blank pin", async () => {
