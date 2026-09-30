@@ -124,6 +124,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     const [jornadaSheetOpen, setJornadaSheetOpen] = useState(false);
     const [closeMethod, setCloseMethod] = useState<"CASH" | "TRANSFER">("CASH");
     const [cashReceived, setCashReceived] = useState("");
+    const [cashDialogOpen, setCashDialogOpen] = useState(false);
     const [settling, setSettling] = useState(false);
     const [debtConfirm, setDebtConfirm] = useState(false);
 
@@ -260,6 +261,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
         setSheetOpen(false);
         setDebtConfirm(false);
         setCashReceived("");
+        setCashDialogOpen(false);
     };
 
     // Tapping the selected chip again leaves the account without settling
@@ -357,7 +359,8 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     };
 
     const handleCloseAccount = async () => {
-        if (!activeSource || settling) return;
+        if (!activeSource || settling || accountLines.length === 0) return;
+        if (closeMethod === "CASH" && (changeCents === null || changeCents < 0)) return;
         setSettling(true);
         try {
             const result = await trackAction(closeAccountAction(activeSource, closeMethod));
@@ -647,73 +650,225 @@ export default function MobilePosManager({ products, sales, customerList, jornad
             {/* Account sheet: the open account's lines with quantity controls,
                 the payment method and the charge button. Same bottom-sheet
                 idiom as the mobile nav menu. */}
-            <DialogPrimitive.Root open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open) setDebtConfirm(false); }}>
-                <DialogPrimitive.Portal>
-                    <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
-                    <DialogPrimitive.Content
-                        className={cn(
-                            "fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col overflow-hidden rounded-t-2xl border-t border-gray-100 bg-white shadow-lg outline-none",
-                            "data-[state=open]:animate-in data-[state=closed]:animate-out",
-                            "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom duration-300"
-                        )}
-                    >
-                        <div className="flex shrink-0 flex-col items-center pt-3 pb-2">
-                            <div className="h-1.5 w-10 rounded-full bg-gray-300" />
-                            <div className="mt-3 flex w-full items-center justify-between px-5">
-                                <DialogPrimitive.Title className="text-lg font-bold text-gray-900">
-                                    Cuenta · {accountLabel}
-                                </DialogPrimitive.Title>
-                                <DialogPrimitive.Close className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 outline-none">
-                                    <X size={18} />
-                                    <span className="sr-only">Cerrar</span>
-                                </DialogPrimitive.Close>
-                            </div>
-                        </div>
-                        <DialogPrimitive.Description className="sr-only">
-                            Detalle de la cuenta abierta: productos, cantidades y cobro.
-                        </DialogPrimitive.Description>
-
-                        <div role="region" aria-label="Contenido de la cuenta" className="min-h-0 flex-1 overflow-y-auto px-5 pb-3">
-                            <div className="flex flex-col items-start gap-2 pb-3">
-                                <span className="text-sm font-medium text-gray-700">Método de pago</span>
-                                <div className="inline-flex rounded-full border border-gray-200 bg-white p-0.5">
-                                    <button
-                                        type="button"
-                                        onClick={() => { if (closeMethod !== "CASH") setCashReceived(""); setCloseMethod("CASH"); }}
-                                        aria-pressed={closeMethod === "CASH"}
-                                        className={cn(
-                                            "flex h-11 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
-                                            closeMethod === "CASH" ? "bg-emerald-600 text-white" : "text-gray-600"
-                                        )}
-                                    >
-                                        <Banknote className="h-4 w-4" />
-                                        Efectivo
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => { if (closeMethod !== "TRANSFER") setCashReceived(""); setCloseMethod("TRANSFER"); }}
-                                        aria-pressed={closeMethod === "TRANSFER"}
-                                        className={cn(
-                                            "flex h-11 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
-                                            closeMethod === "TRANSFER" ? "bg-amber-500 text-white" : "text-gray-600"
-                                        )}
-                                    >
-                                        <CreditCard className="h-4 w-4" />
-                                        Transferencia
-                                    </button>
+            {!cashDialogOpen && (
+                <DialogPrimitive.Root open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open) setDebtConfirm(false); }}>
+                    <DialogPrimitive.Portal>
+                        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
+                        <DialogPrimitive.Content
+                            className={cn(
+                                "fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col overflow-hidden rounded-t-2xl border-t border-gray-100 bg-white shadow-lg outline-none",
+                                "data-[state=open]:animate-in data-[state=closed]:animate-out",
+                                "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom duration-300"
+                            )}
+                        >
+                            <div className="flex shrink-0 flex-col items-center pt-3 pb-2">
+                                <div className="h-1.5 w-10 rounded-full bg-gray-300" />
+                                <div className="mt-3 flex w-full items-center justify-between px-5">
+                                    <DialogPrimitive.Title className="text-lg font-bold text-gray-900">
+                                        Cuenta · {accountLabel}
+                                    </DialogPrimitive.Title>
+                                    <DialogPrimitive.Close className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 outline-none">
+                                        <X size={18} />
+                                        <span className="sr-only">Cerrar</span>
+                                    </DialogPrimitive.Close>
                                 </div>
                             </div>
+                            <DialogPrimitive.Description className="sr-only">
+                                Detalle de la cuenta abierta: productos, cantidades y cobro.
+                            </DialogPrimitive.Description>
 
-                            {closeMethod === "CASH" && (
-                                <div className="pb-3">
+                            <div role="region" aria-label="Contenido de la cuenta" className="min-h-0 flex-1 overflow-y-auto px-5 pb-3">
+                                <div className="flex flex-col items-start gap-2 pb-3">
+                                    <span className="text-sm font-medium text-gray-700">Método de pago</span>
+                                    <div className="inline-flex rounded-full border border-gray-200 bg-white p-0.5">
+                                        <button
+                                            type="button"
+                                            onClick={() => { if (closeMethod !== "CASH") setCashReceived(""); setCloseMethod("CASH"); }}
+                                            aria-pressed={closeMethod === "CASH"}
+                                            className={cn(
+                                                "flex h-11 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
+                                                closeMethod === "CASH" ? "bg-emerald-600 text-white" : "text-gray-600"
+                                            )}
+                                        >
+                                            <Banknote className="h-4 w-4" />
+                                            Efectivo
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { if (closeMethod !== "TRANSFER") setCashReceived(""); setCloseMethod("TRANSFER"); }}
+                                            aria-pressed={closeMethod === "TRANSFER"}
+                                            className={cn(
+                                                "flex h-11 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
+                                                closeMethod === "TRANSFER" ? "bg-amber-500 text-white" : "text-gray-600"
+                                            )}
+                                        >
+                                            <CreditCard className="h-4 w-4" />
+                                            Transferencia
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {accountLines.length === 0 ? (
+                                    <p className="py-6 text-center text-sm text-gray-500">
+                                        Esta cuenta no tiene productos.
+                                    </p>
+                                ) : (
+                                    <ul className="mt-3">
+                                        {accountLines.map((line) => (
+                                            <li key={line.key} className={cn("border-b border-gray-100 py-3 last:border-0", line.optimistic && "opacity-60")}>
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <p className="min-w-0 flex-1 text-sm font-medium text-gray-800">
+                                                        <span className="text-gray-500">{line.quantity}×</span> {line.name}
+                                                    </p>
+                                                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                                                        ${line.subtotal.toFixed(2)}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-2 flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            aria-label="Reducir cantidad"
+                                                            disabled={line.optimistic}
+                                                            onClick={() => handleUpdateQuantity(line.saleId, line.quantity - 1, line.productID)}
+                                                            className="flex h-9 w-9 items-center justify-center rounded-full border bg-white text-gray-700 shadow-sm cursor-pointer active:bg-gray-200"
+                                                        >
+                                                            <Minus className="h-4 w-4" />
+                                                        </button>
+                                                        <span className="w-6 text-center text-sm font-bold tabular-nums">{line.quantity}</span>
+                                                        <button
+                                                            type="button"
+                                                            aria-label="Aumentar cantidad"
+                                                            disabled={line.optimistic}
+                                                            onClick={() => handleUpdateQuantity(line.saleId, line.quantity + 1, line.productID)}
+                                                            className="flex h-9 w-9 items-center justify-center rounded-full border bg-white text-gray-700 shadow-sm cursor-pointer active:bg-gray-200"
+                                                        >
+                                                            <Plus className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Eliminar línea"
+                                                        disabled={line.optimistic}
+                                                        onClick={() => handleDeleteLine(line.saleId)}
+                                                        className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-600 cursor-pointer active:bg-red-100"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+
+                                <div className="mt-3 flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={resetToFreeSaleView}
+                                        className="h-11 flex-1 cursor-pointer"
+                                    >
+                                        Salir de la cuenta
+                                    </Button>
+                                    {clientSelected && (
+                                        <Button
+                                            onClick={() => setDebtConfirm(true)}
+                                            disabled={accountLines.length === 0}
+                                            className="h-11 flex-1 cursor-pointer bg-amber-500 text-black hover:bg-amber-400"
+                                        >
+                                            A deuda
+                                        </Button>
+                                    )}
+                                </div>
+
+                                {/* Inline confirm instead of a nested alert dialog:
+                                    one modal at a time on a phone. */}
+                                {debtConfirm && clientSelected && (
+                                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                                        <p className="text-sm text-amber-900">
+                                            ¿Enviar la cuenta de &quot;{query}&quot; a deuda? Total: ${accountTotal.toFixed(2)}
+                                        </p>
+                                        <div className="mt-2 flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => setDebtConfirm(false)}
+                                                className="h-10 flex-1 cursor-pointer"
+                                            >
+                                                Cancelar
+                                            </Button>
+                                            <Button
+                                                onClick={handleToDebt}
+                                                className="h-10 flex-1 cursor-pointer bg-amber-500 text-black hover:bg-amber-400"
+                                            >
+                                                Sí, a deuda
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="shrink-0 border-t border-gray-100 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
+                                <div className="flex items-center justify-between pb-3 text-lg font-bold">
+                                    <span>Total</span>
+                                    <span className="tabular-nums">${accountTotal.toFixed(2)}</span>
+                                </div>
+
+                                <Button
+                                    onClick={() => { if (closeMethod === "CASH") setCashDialogOpen(true); else void handleCloseAccount(); }}
+                                    disabled={accountLines.length === 0 || settling}
+                                    className="h-12 w-full cursor-pointer text-base font-bold"
+                                >
+                                    Cobrar ${accountTotal.toFixed(2)}
+                                </Button>
+
+                            </div>
+                        </DialogPrimitive.Content>
+                    </DialogPrimitive.Portal>
+                </DialogPrimitive.Root>
+            )}
+
+            {/* Cash confirmation replaces the account sheet while open;
+                cancelling returns to the same account without settling it. */}
+            {cashDialogOpen && (
+                <DialogPrimitive.Root open={cashDialogOpen} onOpenChange={setCashDialogOpen}>
+                    <DialogPrimitive.Portal>
+                        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
+                        <DialogPrimitive.Content
+                            className={cn(
+                                "fixed left-1/2 top-1/2 z-50 flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg outline-none",
+                                "data-[state=open]:animate-in data-[state=closed]:animate-out",
+                                "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 duration-200"
+                            )}
+                        >
+                            <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-4">
+                                <div className="min-w-0">
+                                    <DialogPrimitive.Title className="text-lg font-bold text-gray-900">
+                                        Cobrar en efectivo
+                                    </DialogPrimitive.Title>
+                                    <DialogPrimitive.Description className="mt-1 text-sm text-gray-600">
+                                        {accountLabel}
+                                    </DialogPrimitive.Description>
+                                </div>
+                                <DialogPrimitive.Close className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 outline-none">
+                                    <X size={18} />
+                                    <span className="sr-only">Cerrar diálogo de efectivo</span>
+                                </DialogPrimitive.Close>
+                            </div>
+
+                            <form
+                                onSubmit={(event) => { event.preventDefault(); void handleCloseAccount(); }}
+                                className="flex min-h-0 flex-1 flex-col"
+                            >
+                                <div role="region" aria-label="Datos del pago en efectivo" className="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
                                     <label htmlFor="mobile-cash-received" className="mb-2 block text-sm font-medium text-gray-700">
-                                        Efectivo recibido (opcional)
+                                        Efectivo recibido
                                     </label>
                                     <Input
                                         id="mobile-cash-received"
                                         type="text"
                                         inputMode="decimal"
                                         autoComplete="off"
+                                        autoFocus
+                                        required
                                         value={cashReceived}
                                         onChange={(event) => setCashReceived(event.currentTarget.value)}
                                         aria-invalid={cashReceivedInvalid}
@@ -722,8 +877,8 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                     />
                                     <p id="mobile-cash-change" role="status" className="mt-2 text-sm font-semibold tabular-nums text-gray-800">
                                         {changeCents !== null && changeCents < 0
-                                            ? `Faltan $${(-changeCents / 100).toFixed(2)}`
-                                            : `Cambio a entregar: ${changeCents === null ? "—" : `$${(changeCents / 100).toFixed(2)}`}`}
+                                            ? "Faltan $" + (-changeCents / 100).toFixed(2)
+                                            : "Cambio a entregar: " + (changeCents === null ? "—" : "$" + (changeCents / 100).toFixed(2))}
                                     </p>
                                     {cashReceivedInvalid && (
                                         <p id="mobile-cash-error" role="alert" className="mt-1 text-sm text-destructive">
@@ -731,124 +886,30 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                         </p>
                                     )}
                                 </div>
-                            )}
 
-                            {accountLines.length === 0 ? (
-                                <p className="py-6 text-center text-sm text-gray-500">
-                                    Esta cuenta no tiene productos.
-                                </p>
-                            ) : (
-                                <ul className="mt-3">
-                                    {accountLines.map((line) => (
-                                        <li key={line.key} className={cn("border-b border-gray-100 py-3 last:border-0", line.optimistic && "opacity-60")}>
-                                            <div className="flex items-start justify-between gap-3">
-                                                <p className="min-w-0 flex-1 text-sm font-medium text-gray-800">
-                                                    <span className="text-gray-500">{line.quantity}×</span> {line.name}
-                                                </p>
-                                                <span className="shrink-0 text-sm font-semibold tabular-nums">
-                                                    ${line.subtotal.toFixed(2)}
-                                                </span>
-                                            </div>
-                                            <div className="mt-2 flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        type="button"
-                                                        aria-label="Reducir cantidad"
-                                                        disabled={line.optimistic}
-                                                        onClick={() => handleUpdateQuantity(line.saleId, line.quantity - 1, line.productID)}
-                                                        className="flex h-9 w-9 items-center justify-center rounded-full border bg-white text-gray-700 shadow-sm cursor-pointer active:bg-gray-200"
-                                                    >
-                                                        <Minus className="h-4 w-4" />
-                                                    </button>
-                                                    <span className="w-6 text-center text-sm font-bold tabular-nums">{line.quantity}</span>
-                                                    <button
-                                                        type="button"
-                                                        aria-label="Aumentar cantidad"
-                                                        disabled={line.optimistic}
-                                                        onClick={() => handleUpdateQuantity(line.saleId, line.quantity + 1, line.productID)}
-                                                        className="flex h-9 w-9 items-center justify-center rounded-full border bg-white text-gray-700 shadow-sm cursor-pointer active:bg-gray-200"
-                                                    >
-                                                        <Plus className="h-4 w-4" />
-                                                    </button>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    aria-label="Eliminar línea"
-                                                    disabled={line.optimistic}
-                                                    onClick={() => handleDeleteLine(line.saleId)}
-                                                    className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-600 cursor-pointer active:bg-red-100"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-
-                            <div className="mt-3 flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={resetToFreeSaleView}
-                                    className="h-11 flex-1 cursor-pointer"
-                                >
-                                    Salir de la cuenta
-                                </Button>
-                                {clientSelected && (
-                                    <Button
-                                        onClick={() => setDebtConfirm(true)}
-                                        disabled={accountLines.length === 0}
-                                        className="h-11 flex-1 cursor-pointer bg-amber-500 text-black hover:bg-amber-400"
-                                    >
-                                        A deuda
-                                    </Button>
-                                )}
-                            </div>
-
-                            {/* Inline confirm instead of a nested alert dialog:
-                                one modal at a time on a phone. */}
-                            {debtConfirm && clientSelected && (
-                                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                                    <p className="text-sm text-amber-900">
-                                        ¿Enviar la cuenta de &quot;{query}&quot; a deuda? Total: ${accountTotal.toFixed(2)}
-                                    </p>
-                                    <div className="mt-2 flex gap-2">
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => setDebtConfirm(false)}
-                                            className="h-10 flex-1 cursor-pointer"
-                                        >
-                                            Cancelar
-                                        </Button>
-                                        <Button
-                                            onClick={handleToDebt}
-                                            className="h-10 flex-1 cursor-pointer bg-amber-500 text-black hover:bg-amber-400"
-                                        >
-                                            Sí, a deuda
-                                        </Button>
+                                <div className="shrink-0 border-t border-gray-100 px-5 pb-4 pt-3">
+                                    <div className="flex items-center justify-between pb-3 text-lg font-bold">
+                                        <span>Total</span>
+                                        <span className="tabular-nums">${accountTotal.toFixed(2)}</span>
                                     </div>
+                                    <Button
+                                        type="submit"
+                                        disabled={accountLines.length === 0 || settling || changeCents === null || changeCents < 0}
+                                        className="h-12 w-full cursor-pointer text-base font-bold"
+                                    >
+                                        Cobrar ${accountTotal.toFixed(2)}
+                                    </Button>
+                                    <DialogPrimitive.Close asChild>
+                                        <Button type="button" variant="outline" className="mt-2 h-11 w-full cursor-pointer">
+                                            Volver a la cuenta
+                                        </Button>
+                                    </DialogPrimitive.Close>
                                 </div>
-                            )}
-                        </div>
-
-                        <div className="shrink-0 border-t border-gray-100 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
-                            <div className="flex items-center justify-between pb-3 text-lg font-bold">
-                                <span>Total</span>
-                                <span className="tabular-nums">${accountTotal.toFixed(2)}</span>
-                            </div>
-
-                            <Button
-                                onClick={handleCloseAccount}
-                                disabled={accountLines.length === 0 || settling}
-                                className="h-12 w-full cursor-pointer text-base font-bold"
-                            >
-                                Cobrar ${accountTotal.toFixed(2)}
-                            </Button>
-
-                        </div>
-                    </DialogPrimitive.Content>
-                </DialogPrimitive.Portal>
-            </DialogPrimitive.Root>
+                            </form>
+                        </DialogPrimitive.Content>
+                    </DialogPrimitive.Portal>
+                </DialogPrimitive.Root>
+            )}
 
             {/* Jornada sheet: the cash summary the desktop banner hides on
                 phones, one tap away while no account is selected. */}
