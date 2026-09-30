@@ -123,6 +123,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     const [sheetOpen, setSheetOpen] = useState(false);
     const [jornadaSheetOpen, setJornadaSheetOpen] = useState(false);
     const [closeMethod, setCloseMethod] = useState<"CASH" | "TRANSFER">("CASH");
+    const [cashReceived, setCashReceived] = useState("");
     const [settling, setSettling] = useState(false);
     const [debtConfirm, setDebtConfirm] = useState(false);
 
@@ -210,6 +211,22 @@ export default function MobilePosManager({ products, sales, customerList, jornad
         () => accountSales.reduce((acc, s) => acc + Number(s.total), 0),
         [accountSales]
     );
+    // Keep the calculator local and subtract integer cents, including each
+    // sale total, so floating-point sums cannot affect the change.
+    const cashReceivedCents = useMemo(() => {
+        const value = cashReceived.trim().replace(",", ".");
+        if (value === "") return null;
+        if (!/^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(value)) return NaN;
+        const [whole, decimals = ""] = value.split(".");
+        const cents = Number(whole || "0") * 100 + Number(decimals.padEnd(2, "0"));
+        return Number.isSafeInteger(cents) ? cents : NaN;
+    }, [cashReceived]);
+    const cashReceivedInvalid = cashReceivedCents !== null && Number.isNaN(cashReceivedCents);
+    const accountTotalCents = accountSales.reduce((total, sale) => total + Math.round(Number(sale.total) * 100), 0);
+    const changeCents = cashReceivedCents === null || cashReceivedInvalid
+        ? null
+        : cashReceivedCents - accountTotalCents;
+
     const accountCount = useMemo(
         () => accountLines.reduce((acc, line) => acc + line.quantity, 0),
         [accountLines]
@@ -242,6 +259,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
         setContextTab("tickets");
         setSheetOpen(false);
         setDebtConfirm(false);
+        setCashReceived("");
     };
 
     // Tapping the selected chip again leaves the account without settling
@@ -393,7 +411,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     ];
 
     return (
-        <div className="flex h-full w-full flex-col bg-gray-50">
+        <div className={cn("flex h-full min-h-0 w-full flex-col bg-gray-50", (activeSource || jornadaInfo) && "pb-20")}>
             {/* 1. Context selector + product search. Inert without an open
                 jornada, same as the desktop sale controls. */}
             <div aria-disabled={!jornadaOpen} className={cn("shrink-0", gated)}>
@@ -555,7 +573,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
 
             {/* 2. Product grid: takes all the space the context selector left
                 and scrolls internally, so the account bar never moves. */}
-            <div aria-disabled={!jornadaOpen} className={cn("flex-1 overflow-y-auto px-3 pb-3", gated)}>
+            <div aria-disabled={!jornadaOpen} className={cn("min-h-0 flex-1 overflow-y-auto px-3 pb-3", gated)}>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-2">
                     {filteredProducts.map((product) => {
                         const isPending = pendingId === product.id;
@@ -586,7 +604,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                 jornada cash summary the phone banner hides (admin only)
                 until then. */}
             {(activeSource || jornadaInfo) && (
-                <div className="shrink-0 border-t border-gray-100 bg-white px-3 py-2.5 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+                <div className="fixed inset-x-0 bottom-16 z-40 flex h-20 flex-col justify-center border-t border-gray-100 bg-white px-3 py-2.5 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] lg:hidden">
                     {activeSource ? (
                         <div aria-disabled={!jornadaOpen} className={cn("flex items-center gap-3 rounded-xl border bg-white px-3 py-2 shadow-sm", gated)}>
                             <button
@@ -602,7 +620,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                             </button>
                             <Button
                                 onClick={() => { setDebtConfirm(false); setSheetOpen(true); }}
-                                className="shrink-0 cursor-pointer"
+                                className="h-11 shrink-0 cursor-pointer"
                             >
                                 Cobrar
                             </Button>
@@ -634,7 +652,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                     <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
                     <DialogPrimitive.Content
                         className={cn(
-                            "fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col rounded-t-2xl border-t border-gray-100 bg-white shadow-lg outline-none",
+                            "fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col overflow-hidden rounded-t-2xl border-t border-gray-100 bg-white shadow-lg outline-none",
                             "data-[state=open]:animate-in data-[state=closed]:animate-out",
                             "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom duration-300"
                         )}
@@ -655,68 +673,16 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                             Detalle de la cuenta abierta: productos, cantidades y cobro.
                         </DialogPrimitive.Description>
 
-                        {accountLines.length === 0 ? (
-                            <p className="px-5 py-6 text-center text-sm text-gray-500">
-                                Esta cuenta no tiene productos.
-                            </p>
-                        ) : (
-                            <ul className="flex-1 overflow-y-auto px-5">
-                                {accountLines.map((line) => (
-                                    <li key={line.key} className={cn("border-b border-gray-100 py-3 last:border-0", line.optimistic && "opacity-60")}>
-                                        <div className="flex items-start justify-between gap-3">
-                                            <p className="min-w-0 flex-1 text-sm font-medium text-gray-800">
-                                                <span className="text-gray-500">{line.quantity}×</span> {line.name}
-                                            </p>
-                                            <span className="shrink-0 text-sm font-semibold tabular-nums">
-                                                ${line.subtotal.toFixed(2)}
-                                            </span>
-                                        </div>
-                                        <div className="mt-2 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    type="button"
-                                                    aria-label="Reducir cantidad"
-                                                    disabled={line.optimistic}
-                                                    onClick={() => handleUpdateQuantity(line.saleId, line.quantity - 1, line.productID)}
-                                                    className="flex h-9 w-9 items-center justify-center rounded-full border bg-white text-gray-700 shadow-sm cursor-pointer active:bg-gray-200"
-                                                >
-                                                    <Minus className="h-4 w-4" />
-                                                </button>
-                                                <span className="w-6 text-center text-sm font-bold tabular-nums">{line.quantity}</span>
-                                                <button
-                                                    type="button"
-                                                    aria-label="Aumentar cantidad"
-                                                    disabled={line.optimistic}
-                                                    onClick={() => handleUpdateQuantity(line.saleId, line.quantity + 1, line.productID)}
-                                                    className="flex h-9 w-9 items-center justify-center rounded-full border bg-white text-gray-700 shadow-sm cursor-pointer active:bg-gray-200"
-                                                >
-                                                    <Plus className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                aria-label="Eliminar línea"
-                                                disabled={line.optimistic}
-                                                onClick={() => handleDeleteLine(line.saleId)}
-                                                className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-600 cursor-pointer active:bg-red-100"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-
-                        <div className="shrink-0 border-t border-gray-100 px-5 pb-6 pt-3">
-                            <div className="flex items-center justify-between pb-3">
+                        <div role="region" aria-label="Contenido de la cuenta" className="min-h-0 flex-1 overflow-y-auto px-5 pb-3">
+                            <div className="flex flex-col items-start gap-2 pb-3">
                                 <span className="text-sm font-medium text-gray-700">Método de pago</span>
                                 <div className="inline-flex rounded-full border border-gray-200 bg-white p-0.5">
                                     <button
                                         type="button"
-                                        onClick={() => setCloseMethod("CASH")}
+                                        onClick={() => { if (closeMethod !== "CASH") setCashReceived(""); setCloseMethod("CASH"); }}
+                                        aria-pressed={closeMethod === "CASH"}
                                         className={cn(
-                                            "flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
+                                            "flex h-11 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
                                             closeMethod === "CASH" ? "bg-emerald-600 text-white" : "text-gray-600"
                                         )}
                                     >
@@ -725,9 +691,10 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setCloseMethod("TRANSFER")}
+                                        onClick={() => { if (closeMethod !== "TRANSFER") setCashReceived(""); setCloseMethod("TRANSFER"); }}
+                                        aria-pressed={closeMethod === "TRANSFER"}
                                         className={cn(
-                                            "flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
+                                            "flex h-11 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
                                             closeMethod === "TRANSFER" ? "bg-amber-500 text-white" : "text-gray-600"
                                         )}
                                     >
@@ -737,20 +704,89 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between pb-3 text-lg font-bold">
-                                <span>Total</span>
-                                <span className="tabular-nums">${accountTotal.toFixed(2)}</span>
-                            </div>
+                            {closeMethod === "CASH" && (
+                                <div className="pb-3">
+                                    <label htmlFor="mobile-cash-received" className="mb-2 block text-sm font-medium text-gray-700">
+                                        Efectivo recibido (opcional)
+                                    </label>
+                                    <Input
+                                        id="mobile-cash-received"
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        value={cashReceived}
+                                        onChange={(event) => setCashReceived(event.currentTarget.value)}
+                                        aria-invalid={cashReceivedInvalid}
+                                        aria-describedby={cashReceivedInvalid ? "mobile-cash-change mobile-cash-error" : "mobile-cash-change"}
+                                        className="h-11 bg-white text-base md:text-base"
+                                    />
+                                    <p id="mobile-cash-change" role="status" className="mt-2 text-sm font-semibold tabular-nums text-gray-800">
+                                        {changeCents !== null && changeCents < 0
+                                            ? `Faltan $${(-changeCents / 100).toFixed(2)}`
+                                            : `Cambio a entregar: ${changeCents === null ? "—" : `$${(changeCents / 100).toFixed(2)}`}`}
+                                    </p>
+                                    {cashReceivedInvalid && (
+                                        <p id="mobile-cash-error" role="alert" className="mt-1 text-sm text-destructive">
+                                            Introduce un importe válido con hasta dos decimales, usando punto o coma.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
-                            <Button
-                                onClick={handleCloseAccount}
-                                disabled={accountLines.length === 0 || settling}
-                                className="h-12 w-full cursor-pointer text-base font-bold"
-                            >
-                                Cobrar ${accountTotal.toFixed(2)}
-                            </Button>
+                            {accountLines.length === 0 ? (
+                                <p className="py-6 text-center text-sm text-gray-500">
+                                    Esta cuenta no tiene productos.
+                                </p>
+                            ) : (
+                                <ul className="mt-3">
+                                    {accountLines.map((line) => (
+                                        <li key={line.key} className={cn("border-b border-gray-100 py-3 last:border-0", line.optimistic && "opacity-60")}>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <p className="min-w-0 flex-1 text-sm font-medium text-gray-800">
+                                                    <span className="text-gray-500">{line.quantity}×</span> {line.name}
+                                                </p>
+                                                <span className="shrink-0 text-sm font-semibold tabular-nums">
+                                                    ${line.subtotal.toFixed(2)}
+                                                </span>
+                                            </div>
+                                            <div className="mt-2 flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Reducir cantidad"
+                                                        disabled={line.optimistic}
+                                                        onClick={() => handleUpdateQuantity(line.saleId, line.quantity - 1, line.productID)}
+                                                        className="flex h-9 w-9 items-center justify-center rounded-full border bg-white text-gray-700 shadow-sm cursor-pointer active:bg-gray-200"
+                                                    >
+                                                        <Minus className="h-4 w-4" />
+                                                    </button>
+                                                    <span className="w-6 text-center text-sm font-bold tabular-nums">{line.quantity}</span>
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Aumentar cantidad"
+                                                        disabled={line.optimistic}
+                                                        onClick={() => handleUpdateQuantity(line.saleId, line.quantity + 1, line.productID)}
+                                                        className="flex h-9 w-9 items-center justify-center rounded-full border bg-white text-gray-700 shadow-sm cursor-pointer active:bg-gray-200"
+                                                    >
+                                                        <Plus className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    aria-label="Eliminar línea"
+                                                    disabled={line.optimistic}
+                                                    onClick={() => handleDeleteLine(line.saleId)}
+                                                    className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-600 cursor-pointer active:bg-red-100"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
 
-                            <div className="mt-2 flex gap-2">
+                            <div className="mt-3 flex gap-2">
                                 <Button
                                     variant="outline"
                                     onClick={resetToFreeSaleView}
@@ -793,6 +829,22 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                     </div>
                                 </div>
                             )}
+                        </div>
+
+                        <div className="shrink-0 border-t border-gray-100 px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
+                            <div className="flex items-center justify-between pb-3 text-lg font-bold">
+                                <span>Total</span>
+                                <span className="tabular-nums">${accountTotal.toFixed(2)}</span>
+                            </div>
+
+                            <Button
+                                onClick={handleCloseAccount}
+                                disabled={accountLines.length === 0 || settling}
+                                className="h-12 w-full cursor-pointer text-base font-bold"
+                            >
+                                Cobrar ${accountTotal.toFixed(2)}
+                            </Button>
+
                         </div>
                     </DialogPrimitive.Content>
                 </DialogPrimitive.Portal>
