@@ -45,6 +45,15 @@ test.describe("pos", () => {
         await page.getByRole("button", { name: "Abrir cuenta" }).click();
     };
 
+    const openCashDialog = async (page: Page) => {
+        const sheet = page.getByRole("dialog", { name: /^Cuenta/ });
+        await sheet.getByRole("button", { name: /^Cobrar \$/ }).click();
+        const cashDialog = page.getByRole("dialog", { name: "Cobrar en efectivo", exact: true });
+        await expect(cashDialog).toBeVisible();
+        await expect(sheet).toHaveCount(0);
+        return cashDialog;
+    };
+
     const closeSheet = async (page: Page) => {
         await page.keyboard.press("Escape");
         await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -52,12 +61,22 @@ test.describe("pos", () => {
 
     // Charges whatever account is open. Desktop goes through the shared
     // "Cerrar cuenta" dialog (tables, walk-ins and customers alike); mobile
-    // opens the account sheet and confirms from there.
+    // opens the account sheet, then confirms cash in its required-amount dialog.
     const chargeAccount = async (page: Page, isMobile: boolean, total: string) => {
         if (isMobile) {
-            if ((await page.getByRole("dialog").count()) === 0) await openAccountSheet(page);
-            await expect(page.getByRole("dialog")).toContainText(total);
-            await page.getByRole("dialog").getByRole("button", { name: /^Cobrar \$/ }).click();
+            const cashDialog = page.getByRole("dialog", { name: "Cobrar en efectivo", exact: true });
+            if ((await cashDialog.count()) === 0) {
+                if ((await page.getByRole("dialog").count()) === 0) await openAccountSheet(page);
+                const sheet = page.getByRole("dialog", { name: /^Cuenta/ });
+                await expect(sheet).toContainText(total);
+                const isCash = await sheet.getByRole("button", { name: "Efectivo", exact: true }).getAttribute("aria-pressed") === "true";
+                await sheet.getByRole("button", { name: /^Cobrar \$/ }).click();
+                if (isCash) await expect(cashDialog).toBeVisible();
+            }
+            if ((await cashDialog.count()) > 0) {
+                await cashDialog.getByLabel("Efectivo recibido", { exact: true }).fill(total.replace("$", ""));
+                await cashDialog.getByRole("button", { name: /^Cobrar \$/ }).click();
+            }
             await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 15_000 });
         } else {
             await page.getByRole("button", { name: /Cerrar cuenta/ }).click();
@@ -259,85 +278,114 @@ test.describe("pos", () => {
         }
     });
 
-    test("mobile cash calculator accepts decimals, warns on invalid values and follows the total", async ({ page }) => {
-        test.skip(test.info().project.name !== "mobile", "Mobile-only cash calculator");
+
+    test("mobile cash dialog requires a valid sufficient amount and accepts decimals", async ({ page }) => {
+        test.skip(test.info().project.name !== "mobile", "Mobile-only cash dialog");
         const product = page.getByRole("button", { name: /Taco Pastor/ }).first();
         await product.click();
         await expectTicketTotal(page, true, "25.00");
         await openAccountSheet(page);
 
-        const sheet = page.getByRole("dialog");
-        const received = sheet.getByLabel("Efectivo recibido (opcional)");
-        const change = sheet.locator("#mobile-cash-change");
+        const sheet = page.getByRole("dialog", { name: /^Cuenta/ });
+        await expect(sheet.getByLabel("Efectivo recibido", { exact: true })).toHaveCount(0);
+        const cashDialog = await openCashDialog(page);
+        const received = cashDialog.getByLabel("Efectivo recibido", { exact: true });
+        const change = cashDialog.locator("#mobile-cash-change");
+        const confirm = cashDialog.getByRole("button", { name: /^Cobrar \$/ });
         await expect(received).toHaveAttribute("inputmode", "decimal");
+        await expect(received).toHaveJSProperty("required", true);
+        await expect(received).toBeFocused();
         await expect(received).toHaveValue("");
-        for (const [value, result] of [
-            ["", "Cambio a entregar: —"],
-            ["25", "Cambio a entregar: $0.00"],
-            ["30", "Cambio a entregar: $5.00"],
-            ["24", "Faltan $1.00"],
-            ["25.05", "Cambio a entregar: $0.05"],
-            ["25,05", "Cambio a entregar: $0.05"],
-            ["25.1", "Cambio a entregar: $0.10"],
-            ["25,1", "Cambio a entregar: $0.10"],
-            ["0", "Faltan $25.00"],
-            [".50", "Faltan $24.50"],
-            [" ,50 ", "Faltan $24.50"],
-        ]) {
+        for (const [value, result, canCharge] of [
+            ["", "Cambio a entregar: —", false],
+            ["25", "Cambio a entregar: $0.00", true],
+            ["30", "Cambio a entregar: $5.00", true],
+            ["24", "Faltan $1.00", false],
+            ["25.05", "Cambio a entregar: $0.05", true],
+            ["25,05", "Cambio a entregar: $0.05", true],
+            ["25.1", "Cambio a entregar: $0.10", true],
+            ["25,1", "Cambio a entregar: $0.10", true],
+            ["0", "Faltan $25.00", false],
+            [".50", "Faltan $24.50", false],
+            [" ,50 ", "Faltan $24.50", false],
+            ["   ", "Cambio a entregar: —", false],
+        ] as const) {
             await received.fill(value);
             await expect(change).toHaveText(result);
             await expect(received).toHaveAttribute("aria-invalid", "false");
-            await expect(sheet.getByRole("alert")).toHaveCount(0);
-            await expect(sheet.getByRole("button", { name: /^Cobrar \$/ })).toBeEnabled();
+            await expect(cashDialog.getByRole("alert")).toHaveCount(0);
+            if (canCharge) await expect(confirm).toBeEnabled();
+            else await expect(confirm).toBeDisabled();
         }
 
         for (const value of ["abc", "-1", "25.001", "25,001", "25,0.1", "1e3", "Infinity", "90071992547409.92"]) {
             await received.fill(value);
             await expect(received).toHaveAttribute("aria-invalid", "true");
-            await expect(sheet.getByRole("alert")).toContainText("hasta dos decimales");
+            await expect(cashDialog.getByRole("alert")).toContainText("hasta dos decimales");
             await expect(change).toHaveText("Cambio a entregar: —");
-            await expect(sheet.getByRole("button", { name: /^Cobrar \$/ })).toBeEnabled();
+            await expect(confirm).toBeDisabled();
         }
+        await received.press("Enter");
+        await expect(cashDialog).toBeVisible();
 
+        // Cancelling returns to the same account; its changed total is used
+        // when the cash dialog is opened again.
         await received.fill("50.05");
+        await page.keyboard.press("Escape");
+        await expect(cashDialog).toHaveCount(0);
+        await expect(sheet).toBeVisible();
+        await expect(sheet.getByLabel("Efectivo recibido", { exact: true })).toHaveCount(0);
         await sheet.getByRole("button", { name: "Aumentar cantidad" }).click();
         await expect(sheet.getByRole("button", { name: "Cobrar $50.00", exact: true })).toBeVisible();
+        await openCashDialog(page);
+        await expect(received).toHaveValue("50.05");
         await expect(change).toHaveText("Cambio a entregar: $0.05");
-        await received.fill("inválido");
-        await chargeAccount(page, true, "$50.00");
+        await confirm.click();
+        await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 15_000 });
 
         await expect(product).toBeEnabled();
         await product.click();
         await expectTicketTotal(page, true, "25.00");
         await openAccountSheet(page);
+        await openCashDialog(page);
         await expect(received).toHaveValue("");
         await expect(change).toHaveText("Cambio a entregar: —");
+        await expect(confirm).toBeDisabled();
         await chargeAccount(page, true, "$25.00");
     });
 
     for (const [value, result] of [["", "Cambio a entregar: —"], ["1", "Faltan $24.00"]]) {
-        test(`mobile cash remains informational when received is ${value === "" ? "empty" : "insufficient"}`, async ({ page }) => {
-            test.skip(test.info().project.name !== "mobile", "Mobile-only cash calculator");
+        test(`mobile cash blocks charging when received is ${value === "" ? "empty" : "insufficient"}`, async ({ page }) => {
+            test.skip(test.info().project.name !== "mobile", "Mobile-only cash dialog");
             await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
             await expectTicketTotal(page, true, "25.00");
             await openAccountSheet(page);
-            const sheet = page.getByRole("dialog");
-            await sheet.getByLabel("Efectivo recibido (opcional)").fill(value);
-            await expect(sheet.locator("#mobile-cash-change")).toHaveText(result);
+            const cashDialog = await openCashDialog(page);
+            const received = cashDialog.getByLabel("Efectivo recibido", { exact: true });
+            await received.fill(value);
+            await expect(cashDialog.locator("#mobile-cash-change")).toHaveText(result);
+            await expect(cashDialog.getByRole("button", { name: /^Cobrar \$/ })).toBeDisabled();
+            await received.press("Enter");
+            await expect(cashDialog).toBeVisible();
             await chargeAccount(page, true, "$25.00");
             await expect(page.getByRole("button", { name: "Ver resumen de jornada" })).toBeVisible();
         });
     }
 
-    test("mobile cash resets on account and payment changes and hides for transfers", async ({ page }) => {
-        test.skip(test.info().project.name !== "mobile", "Mobile-only cash calculator");
+    test("mobile cash resets on account and payment changes and transfers charge without the cash dialog", async ({ page }) => {
+        test.skip(test.info().project.name !== "mobile", "Mobile-only cash dialog");
         await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
         await expectTicketTotal(page, true, "25.00");
         const firstTicket = ticketChip(page, "25\\.00");
         await openAccountSheet(page);
-        const sheet = page.getByRole("dialog");
-        const received = sheet.getByLabel("Efectivo recibido (opcional)");
+        const sheet = page.getByRole("dialog", { name: /^Cuenta/ });
+        const cashDialog = await openCashDialog(page);
+        const received = cashDialog.getByLabel("Efectivo recibido", { exact: true });
+        const back = cashDialog.getByRole("button", { name: "Volver a la cuenta", exact: true });
         await received.fill("50");
+        await back.click();
+        await expect(cashDialog).toHaveCount(0);
+        await expect(sheet).toBeVisible();
         await closeSheet(page);
 
         await page.getByRole("button", { name: "Nuevo", exact: true }).click();
@@ -346,26 +394,35 @@ test.describe("pos", () => {
         await expectTicketTotal(page, true, "35.00");
         const secondTicket = ticketChip(page, "35\\.00");
         await openAccountSheet(page);
+        await openCashDialog(page);
         await expect(received).toHaveValue("");
         await received.fill("100");
+        await back.click();
+        await expect(sheet).toBeVisible();
         await sheet.getByRole("button", { name: "Transferencia", exact: true }).click();
-        await expect(received).toHaveCount(0);
-        await expect(sheet.locator("#mobile-cash-change")).toHaveCount(0);
-        await expect(sheet.getByRole("button", { name: "Cobrar $35.00", exact: true })).toBeEnabled();
+        await expect(sheet.getByLabel("Efectivo recibido", { exact: true })).toHaveCount(0);
         await sheet.getByRole("button", { name: "Efectivo", exact: true }).click();
+        await openCashDialog(page);
         await expect(received).toHaveValue("");
         await received.fill("100");
+        await back.click();
+        await expect(sheet).toBeVisible();
         await closeSheet(page);
 
         await firstTicket.click();
         await openAccountSheet(page);
+        await openCashDialog(page);
         await expect(received).toHaveValue("");
         await chargeAccount(page, true, "$25.00");
         await secondTicket.click();
         await openAccountSheet(page);
+        await openCashDialog(page);
         await expect(received).toHaveValue("");
+        await back.click();
+        await expect(sheet).toBeVisible();
         await sheet.getByRole("button", { name: "Transferencia", exact: true }).click();
         await chargeAccount(page, true, "$35.00");
+        await expect(cashDialog).toHaveCount(0);
         await expect(secondTicket).toHaveCount(0);
     });
 
@@ -374,6 +431,11 @@ test.describe("pos", () => {
             test.skip(test.info().project.name !== "mobile", "Mobile-only fixed charging controls");
             test.setTimeout(120_000);
             await page.setViewportSize(viewport);
+            const capture = async (name: string) => {
+                const path = test.info().outputPath(`${name}.png`);
+                await page.screenshot({ path });
+                await test.info().attach(name, { path, contentType: "image/png" });
+            };
             const product = page.getByRole("button", { name: /Taco Pastor/ }).first();
             for (let i = 1; i <= 10; i++) {
                 await expect(product).toBeEnabled();
@@ -390,52 +452,71 @@ test.describe("pos", () => {
             expect(barBox).not.toBeNull();
             expect(navBox).not.toBeNull();
             expect(barBox!.y + barBox!.height).toBeLessThanOrEqual(navBox!.y);
-            const lastProduct = page.getByRole("button", { name: /Taco Pastor/ }).first();
-            const catalog = lastProduct.locator("..").locator("..");
-            // A card may be taller than the scroll area on a short screen.
-            // Check the clipping boundary and the last card at the scroll end.
+            const catalog = product.locator("..").locator("..");
             await catalog.evaluate(element => { element.scrollTop = element.scrollHeight; });
             const catalogBox = await catalog.boundingBox();
-            const productBox = await lastProduct.boundingBox();
+            const productBox = await product.boundingBox();
             expect(catalogBox!.y + catalogBox!.height).toBeLessThanOrEqual(barBox!.y);
             expect(productBox!.y + productBox!.height).toBeLessThanOrEqual(catalogBox!.y + catalogBox!.height);
-            await expect(lastProduct).toBeInViewport();
-            await expect(charge).toBeInViewport({ ratio: 1 });
-            await test.info().attach("catalog-and-fixed-charge", { body: await page.screenshot(), contentType: "image/png" });
+            await expect(product).toBeInViewport();
+            await capture("catalog-and-fixed-charge");
 
+            // The bottom bar still opens the summary, with no cash field.
             await charge.click();
-            const sheet = page.getByRole("dialog");
+            const sheet = page.getByRole("dialog", { name: /^Cuenta/ });
             const content = sheet.getByRole("region", { name: "Contenido de la cuenta" });
             const confirm = sheet.getByRole("button", { name: "Cobrar $250.00", exact: true });
             await expect(accountLines(page, true)).toHaveCount(10);
             await expect(confirm).toBeInViewport({ ratio: 1 });
+            await expect(confirm).toBeEnabled();
+            await expect(sheet.getByLabel("Efectivo recibido", { exact: true })).toHaveCount(0);
             await expect(content.getByText("Total", { exact: true })).toHaveCount(0);
             await expect(content.getByRole("button", { name: /^Cobrar \$/ })).toHaveCount(0);
-            const received = sheet.getByLabel("Efectivo recibido (opcional)");
-            await expect(received).toBeInViewport({ ratio: 1 });
-            await received.fill("250,05");
-            await expect(sheet.locator("#mobile-cash-change")).toHaveText("Cambio a entregar: $0.05");
+            await expect(content.getByRole("button", { name: "Efectivo", exact: true })).toBeInViewport({ ratio: 1 });
             await expect.poll(async () => {
                 const box = await confirm.boundingBox();
                 return box ? Math.round(box.y + box.height) : -1;
             }).toBe(viewport.height - 24);
             const confirmBox = await confirm.boundingBox();
             const contentBox = await content.boundingBox();
-            const receivedBox = await received.boundingBox();
+            const methodBox = await content.getByRole("button", { name: "Efectivo", exact: true }).boundingBox();
             const firstLineBox = await accountLines(page, true).first().boundingBox();
-            expect(receivedBox!.y + receivedBox!.height).toBeLessThanOrEqual(firstLineBox!.y);
             const footerBox = await confirm.locator("..").boundingBox();
+            expect(methodBox!.y + methodBox!.height).toBeLessThanOrEqual(firstLineBox!.y);
             expect(contentBox!.y + contentBox!.height).toBeLessThanOrEqual(footerBox!.y);
-            await test.info().attach("payment-and-fixed-confirmation", { body: await page.screenshot(), contentType: "image/png" });
+            await capture("account-summary");
 
             await content.getByRole("button", { name: "Salir de la cuenta", exact: true }).scrollIntoViewIfNeeded();
             await expect.poll(() => content.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
             await expect(confirm).toBeInViewport({ ratio: 1 });
             expect((await confirm.boundingBox())!.y).toBe(confirmBox!.y);
             await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-            await test.info().attach("long-account-scrolled", { body: await page.screenshot(), contentType: "image/png" });
-            await confirm.click();
-            await expect(sheet).toHaveCount(0, { timeout: 15_000 });
+            await capture("long-account-scrolled");
+
+            // Only the summary's charge button opens the separate cash dialog.
+            const cashDialog = await openCashDialog(page);
+            await expect(accountLines(page, true)).toHaveCount(0);
+            const received = cashDialog.getByLabel("Efectivo recibido", { exact: true });
+            const cashConfirm = cashDialog.getByRole("button", { name: "Cobrar $250.00", exact: true });
+            await expect(received).toBeInViewport({ ratio: 1 });
+            await expect(received).toHaveJSProperty("required", true);
+            await expect(cashConfirm).toBeInViewport({ ratio: 1 });
+            await expect(cashConfirm).toBeDisabled();
+            await received.fill("250.001");
+            await cashDialog.getByRole("alert").scrollIntoViewIfNeeded();
+            await expect(cashDialog.getByRole("alert")).toBeInViewport({ ratio: 1 });
+            await expect(cashConfirm).toBeInViewport({ ratio: 1 });
+            await expect(cashConfirm).toBeDisabled();
+            await capture("cash-dialog-invalid");
+            await received.fill("250,05");
+            await expect(cashDialog.locator("#mobile-cash-change")).toHaveText("Cambio a entregar: $0.05");
+            await expect(cashConfirm).toBeEnabled();
+            await expect(cashConfirm).toBeInViewport({ ratio: 1 });
+            await expect(cashDialog.getByRole("button", { name: "Volver a la cuenta", exact: true })).toBeInViewport({ ratio: 1 });
+            await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+            await capture("cash-dialog-valid");
+            await cashConfirm.click();
+            await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 15_000 });
         });
     }
 });
