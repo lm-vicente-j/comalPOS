@@ -6,9 +6,9 @@ import { test, expect, type Page } from "@playwright/test";
 //
 // The order list shows only the selected account: once the account is
 // charged the list goes back to empty, so a settled sale never keeps showing
-// its products as if it were still open. Taps are still awaited on the
-// account total rather than on a fixed delay so the revalidation can't drop
-// the next tap under the "one sale in flight" guard.
+// its products as if it were still open. Wait for the account total and
+// for the product buttons to finish their pending sale before the next tap;
+// the optimistic total can appear before the "one sale in flight" guard clears.
 //
 // The suite runs in both projects. The desktop POS keeps the open account in
 // the order table and charges every account kind from "Cerrar cuenta"; the
@@ -37,6 +37,8 @@ test.describe("pos", () => {
         } else {
             await expect(ticketChip(page, total.replace(".", "\\."))).toBeVisible({ timeout: 15_000 });
         }
+        await expect(page.getByRole("button", { name: /Taco Pastor|Quesadilla Grande/ })
+            .and(page.locator(":disabled"))).toHaveCount(0, { timeout: 15_000 });
     };
 
     const openAccountSheet = async (page: Page) => {
@@ -61,6 +63,10 @@ test.describe("pos", () => {
             await page.getByRole("button", { name: /Cerrar cuenta/ }).click();
             await expect(page.getByRole("dialog")).toContainText(total);
             await page.getByRole("button", { name: "Confirmar y Cerrar" }).click();
+            // The desktop dialog closes immediately; wait for the async
+            // settlement to clear the selection before choosing another ticket.
+            await expect(page.getByRole("button", { name: /Cerrar cuenta/ })).toBeDisabled({ timeout: 15_000 });
+            await expect(accountLines(page, false)).toHaveCount(0, { timeout: 15_000 });
         }
     };
 
@@ -252,4 +258,184 @@ test.describe("pos", () => {
             await expect(accountLines(page, false)).toHaveCount(0, { timeout: 15_000 });
         }
     });
+
+    test("mobile cash calculator accepts decimals, warns on invalid values and follows the total", async ({ page }) => {
+        test.skip(test.info().project.name !== "mobile", "Mobile-only cash calculator");
+        const product = page.getByRole("button", { name: /Taco Pastor/ }).first();
+        await product.click();
+        await expectTicketTotal(page, true, "25.00");
+        await openAccountSheet(page);
+
+        const sheet = page.getByRole("dialog");
+        const received = sheet.getByLabel("Efectivo recibido (opcional)");
+        const change = sheet.locator("#mobile-cash-change");
+        await expect(received).toHaveAttribute("inputmode", "decimal");
+        await expect(received).toHaveValue("");
+        for (const [value, result] of [
+            ["", "Cambio a entregar: —"],
+            ["25", "Cambio a entregar: $0.00"],
+            ["30", "Cambio a entregar: $5.00"],
+            ["24", "Faltan $1.00"],
+            ["25.05", "Cambio a entregar: $0.05"],
+            ["25,05", "Cambio a entregar: $0.05"],
+            ["25.1", "Cambio a entregar: $0.10"],
+            ["25,1", "Cambio a entregar: $0.10"],
+            ["0", "Faltan $25.00"],
+            [".50", "Faltan $24.50"],
+            [" ,50 ", "Faltan $24.50"],
+        ]) {
+            await received.fill(value);
+            await expect(change).toHaveText(result);
+            await expect(received).toHaveAttribute("aria-invalid", "false");
+            await expect(sheet.getByRole("alert")).toHaveCount(0);
+            await expect(sheet.getByRole("button", { name: /^Cobrar \$/ })).toBeEnabled();
+        }
+
+        for (const value of ["abc", "-1", "25.001", "25,001", "25,0.1", "1e3", "Infinity", "90071992547409.92"]) {
+            await received.fill(value);
+            await expect(received).toHaveAttribute("aria-invalid", "true");
+            await expect(sheet.getByRole("alert")).toContainText("hasta dos decimales");
+            await expect(change).toHaveText("Cambio a entregar: —");
+            await expect(sheet.getByRole("button", { name: /^Cobrar \$/ })).toBeEnabled();
+        }
+
+        await received.fill("50.05");
+        await sheet.getByRole("button", { name: "Aumentar cantidad" }).click();
+        await expect(sheet.getByRole("button", { name: "Cobrar $50.00", exact: true })).toBeVisible();
+        await expect(change).toHaveText("Cambio a entregar: $0.05");
+        await received.fill("inválido");
+        await chargeAccount(page, true, "$50.00");
+
+        await expect(product).toBeEnabled();
+        await product.click();
+        await expectTicketTotal(page, true, "25.00");
+        await openAccountSheet(page);
+        await expect(received).toHaveValue("");
+        await expect(change).toHaveText("Cambio a entregar: —");
+        await chargeAccount(page, true, "$25.00");
+    });
+
+    for (const [value, result] of [["", "Cambio a entregar: —"], ["1", "Faltan $24.00"]]) {
+        test(`mobile cash remains informational when received is ${value === "" ? "empty" : "insufficient"}`, async ({ page }) => {
+            test.skip(test.info().project.name !== "mobile", "Mobile-only cash calculator");
+            await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
+            await expectTicketTotal(page, true, "25.00");
+            await openAccountSheet(page);
+            const sheet = page.getByRole("dialog");
+            await sheet.getByLabel("Efectivo recibido (opcional)").fill(value);
+            await expect(sheet.locator("#mobile-cash-change")).toHaveText(result);
+            await chargeAccount(page, true, "$25.00");
+            await expect(page.getByRole("button", { name: "Ver resumen de jornada" })).toBeVisible();
+        });
+    }
+
+    test("mobile cash resets on account and payment changes and hides for transfers", async ({ page }) => {
+        test.skip(test.info().project.name !== "mobile", "Mobile-only cash calculator");
+        await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
+        await expectTicketTotal(page, true, "25.00");
+        const firstTicket = ticketChip(page, "25\\.00");
+        await openAccountSheet(page);
+        const sheet = page.getByRole("dialog");
+        const received = sheet.getByLabel("Efectivo recibido (opcional)");
+        await received.fill("50");
+        await closeSheet(page);
+
+        await page.getByRole("button", { name: "Nuevo", exact: true }).click();
+        await expect(ticketChip(page, "0\\.00")).toBeVisible();
+        await page.getByRole("button", { name: /Quesadilla Grande/ }).first().click();
+        await expectTicketTotal(page, true, "35.00");
+        const secondTicket = ticketChip(page, "35\\.00");
+        await openAccountSheet(page);
+        await expect(received).toHaveValue("");
+        await received.fill("100");
+        await sheet.getByRole("button", { name: "Transferencia", exact: true }).click();
+        await expect(received).toHaveCount(0);
+        await expect(sheet.locator("#mobile-cash-change")).toHaveCount(0);
+        await expect(sheet.getByRole("button", { name: "Cobrar $35.00", exact: true })).toBeEnabled();
+        await sheet.getByRole("button", { name: "Efectivo", exact: true }).click();
+        await expect(received).toHaveValue("");
+        await received.fill("100");
+        await closeSheet(page);
+
+        await firstTicket.click();
+        await openAccountSheet(page);
+        await expect(received).toHaveValue("");
+        await chargeAccount(page, true, "$25.00");
+        await secondTicket.click();
+        await openAccountSheet(page);
+        await expect(received).toHaveValue("");
+        await sheet.getByRole("button", { name: "Transferencia", exact: true }).click();
+        await chargeAccount(page, true, "$35.00");
+        await expect(secondTicket).toHaveCount(0);
+    });
+
+    for (const viewport of [{ width: 320, height: 480 }, { width: 360, height: 640 }]) {
+        test(`mobile charging stays visible with a long account at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+            test.skip(test.info().project.name !== "mobile", "Mobile-only fixed charging controls");
+            test.setTimeout(120_000);
+            await page.setViewportSize(viewport);
+            const product = page.getByRole("button", { name: /Taco Pastor/ }).first();
+            for (let i = 1; i <= 10; i++) {
+                await expect(product).toBeEnabled();
+                await product.click();
+                await expectTicketTotal(page, true, (i * 25).toFixed(2));
+            }
+
+            const openAccount = page.getByRole("button", { name: "Abrir cuenta" });
+            const charge = page.getByRole("button", { name: "Cobrar", exact: true });
+            const nav = page.getByRole("navigation").filter({ has: page.getByRole("link", { name: "POS", exact: true }) });
+            await expect(charge).toBeInViewport({ ratio: 1 });
+            const barBox = await openAccount.locator("..").locator("..").boundingBox();
+            const navBox = await nav.boundingBox();
+            expect(barBox).not.toBeNull();
+            expect(navBox).not.toBeNull();
+            expect(barBox!.y + barBox!.height).toBeLessThanOrEqual(navBox!.y);
+            const lastProduct = page.getByRole("button", { name: /Taco Pastor/ }).first();
+            const catalog = lastProduct.locator("..").locator("..");
+            // A card may be taller than the scroll area on a short screen.
+            // Check the clipping boundary and the last card at the scroll end.
+            await catalog.evaluate(element => { element.scrollTop = element.scrollHeight; });
+            const catalogBox = await catalog.boundingBox();
+            const productBox = await lastProduct.boundingBox();
+            expect(catalogBox!.y + catalogBox!.height).toBeLessThanOrEqual(barBox!.y);
+            expect(productBox!.y + productBox!.height).toBeLessThanOrEqual(catalogBox!.y + catalogBox!.height);
+            await expect(lastProduct).toBeInViewport();
+            await expect(charge).toBeInViewport({ ratio: 1 });
+            await test.info().attach("catalog-and-fixed-charge", { body: await page.screenshot(), contentType: "image/png" });
+
+            await charge.click();
+            const sheet = page.getByRole("dialog");
+            const content = sheet.getByRole("region", { name: "Contenido de la cuenta" });
+            const confirm = sheet.getByRole("button", { name: "Cobrar $250.00", exact: true });
+            await expect(accountLines(page, true)).toHaveCount(10);
+            await expect(confirm).toBeInViewport({ ratio: 1 });
+            await expect(content.getByText("Total", { exact: true })).toHaveCount(0);
+            await expect(content.getByRole("button", { name: /^Cobrar \$/ })).toHaveCount(0);
+            const received = sheet.getByLabel("Efectivo recibido (opcional)");
+            await expect(received).toBeInViewport({ ratio: 1 });
+            await received.fill("250,05");
+            await expect(sheet.locator("#mobile-cash-change")).toHaveText("Cambio a entregar: $0.05");
+            await expect.poll(async () => {
+                const box = await confirm.boundingBox();
+                return box ? Math.round(box.y + box.height) : -1;
+            }).toBe(viewport.height - 24);
+            const confirmBox = await confirm.boundingBox();
+            const contentBox = await content.boundingBox();
+            const receivedBox = await received.boundingBox();
+            const firstLineBox = await accountLines(page, true).first().boundingBox();
+            expect(receivedBox!.y + receivedBox!.height).toBeLessThanOrEqual(firstLineBox!.y);
+            const footerBox = await confirm.locator("..").boundingBox();
+            expect(contentBox!.y + contentBox!.height).toBeLessThanOrEqual(footerBox!.y);
+            await test.info().attach("payment-and-fixed-confirmation", { body: await page.screenshot(), contentType: "image/png" });
+
+            await content.getByRole("button", { name: "Salir de la cuenta", exact: true }).scrollIntoViewIfNeeded();
+            await expect.poll(() => content.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+            await expect(confirm).toBeInViewport({ ratio: 1 });
+            expect((await confirm.boundingBox())!.y).toBe(confirmBox!.y);
+            await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+            await test.info().attach("long-account-scrolled", { body: await page.screenshot(), contentType: "image/png" });
+            await confirm.click();
+            await expect(sheet).toHaveCount(0, { timeout: 15_000 });
+        });
+    }
 });
