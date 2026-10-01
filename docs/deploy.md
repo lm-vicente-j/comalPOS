@@ -1,40 +1,61 @@
-# Deploy
+# Deployment
 
-The app is built for **Vercel** (serverless). There is no Docker setup in
-this repository.
+The repository targets a Vercel-style serverless Next.js deployment. No Docker
+setup or deployment CI workflow is checked in. For a local instance, follow
+[Getting started](getting-started.md).
 
-## Build
-
-`npm run build` is:
+## Install and build
 
 ```bash
-npx prisma migrate deploy && next build
+npm ci
+npm run build
+npm start
 ```
 
-`postinstall` runs `prisma generate`. If `DIRECT_URL` is missing or points
-at the transaction pooler, the migrate step fails and the build stops.
+`npm ci` runs `prisma generate` through `postinstall`.
+The build script is `npx prisma migrate deploy && next build`.
+`npm start` serves the completed production build when self-hosting; Vercel
+manages its runtime separately.
 
-## Environment variables
+Build therefore needs a reachable migration database and can change its schema.
+It does not run the demo seed. If migrations fail, the application build stops.
 
-Set all three on the Vercel project (and any preview env that runs
-`build`):
+## Environment
 
-| Variable | Value |
+| Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | Transaction pooler (Supabase port `6543`, `?sslmode=require`) |
-| `DIRECT_URL` | Session pooler (Supabase port `5432`) |
-| `AUTH_SECRET` | Unique secret (`npx auth secret`) |
+| `DATABASE_URL` | Runtime Prisma/pg connection |
+| `DIRECT_URL` | Session/direct connection for migrations; CLI falls back to DATABASE_URL if unset |
+| `AUTH_SECRET` | Unique secret for JWT session encryption |
+| `AUTH_TRUST_HOST` | Configure when required by the hosting/proxy setup |
 
-Why the two database URLs cannot be swapped:
-[database.md](database.md).
+For the project's Supabase pattern, runtime uses the transaction pooler
+(typically 6543), migrations use the session/direct connection (typically 5432).
+Use the actual values supplied by the target project rather than treating these
+ports as universal. Background: [Database](database.md).
 
-Optional: `AUTH_TRUST_HOST=true` if Auth.js warns about the host behind
-the Vercel proxy (already set for the Playwright server).
+Set the appropriate environment for production and each preview. A preview build
+also runs migrations against its configured connection; isolate the intended
+database. Use a Node version inside the locked dependency engine ranges.
 
-## After deploy
+## Operational behavior
 
-- Run `prisma migrate deploy` only happens during `build`. Do not rely on
-  a separate migrate job unless you change the build command.
-- Seed is **not** part of production build. Demo users from
-  `prisma/seed.ts` must not be used in production.
-- Device settings stay in each terminal’s browser; they do not sync.
+- Server Actions and Auth.js run within the application, using a four-connection
+  pool per instance. Include capacity for multiple runtime instances.
+- Shared changes reach other visible terminals through 10-second polling, not a
+  WebSocket subscription. See [Architecture](../ARCHITECTURE.md).
+- Business CLABE lives in the database; terminal labels remain in each browser.
+- Authenticated ADMIN CSV/print reports query current data when requested.
+- General bank reconciliation, scheduled jornada close and external receipt
+  printing are not implemented.
+
+## Verification after deployment
+
+Verify login for both roles, ADMIN-only access, an open jornada's POS/expense
+flow, transfer CLABE, inventory updates and report export on the intended
+environment. Confirm migrations applied to the target database and no demo seed
+was run. Use real deployment credentials; the demo seed and e2e users are local
+test data.
+
+Expected-cash and reporting limitations are in
+[Business rules](business-rules.md); they still apply in production.

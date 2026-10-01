@@ -1,73 +1,95 @@
 # Technical notes
 
-Conventions for changing this codebase. For the system shape, read
-[ARCHITECTURE.md](ARCHITECTURE.md) first.
+Read [Architecture](ARCHITECTURE.md) for boundaries,
+[Business rules](docs/business-rules.md) for behavior, and
+[Action reference](docs/actions.md) for existing function contracts before
+changing a feature.
 
-## Adding a feature
+## Working in this repository
 
-Do this in order. Skip a step if it does not apply.
+1. Install the locked dependencies with `npm ci` and generate Prisma through
+   `postinstall`. Use the environment instructions in
+   [Getting started](docs/getting-started.md).
+2. Find the module's page, manager component and action file in
+   [Modules](docs/modules.md).
+3. Keep a change within the requested scope. Preserve existing names,
+   dependencies, folder structure and technologies unless a requirement needs
+   an explicit change.
+4. For a schema change, edit `prisma/schema.prisma` and create a migration using
+   `npx prisma migrate dev` against the development database. Commit the migration.
+5. Use existing `lib/actions/` Server Actions for domain operations. Validate the
+   actual input at the action boundary and derive attribution from `auth()`.
+6. Match the action's permission check to the operation. Putting a page under
+   `/admin` or hiding a navigation link does not itself authorize a server write.
+7. Update relevant desktop/mobile views and navigation only when required.
+   Route access is defined in `lib/permissions.ts`.
+8. Run relevant checks from [Testing](docs/testing.md), then update the
+   documentation and `CHANGELOG.md`.
 
-1. **Schema** — add or change models in `prisma/schema.prisma`, then
-   `npx prisma migrate dev`.
-2. **Zod** — put shared shapes in `lib/actions/schemas.ts`. Keep form and
-   action validation on the same schema when you can.
-3. **Server Action** — new file under `lib/actions/`. Mark it
-   `"use server"`. Call `auth()` and reject missing sessions. Do not add a
-   REST route for business logic.
-4. **Page** — `app/(dashboard)/.../page.tsx`. Admin-only screens go under
-   `app/(dashboard)/admin/`.
-5. **Nav** — add the href to `components/layout/sidebar.tsx` and
-   `components/layout/mobile-nav.tsx`.
-6. **ACL** — if the path is new and not already covered by `/admin`, add a
-   rule in `lib/permissions.ts`. That module is bundled into middleware:
-   **no Prisma, no Node APIs**.
-7. **Tests** — a Vitest spec for the action, and a Playwright spec if the
-   UI flow matters. See [docs/testing.md](docs/testing.md).
+## Contracts that affect implementation
 
-## Server Actions
+- Shared Zod schemas are in `lib/actions/schemas.ts`. Some actions use a subset
+  with `pick`/`omit`, while sales/debt actions do not validate all arguments with
+  those schemas. A TypeScript signature is not runtime validation.
+- Return contracts vary: `success/error`, `success/message`, `msg`, arrays and
+  paginated objects all exist. Use the documented contract of the specific action.
+  Do not silently convert a query failure into an empty analytics result.
+- Writes generally call `revalidatePath`. Client refreshes are supported by
+  `AutoRefresh` and `usePolling`; `trackAction` pauses only layout refresh for
+  wrapped promises.
+- Serialize Prisma Decimal values and dates before passing data across a client
+  boundary. Analytics aggregate with Decimal; older sales/cash calculations
+  also use JavaScript numbers. See [Database](docs/database.md).
+- Build applies migrations. Use a dedicated database before running it.
+- Keep the provider/database dependencies out of `app/auth.config.ts` and
+  `lib/permissions.ts`. The shared request configuration currently imports neither
+  Prisma nor bcrypt.
 
-- Every mutating action must check the session. Attribution (who placed a
-  sale, who registered an expense) comes from the session, not from the
-  client body.
-- Return structured errors the UI already understands (for example
-  `NO_OPEN_JORNADA`). Do not throw raw Prisma errors to the client.
-- Revalidate the paths the UI reads after a write.
+## Account identifiers
 
-## Settings
+Build and read `sales.source_type` through `lib/pos-source.ts`:
 
-Two stores, on purpose:
-
-- **Business** — `setting` table, `lib/actions/settings.ts`. Shared by every
-  terminal. Today the only key is `CLABE` (18-digit transfer account). Add a
-  new key without a migration.
-- **Device** — `lib/device-settings.ts` (Zustand + `localStorage`). Terminal
-  name and anything that is per-browser. Never write these to the server.
-
-## POS accounts
-
-`sales.source_type` prefixes are defined only in `lib/pos-source.ts`:
-
-| Prefix | Meaning |
+| Value | Meaning |
 | --- | --- |
-| `MESA_<n>` | Table n |
-| `CL- <name>` | Registered customer |
+| `MESA_<n>` | Table account |
+| `CL- <name>` | Registered customer account |
 | `VL-<n>` | Open walk-in ticket |
 | `VENTA_LIBRE` | Settled walk-in sale |
 
-Open accounts stay `UNPAID` until **Cerrar cuenta**. Walk-in tickets become
-`VENTA_LIBRE` when paid so the ticket number can be reused. Details:
-[docs/modules.md](docs/modules.md).
+A product tap creates a sale record, not a complete customer visit. Closing one
+account can pay multiple records. Do not use the number of sale records as the
+number of tickets or visits. Detailed transitions and known limits are in
+[Business rules](docs/business-rules.md).
 
-## UI
+## Settings and UI
 
-- React 19, Tailwind 4, shadcn/Radix (`components/ui/`).
-- Desktop sidebar is `lg:` and up; mobile uses the bottom sheet.
-- Copy in the product UI stays Spanish.
+Business settings belong to `setting` and `lib/actions/settings.ts`; currently
+only `CLABE` is supported. Per-device names use `lib/device-settings.ts` and
+`localStorage`. Keep product copy in Spanish. Desktop navigation appears at
+`lg` and above; mobile navigation uses the bottom menu.
 
-## What not to do
+## Keeping documentation current
 
-- Do not introduce a REST API for domain operations.
-- Do not import Prisma into `lib/permissions.ts` or `app/auth.config.ts`.
-- Do not use the transaction pooler URL for migrations, or the session URL
-  as the serverless runtime URL. See [docs/database.md](docs/database.md).
-- Do not treat Statistics, Reports, or Optimiza as implemented features.
+| Change | Documentation to review |
+| --- | --- |
+| Route, screen or navigation | `docs/modules.md` |
+| Validation, payment, stock, cash or other domain rule | `docs/business-rules.md` |
+| Exported action/helper, signature, permission or result | `docs/actions.md` |
+| Model, enum, relation or connection handling | `docs/database.md` |
+| Login, session or ACL | `docs/auth.md` and `docs/middleware.md` |
+| Runtime boundary, transaction or client state | `ARCHITECTURE.md` |
+| Environment, script, seed or onboarding | `README.md` and `docs/getting-started.md` |
+| Test runner or platform assumptions | `docs/testing.md` |
+| Build or deployment | `docs/deploy.md` |
+| Notable change | `CHANGELOG.md` under `Unreleased` |
+
+Document the actual checks in the action separately from UI controls. Link to
+the source file and describe known gaps without representing a planned behavior
+as implemented. Validate local Markdown links and code paths, check
+`git diff --check`, and read the setup steps as a new developer would.
+
+The changelog follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
+Group changes under the relevant standard category and keep newest entries first.
+There are no release tags; dated history entries are development checkpoints,
+not SemVer releases. Do not invent a release date or imply that `package.json`
+version `0.1.0` identifies a published release.

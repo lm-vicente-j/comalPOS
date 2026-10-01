@@ -1,8 +1,8 @@
-# Middleware (proxy)
+# Request interception (proxy)
 
-The Edge intercept file is [`proxy.ts`](../proxy.ts), not `middleware.ts`.
-Next.js 16 renamed that entry point. Do not add a `middleware.ts` — it
-will not run.
+The repository uses [`proxy.ts`](../proxy.ts) as its Next.js 16 request entry
+point. It wraps Auth.js with the shared
+[`app/auth.config.ts`](../app/auth.config.ts).
 
 ```ts
 export default NextAuth(authConfig).auth;
@@ -12,88 +12,57 @@ export const config = {
 };
 ```
 
-The export is Auth.js’s wrapper around [`app/auth.config.ts`](../app/auth.config.ts).
-Providers stay in [`lib/auth.ts`](../lib/auth.ts); the proxy config uses
-`providers: []` so the Edge bundle does not pull Prisma or bcrypt.
-
 ## Matcher
 
-The proxy runs on every path **except**:
+The matcher excludes paths beginning with `api`, `_next/static`, `_next/image`
+or `icon.svg`. In particular `/api/auth` remains reachable by the authentication
+handlers. Other matching paths run the authorized callback.
 
-- `api` — so [`app/api/auth/route.ts`](../app/api/auth/route.ts) (`GET` /
-  `POST` handlers) stays reachable
-- `_next/static`, `_next/image`
-- `icon.svg`
+The shared config has `providers: []`. The credentials provider, Prisma and
+bcrypt stay in `lib/auth.ts` rather than the request-interception configuration.
+This separation is about imports and responsibilities; it does not describe an
+additional domain API.
 
-A guest hitting `/pos` is sent to `/login`. A guest hitting `/api/auth/*`
-is not intercepted here.
-
-## `authorized` flow
-
-Callback in `auth.config.ts`. Redirects to `/pos` are safe: every role
-can open that route, so the check cannot loop.
+## Authorized callback
 
 ```mermaid
 flowchart TD
-  request[Matched request]
-  login{"pathname is /login?"}
-  hasSession{"session present?"}
-  canAccess{"canAccessRoute role pathname?"}
-  allow[Allow]
-  toLogin[Deny: Auth.js sends /login]
-  toPos[Redirect /pos]
-  request --> login
-  login -->|yes| hasSession
-  hasSession -->|yes| toPos
-  hasSession -->|no| allow
-  login -->|no| hasSession
-  hasSession -->|no guest| toLogin
-  hasSession -->|yes| canAccess
-  canAccess -->|no| toPos
-  canAccess -->|yes| allow
+    R[Matched request] --> L{Path is /login?}
+    L -->|Yes| S{Session present?}
+    S -->|Yes| P[Redirect /pos]
+    S -->|No| A[Allow login]
+    L -->|No| H{Session present?}
+    H -->|No| N[Deny: Auth.js sign-in page /login]
+    H -->|Yes| C{Role can access route?}
+    C -->|No| P
+    C -->|Yes| O[Allow request]
 ```
 
-1. `/login` + session → redirect `/pos`. `/login` + guest → allow.
-2. Any other matched path + guest → deny (Auth.js uses `pages.signIn`:
-   `/login`).
-3. Session + `canAccessRoute` fails → redirect `/pos`.
-4. Otherwise allow.
+1. Guest on `/login`: allow.
+2. Signed-in user on `/login`: redirect to `/pos`.
+3. Guest on another matched path: return false; the sign-in page is `/login`.
+4. Signed-in user denied by `canAccessRoute`: redirect to `/pos`.
+5. Otherwise allow.
 
-`jwt` and `session` callbacks copy `id` (`token.sub`) and a normalized
-role onto the session. See [auth.md](auth.md) for login and token lifetime.
+Both roles can open `/pos`, so the denied-role redirect has a permitted target.
+The JWT/session callbacks carry user ID and role; details are in
+[Authentication](auth.md).
 
-## ACL
+## ACL and Server Actions
 
-[`lib/permissions.ts`](../lib/permissions.ts) is the single route ACL.
-The sidebar and mobile nav use the same module so hidden links match
-server enforcement.
+`ROUTE_PERMISSIONS` uses whole-segment prefixes, first rule wins, and unmatched
+authenticated paths are permitted. Navigation uses the same ACL, but function
+permissions remain independent.
 
-Rules are first-prefix-wins:
+Do not assume the proxy always skips action POST requests: its matcher is based
+on request paths. A route-level check does not validate which domain function is
+being called or its arguments. Every action must check its own session/role and
+business rules. See [Action reference](actions.md).
 
-| Prefix | Roles |
-| --- | --- |
-| `/admin` | ADMIN |
-| `/pos` | ADMIN, STAFF |
-| `/expenses` | ADMIN, STAFF |
-| `/debtors` | ADMIN, STAFF |
+## When changing routes
 
-An authenticated path that matches no prefix is allowed. The proxy still
-requires a session.
-
-This file is bundled into the Edge proxy: **no Prisma, no Node APIs**.
-
-## What it does not cover
-
-Server Actions are not page navigations. The proxy does not run on the
-action POST the way it does on `/pos`. Every action must call `auth()`
-itself ([TECHNICAL.md](../TECHNICAL.md)). Do not treat the proxy as
-protection for mutations.
-
-## Extending
-
-- New **admin** page under `/admin/...` — already covered by the `/admin`
-  prefix. Add nav only.
-- New **staff-visible** route (not under `/admin`) — add a
-  `ROUTE_PERMISSIONS` entry, then the nav links.
-- Do not import Prisma or Node APIs into `proxy.ts`, `auth.config.ts`, or
-  `permissions.ts`.
+An existing `/admin/...` page is covered by the ADMIN rule. New operational paths
+should have the intended ACL entry and corresponding navigation updates.
+Keep shared ACL/config imports independent of Prisma, bcrypt and provider
+database work. The checked-in interception file is `proxy.ts`; preserve that
+entry point when working on this application.
