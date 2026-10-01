@@ -132,6 +132,71 @@ test.describe("debtors", () => {
         });
     }
 
+
+    for (const scenario of [
+        { width: 320, height: 480, clabe: "123456789012345678" },
+        { width: 1280, height: 800, clabe: "123456789012345678" },
+        { width: 360, height: 640, clabe: "" },
+    ]) {
+        test("requires received-transfer confirmation at " + scenario.width + "x" + scenario.height, async ({ page }) => {
+            test.setTimeout(120_000);
+            const pool = new Pool({ connectionString: E2E_DATABASE_URL });
+            const previous = (await pool.query<{ value: string | null }>("SELECT value FROM setting WHERE key = $1", ["CLABE"])).rows[0];
+            const debts: DebtFixture[] = [];
+            const payments: Request[] = [];
+            page.on("request", request => {
+                if (request.method() === "POST" && request.headers()["next-action"] && request.postData()?.includes('"TRANSFER"')) payments.push(request);
+            });
+            try {
+                await pool.query('INSERT INTO setting (key, value, "updatedAt") VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', ["CLABE", scenario.clabe]);
+                const debt = await createDebt(pool, "Deudor transferencia " + scenario.width, "478.35");
+                debts.push(debt);
+                await page.setViewportSize({ width: scenario.width, height: scenario.height });
+                await page.goto("/debtors");
+                const summary = await openSummary(page, debt.name);
+                await summary.getByRole("combobox", { name: "Método de pago", exact: true }).click();
+                await page.getByRole("option", { name: "Transferencia", exact: true }).click();
+                const start = summary.getByRole("button", { name: "Registrar Cobro", exact: true });
+                await start.click();
+                const transfer = page.getByRole("dialog", { name: "Confirmar transferencia recibida", exact: true });
+                const confirm = transfer.getByRole("button", { name: "Confirmar transferencia recibida", exact: true });
+                await expect(transfer).toBeVisible();
+                if (scenario.clabe) await expect(transfer.getByLabel("CLABE de transferencia", { exact: true })).toHaveText("1234 5678 9012 3456 78");
+                else await expect(transfer.getByRole("status")).toHaveText("No hay una CLABE configurada.");
+                await expect(transfer).toContainText(debt.name);
+                await expect(transfer).toContainText("$478.35");
+                await expect(confirm).toBeEnabled();
+                await expect(confirm).toBeInViewport({ ratio: 1 });
+                await expect(transfer.getByRole("button", { name: "Cancelar", exact: true })).toBeInViewport({ ratio: 1 });
+                await expect(page.getByLabel("Efectivo recibido", { exact: true })).toHaveCount(0);
+                expect(payments).toHaveLength(0);
+                expect((await pool.query<{ status: string }>("SELECT status FROM sales WHERE id = $1", [debt.saleId])).rows[0].status).toBe("DEBT");
+                const screenshot = test.info().outputPath("debt-transfer.png");
+                await page.screenshot({ path: screenshot, animations: "disabled" });
+                await test.info().attach("debt-transfer", { path: screenshot, contentType: "image/png" });
+                await transfer.getByRole("button", { name: "Cancelar", exact: true }).click();
+                await expect(summary).toBeVisible();
+                expect(payments).toHaveLength(0);
+                expect((await pool.query<{ status: string }>("SELECT status FROM sales WHERE id = $1", [debt.saleId])).rows[0].status).toBe("DEBT");
+                await start.click();
+                await confirm.click();
+                await expect(transfer).toHaveCount(0, { timeout: 30_000 });
+                await expect(page.getByRole("menu")).toHaveCount(0);
+                await expect(page.getByText(debt.name, { exact: true })).toHaveCount(0);
+                expect(payments).toHaveLength(1);
+                expect(payments[0].postData()).not.toContain("clabe");
+                const paid = (await pool.query<{ status: string; payment_method: string; debtStatus: string }>('SELECT s.status, s.payment_method, d.status AS "debtStatus" FROM sales s JOIN debtors d ON d."saleID" = s.id WHERE s.id = $1', [debt.saleId])).rows[0];
+                expect(paid.status).toBe("PAID");
+                expect(paid.debtStatus).toBe("PAID");
+                expect(paid.payment_method).toBe("TRANSFER");
+            } finally {
+                if (previous) await pool.query("UPDATE setting SET value = $1 WHERE key = $2", [previous.value, "CLABE"]);
+                else await pool.query("DELETE FROM setting WHERE key = $1", ["CLABE"]);
+                await cleanup(pool, debts);
+            }
+        });
+    }
+
     test("clears received cash on method and account changes and transfers without the cash step", async ({ page }) => {
         test.setTimeout(120_000);
         const pool = new Pool({ connectionString: E2E_DATABASE_URL });
@@ -170,6 +235,10 @@ test.describe("debtors", () => {
             await page.getByRole("option", { name: "Transferencia", exact: true }).click();
             await expect(summary.getByLabel("Efectivo recibido", { exact: true })).toHaveCount(0);
             await summary.getByRole("button", { name: "Registrar Cobro", exact: true }).click();
+            const transfer = page.getByRole("dialog", { name: "Confirmar transferencia recibida", exact: true });
+            await expect(transfer).toBeVisible();
+            await transfer.getByRole("button", { name: "Confirmar transferencia recibida", exact: true }).click();
+            await expect(transfer).toHaveCount(0, { timeout: 15_000 });
             await expect(summary).toHaveCount(0, { timeout: 15_000 });
             await expect(cash).toHaveCount(0);
             const statuses = (await pool.query<{ id: number; status: string; payment_method: string | null }>(

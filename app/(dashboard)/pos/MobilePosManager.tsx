@@ -6,6 +6,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import TransferConfirmationDialog from "@/components/Transfer-confirmation-dialog";
 import { cn } from "@/lib/utils";
 import {
     Command,
@@ -125,6 +126,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     const [closeMethod, setCloseMethod] = useState<"CASH" | "TRANSFER">("CASH");
     const [cashReceived, setCashReceived] = useState("");
     const [cashDialogOpen, setCashDialogOpen] = useState(false);
+    const [transferDialogOpen, setTransferDialogOpen] = useState(false);
     const [settling, setSettling] = useState(false);
     const [debtConfirm, setDebtConfirm] = useState(false);
 
@@ -263,6 +265,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
         setDebtConfirm(false);
         setCashReceived("");
         setCashDialogOpen(false);
+        setTransferDialogOpen(false);
     };
 
     // Tapping the selected chip again leaves the account without settling
@@ -360,8 +363,9 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     };
 
     const handleCloseAccount = async () => {
-        if (!activeSource || settling || accountLines.length === 0) return;
-        if (closeMethod === "CASH" && (changeCents === null || changeCents < 0)) return;
+        if (!activeSource || settling || accountLines.length === 0) return false;
+        if (closeMethod === "CASH" && (changeCents === null || changeCents < 0)) return false;
+        if (closeMethod === "TRANSFER" && !transferDialogOpen) return false;
         setSettling(true);
         try {
             const result = await trackAction(closeAccountAction(activeSource, closeMethod));
@@ -371,9 +375,10 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                 // revalidates "/pos", no extra refresh needed.
                 resetToFreeSaleView();
                 setCloseMethod("CASH");
-            } else {
+            } else if (closeMethod === "CASH") {
                 alert("No se pudo cerrar la cuenta. Intenta de nuevo.");
             }
+            return result.success;
         } finally {
             setSettling(false);
         }
@@ -651,7 +656,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
             {/* Account sheet: the open account's lines with quantity controls,
                 the payment method and the charge button. Same bottom-sheet
                 idiom as the mobile nav menu. */}
-            {!cashDialogOpen && (
+            {!cashDialogOpen && !transferDialogOpen && (
                 <DialogPrimitive.Root open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open) setDebtConfirm(false); }}>
                     <DialogPrimitive.Portal>
                         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
@@ -814,7 +819,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                 </div>
 
                                 <Button
-                                    onClick={() => { if (closeMethod === "CASH") setCashDialogOpen(true); else void handleCloseAccount(); }}
+                                    onClick={() => { if (closeMethod === "CASH") setCashDialogOpen(true); else setTransferDialogOpen(true); }}
                                     disabled={accountLines.length === 0 || settling}
                                     className="h-12 w-full cursor-pointer text-base font-bold"
                                 >
@@ -920,6 +925,15 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                         </DialogPrimitive.Content>
                     </DialogPrimitive.Portal>
                 </DialogPrimitive.Root>
+            )}
+
+            {transferDialogOpen && (
+                <TransferConfirmationDialog
+                    accountLabel={accountLabel}
+                    total={accountTotal}
+                    onCancel={() => setTransferDialogOpen(false)}
+                    onConfirm={handleCloseAccount}
+                />
             )}
 
             {/* Jornada sheet: the cash summary the desktop banner hides on
