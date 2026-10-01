@@ -21,7 +21,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { User, Customer } from "@/lib/actions/schemas";
 import { saveCustomer } from "@/lib/actions/customers";
 import { saveUser } from "@/lib/actions/users";
-import { PlusIcon, Edit2Icon } from "lucide-react";
+import { PlusIcon, Edit2Icon, ListFilter } from "lucide-react";
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 import { PasswordField } from "./crm-manager";
 
 export default function MobileCRMManager({ customers, staff }: { customers: Customer[], staff: User[] }) {
@@ -30,6 +34,7 @@ export default function MobileCRMManager({ customers, staff }: { customers: Cust
     const [currentItem, setCurrentItem] = useState<any>(null);
     const [pin, setPin] = useState("");
     const [customerSearch, setCustomerSearch] = useState("");
+    const [customerOrder, setCustomerOrder] = useState<"recent" | "name">("recent");
     const [staffSearch, setStaffSearch] = useState("");
 
     const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -131,7 +136,15 @@ export default function MobileCRMManager({ customers, staff }: { customers: Cust
 
     const filteredCustomers = customers.filter(c =>
         (c.customerName || "").toLowerCase().includes(customerSearch.toLowerCase())
-    );
+    ).sort((a, b) => {
+        if (customerOrder === "name") {
+            return (a.customerName || "").localeCompare(b.customerName || "", "es", { sensitivity: "base" }) || a.id - b.id;
+        }
+        if (!a.registeredDate && b.registeredDate) return 1;
+        if (a.registeredDate && !b.registeredDate) return -1;
+        const dateDifference = new Date(b.registeredDate || 0).getTime() - new Date(a.registeredDate || 0).getTime();
+        return dateDifference || b.id - a.id;
+    });
     const filteredStaff = staff.filter(s =>
         (s.name || "").toLowerCase().includes(staffSearch.toLowerCase())
     );
@@ -148,10 +161,24 @@ export default function MobileCRMManager({ customers, staff }: { customers: Cust
 
                 <TabsContent value="customers" className="flex flex-col min-h-0 space-y-3">
                     <div className="flex gap-2 items-center pt-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon" className="shrink-0" aria-label="Ordenar clientes">
+                                    <ListFilter className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                                <DropdownMenuRadioGroup value={customerOrder} onValueChange={(value) => setCustomerOrder(value as "recent" | "name")}>
+                                    <DropdownMenuRadioItem value="recent">Más recientes</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="name">Nombre A–Z</DropdownMenuRadioItem>
+                                </DropdownMenuRadioGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Input
                             placeholder="Buscar cliente..."
                             value={customerSearch}
                             onChange={(e) => setCustomerSearch(e.target.value)}
+                            className="min-w-0"
                         />
                         <Button onClick={openNew} size="sm" className="shrink-0">
                             <PlusIcon className="w-4 h-4 mr-1" /> Nuevo

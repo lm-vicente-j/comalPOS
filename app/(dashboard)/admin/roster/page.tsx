@@ -2,6 +2,23 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { InfiniteScroll } from "@/components/ui/infinite-scroll";
 import { useEffect, useState } from "react";
@@ -51,6 +68,15 @@ export default function RosterPage() {
   // Form states
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+  const [pendingPayment, setPendingPayment] = useState<{
+    type: "ADELANTO" | "BONO" | "SUELDO";
+    userID: number;
+    employeeName: string;
+    amount: number;
+    reason: string;
+  } | null>(null);
+  const [confirmationStep, setConfirmationStep] = useState<"summary" | "confirm">("summary");
+  const [savingPayment, setSavingPayment] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [alert, setAlert] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
@@ -91,11 +117,9 @@ export default function RosterPage() {
     setLoadingMore(false);
   };
 
-  const handlePayment = async (type: "ADELANTO" | "BONO" | "SUELDO") => {
-
+  const handlePayment = (type: "ADELANTO" | "BONO" | "SUELDO") => {
     setErrors({});
     setAlert(null);
-
 
     if (!selectedUser?.id) {
       setErrors({ userID: ["Seleccione un empleado"] });
@@ -106,23 +130,45 @@ export default function RosterPage() {
       return;
     }
 
-    const res = await saveSalaryPayment({
+    setPendingPayment({
+      type,
       userID: selectedUser.id,
+      employeeName: selectedUser.name || "---",
       amount: parseFloat(amount),
-      period: `${type}: ${reason}`
+      reason,
     });
+    setConfirmationStep("summary");
+  };
 
-    if (res.success) {
-      setAmount("");
-      setReason("");
-      setAlert({ message: "Pago registrado exitosamente.", type: 'success' });
-      setTimeout(() => setAlert(null), 4000);
-      const updatedHistory = await getSalaryHistory(selectedUser.id, 0, PAGE_SIZE);
-      setHistory(updatedHistory.items);
-      setHasMore(updatedHistory.hasMore);
-    } else {
-      setAlert({ message: res.error || "Error al registrar pago.", type: 'error' });
-      if (res.fieldErrors) setErrors(res.fieldErrors);
+  const confirmPayment = async () => {
+    if (!pendingPayment || savingPayment) return;
+
+    setSavingPayment(true);
+    try {
+      const res = await saveSalaryPayment({
+        userID: pendingPayment.userID,
+        amount: pendingPayment.amount,
+        period: `${pendingPayment.type}: ${pendingPayment.reason}`,
+      });
+
+      setPendingPayment(null);
+      if (res.success) {
+        setAmount("");
+        setReason("");
+        setAlert({ message: "Pago registrado exitosamente.", type: 'success' });
+        setTimeout(() => setAlert(null), 4000);
+        const updatedHistory = await getSalaryHistory(pendingPayment.userID, 0, PAGE_SIZE);
+        setHistory(updatedHistory.items);
+        setHasMore(updatedHistory.hasMore);
+      } else {
+        setAlert({ message: res.error || "Error al registrar pago.", type: 'error' });
+        if (res.fieldErrors) setErrors(res.fieldErrors);
+      }
+    } catch {
+      setPendingPayment(null);
+      setAlert({ message: "Error al registrar pago.", type: 'error' });
+    } finally {
+      setSavingPayment(false);
     }
   };
 
@@ -211,9 +257,9 @@ export default function RosterPage() {
             </div>
 
             <div className="flex flex-col gap-3 shrink-0">
-              <Button onClick={() => handlePayment("ADELANTO")} className="cursor-pointer" variant="outline">Adelantar Sueldo</Button>
-              <Button onClick={() => handlePayment("BONO")} className="cursor-pointer bg-amber-500 hover:bg-amber-400">Otorgar Bono</Button>
-              <Button onClick={() => handlePayment("SUELDO")} className="cursor-pointer" >Registrar Pago de Sueldo</Button>
+              <Button type="button" disabled={savingPayment} onClick={() => handlePayment("ADELANTO")} className="cursor-pointer" variant="outline">Adelantar Sueldo</Button>
+              <Button type="button" disabled={savingPayment} onClick={() => handlePayment("BONO")} className="cursor-pointer bg-amber-500 hover:bg-amber-400">Otorgar Bono</Button>
+              <Button type="button" disabled={savingPayment} onClick={() => handlePayment("SUELDO")} className="cursor-pointer" >Registrar Pago de Sueldo</Button>
             </div>
           </div>
 
@@ -253,6 +299,66 @@ export default function RosterPage() {
           </div>
         </div>
       </div>
+
+      {pendingPayment && confirmationStep === "summary" && (
+        <Dialog open onOpenChange={(open) => { if (!open) setPendingPayment(null); }}>
+          <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden">
+            <div role="region" aria-label="Resumen del movimiento" className="min-h-0 flex-1 space-y-4 overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Resumen del movimiento</DialogTitle>
+                <DialogDescription>Revisa los datos antes de continuar.</DialogDescription>
+              </DialogHeader>
+              <dl className="space-y-3 text-sm">
+                <div>
+                  <dt className="text-muted-foreground">Empleado</dt>
+                  <dd className="break-words font-medium">{pendingPayment.employeeName}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Movimiento</dt>
+                  <dd className="font-medium">
+                    {pendingPayment.type === "SUELDO" ? "Pago de sueldo" : pendingPayment.type === "BONO" ? "Bono" : "Adelanto de sueldo"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Monto</dt>
+                  <dd className="font-medium tabular-nums">
+                    {new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(pendingPayment.amount)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Motivo / Descripción</dt>
+                  <dd className="break-words">{pendingPayment.reason || "Sin descripción"}</dd>
+                </div>
+              </dl>
+            </div>
+            <DialogFooter className="shrink-0">
+              <Button type="button" variant="outline" onClick={() => setPendingPayment(null)}>Cancelar</Button>
+              <Button type="button" onClick={() => setConfirmationStep("confirm")}>Continuar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {pendingPayment && confirmationStep === "confirm" && (
+        <AlertDialog open onOpenChange={(open) => { if (!open && !savingPayment) setPendingPayment(null); }}>
+          <AlertDialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden">
+            <AlertDialogHeader className="min-h-0 flex-1 overflow-y-auto">
+              <AlertDialogTitle>Confirmar operación no reversible</AlertDialogTitle>
+              <AlertDialogDescription className="break-words">
+                Se registrará {pendingPayment.type === "SUELDO" ? "el pago de sueldo" : pendingPayment.type === "BONO" ? "el bono" : "el adelanto de sueldo"} de{" "}
+                {new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(pendingPayment.amount)} para {pendingPayment.employeeName}.
+                {" "}Esta operación no se puede revertir.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="shrink-0">
+              <AlertDialogCancel disabled={savingPayment}>Cancelar</AlertDialogCancel>
+              <Button type="button" disabled={savingPayment} onClick={confirmPayment}>
+                {savingPayment ? "Registrando..." : "Confirmar registro"}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }

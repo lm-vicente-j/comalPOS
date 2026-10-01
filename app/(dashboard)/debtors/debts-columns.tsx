@@ -1,5 +1,6 @@
 "use client";
 import { ColumnDef, RowData } from "@tanstack/react-table"
+import { useState } from "react";
 
 declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
@@ -7,7 +8,6 @@ declare module "@tanstack/react-table" {
   }
 }
 import { Button } from "@/components/ui/button"
-import { useEffect } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,19 +25,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
-  DialogFooter
 } from "@/components/ui/dialog"
 
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 import { Debtor } from "@/lib/actions/debts";
 import {
@@ -50,11 +39,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-import { Sale } from "@/lib/actions/sales";
-
-import { payAccount } from "@/lib/actions/debts"
-import { useState } from "react";
-import { PaymentMethod } from "@/app/generated/prisma/enums";
+import DebtPaymentDialog from "./debt-payment-dialog";
 
 
 function DebtStatusBadge({ lastConsumption }: { lastConsumption?: string | Date | null }) {
@@ -68,6 +53,73 @@ function DebtStatusBadge({ lastConsumption }: { lastConsumption?: string | Date 
       {diffDays >= 15 ? "Moroso" : "Pendiente"}
     </Badge>
   );
+}
+
+function DebtOperations({ debtor }: { debtor: Debtor }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+      const customerName = debtor.customer?.customerName || "Cliente";
+
+      return (
+        <div className="flex items-center justify-center">
+          <DropdownMenu modal={false} open={menuOpen} onOpenChange={setMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-8 w-8 p-0 cursor-pointer">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DebtPaymentDialog debtor={debtor} onAccountClose={() => setMenuOpen(false)} />
+              <Separator />
+              <Dialog>
+                <DialogTrigger className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground w-full">
+                  Detalles
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Historial de {customerName}</DialogTitle>
+                  </DialogHeader>
+                  <div className="max-h-[60vh] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Concepto</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Array.isArray(debtor.sales) ?
+                        (
+                          debtor.sales.map((sale) => (
+                            <TableRow key={sale.id}>
+                              <TableCell>{new Date(sale.createdAt!).toLocaleDateString()}</TableCell>
+                              <TableCell>
+                                {sale.sale_items?.map(item =>
+                                  `${item.quantity}x ${item.products?.name}`
+                                ).join(", ") || "Sin productos"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                ${Number(sale.total).toFixed(2)}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">
+                              Sin cobros pendientes.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                    </TableBody>
+                  </Table>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )
 }
 
 export const debtsColumns: ColumnDef<Debtor>[] = [
@@ -149,107 +201,6 @@ export const debtsColumns: ColumnDef<Debtor>[] = [
       </div>
     ),
     id: "actions",
-    cell: ({ row }) => {
-
-      const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
-
-      const customerName = row.original.customer?.customerName || "Cliente";
-
-      const handlePayAccount = async (customerID: number, sales: Sale[]) => {
-        await payAccount(customerID, sales, paymentMethod);
-      }
-
-
-      return (
-        <div className="flex items-center justify-center">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-8 w-8 p-0 cursor-pointer">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <Dialog>
-                <DialogTrigger className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground w-full">
-                  Cobrar
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Cobrar cuenta de {customerName}</DialogTitle>
-                  </DialogHeader>
-                  <div className="flex flex-wrap items-center justify-between gap-2 py-4">
-                    <label>Total: </label>
-                    <p>${Number(row.original.customer?.currentBalance)?.toFixed(2)}</p>
-                    <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
-                      <SelectTrigger className="w-45">
-                        <SelectValue placeholder="Tipo de pago" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={PaymentMethod.TRANSFER}>Transferencia</SelectItem>
-                        <SelectItem value={PaymentMethod.CASH}>Efectivo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <div className="flex w-full gap-2">
-                        <Button variant="outline" className="flex-1">Cancelar</Button>
-                        <Button onClick={() => handlePayAccount(row.original.customerID || -1, (row.original.sales as unknown as Sale[]) || [])} className="flex-1">Registrar Cobro</Button>
-                      </div>
-                    </DialogClose>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Separator />
-              <Dialog>
-                <DialogTrigger className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground w-full">
-                  Detalles
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Historial de {customerName}</DialogTitle>
-                  </DialogHeader>
-                  <div className="max-h-[60vh] overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Concepto</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {Array.isArray(row.original.sales) ?
-                        (
-                          row.original.sales.map((sale) => (
-                            <TableRow key={sale.id}>
-                              <TableCell>{new Date(sale.createdAt!).toLocaleDateString()}</TableCell>
-                              <TableCell>
-                                {sale.sale_items?.map(item =>
-                                  `${item.quantity}x ${item.products?.name}`
-                                ).join(", ") || "Sin productos"}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                ${Number(sale.total).toFixed(2)}
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">
-                              Sin cobros pendientes.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                    </TableBody>
-                  </Table>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )
-    },
+    cell: ({ row }) => <DebtOperations debtor={row.original} />
   }
 ]
