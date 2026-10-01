@@ -126,3 +126,86 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Full-report printing is isolated from the dashboard's scrolling app shell. */
+#analytics-print-report {
+  display: none;
+}
+
+@media print {
+  @page analytics-report {
+    size: landscape;
+    margin: 12mm;
+  }
+
+  body.analytics-printing {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  body.analytics-printing > :not(#analytics-print-report) {
+    display: none !important;
+  }
+
+  body.analytics-printing > #analytics-print-report {
+    display: block !important;
+    page: analytics-report;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0;
+    font-size: 10pt;
+  }
+
+  body.analytics-printing #analytics-print-report * {
+    color: black !important;
+    box-shadow: none !important;
+  }
+
+  body.analytics-printing #analytics-print-report header {
+    break-after: avoid;
+  }
+
+  body.analytics-printing #analytics-print-report [data-slot="table-container"] {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  body.analytics-printing #analytics-print-report table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+
+  body.analytics-printing #analytics-print-report thead {
+    display: table-header-group;
+  }
+
+  body.analytics-printing #analytics-print-report tfoot {
+    display: table-row-group;
+  }
+
+  body.analytics-printing #analytics-print-report tr {
+    break-inside: avoid;
+  }
+
+  body.analytics-printing #analytics-print-report th,
+  body.analytics-printing #analytics-print-report td {
+    max-width: none;
+    height: auto;
+    padding: 2mm;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+    border-bottom: 1px solid #aaa;
+  }
+
+  body.analytics-printing #analytics-print-report [aria-label="Avisos del reporte"] {
+    margin-bottom: 4mm;
+    background: white !important;
+    break-inside: avoid;
+  }
+}

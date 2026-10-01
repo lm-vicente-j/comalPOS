@@ -138,3 +138,19 @@ export type SaleItems = z.infer<typeof SaleItemsSchema>;
 export type Sales = z.infer<typeof SalesSchema>;
 export type Supply = z.infer<typeof SupplySchema>;
 export type User = z.infer<typeof UserSchema>;
+import { isCalendarDate } from "@/lib/analytics";
+
+export const AnalyticsFilterSchema = z.object({
+  from: z.string().refine(isCalendarDate, "La fecha inicial es inválida"),
+  to: z.string().refine(isCalendarDate, "La fecha final es inválida"),
+}).refine(value => value.from <= value.to, {
+  message: "La fecha inicial debe ser anterior o igual a la fecha final",
+});
+export const ReportTypeSchema = z.enum(["sales", "products", "expenses", "salaries", "customers", "debts"]);
+export const AnalyticsReportSchema = AnalyticsFilterSchema.safeExtend({
+  type: ReportTypeSchema,
+  page: z.preprocess(
+    value => typeof value === "string" && /^[1-9]\d*$/.test(value) ? Number(value) : value,
+    z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).default(1),
+  ),
+});

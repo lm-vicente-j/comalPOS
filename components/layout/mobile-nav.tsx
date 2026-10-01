@@ -18,6 +18,8 @@ import {
   HandCoinsIcon,
   PiggyBankIcon,
   SettingsIcon,
+  ChartBarIcon,
+  FileTextIcon,
   LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +57,8 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { name: "Salarios", href: "/admin/roster", icon: HandCoinsIcon },
       { name: "Ahorros", href: "/admin/savings", icon: PiggyBankIcon },
+      { name: "Estadísticas", href: "/admin/statistics", icon: ChartBarIcon },
+      { name: "Reportes", href: "/admin/reports", icon: FileTextIcon },
     ],
   },
   {

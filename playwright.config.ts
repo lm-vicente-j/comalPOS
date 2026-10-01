@@ -4,9 +4,10 @@ const PORT = 3100;
 export const E2E_DATABASE_URL =
     process.env.E2E_DATABASE_URL ?? "postgresql://postgres@localhost:5433/comalpos_test_e2e";
 
-// The sandboxed chromium build is preinstalled; using its explicit path
-// avoids any dependency on the revision @playwright/test was pinned to.
-const chromium = { executablePath: "/opt/pw-browsers/chromium" };
+// Use the installed Edge on Windows; keep the CI Chromium path on Linux.
+const chromium = process.platform === "win32"
+    ? { channel: "msedge" as const }
+    : { executablePath: "/opt/pw-browsers/chromium" };
 const ADMIN_STATE = "tests/e2e/.auth/admin.json";
 
 export default defineConfig({
@@ -34,7 +35,7 @@ export default defineConfig({
             name: "mobile",
             use: { ...devices["Pixel 7"], storageState: ADMIN_STATE, launchOptions: chromium },
             dependencies: ["setup"],
-            testMatch: /\d+-(expenses|pos)\.spec\.ts/,
+            testMatch: /\d+-(expenses|pos|analytics)\.spec\.ts/,
         },
     ],
     webServer: {

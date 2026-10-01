@@ -14,6 +14,7 @@ import {
   WalletIcon,
   CornerDownLeftIcon,
   ChartBarIcon,
+  FileTextIcon,
   LineChartIcon,
   TargetIcon,
   ClipboardListIcon,
@@ -81,7 +82,8 @@ const MODULES: NavModule[] = [
       { name: 'Salarios', href: '/admin/roster', icon: HandCoinsIcon },
       { name: 'Ahorros', href: '/admin/savings', icon: PiggyBankIcon },
       { name: 'Egresos', href: '/expenses', icon: BanknoteArrowDownIcon },
-      { name: 'Estadísticas', href: '/admin/statistics', icon: ChartBarIcon, flag: "BETA" },
+      { name: 'Estadísticas', href: '/admin/statistics', icon: ChartBarIcon },
+      { name: 'Reportes', href: '/admin/reports', icon: FileTextIcon },
     ]
   },
   {
