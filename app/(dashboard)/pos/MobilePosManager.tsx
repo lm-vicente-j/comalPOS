@@ -227,6 +227,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
     const changeCents = cashReceivedCents === null || cashReceivedInvalid
         ? null
         : cashReceivedCents - accountTotalCents;
+    const cashReceivedInsufficient = changeCents !== null && changeCents < 0;
 
     const accountCount = useMemo(
         () => accountLines.reduce((acc, line) => acc + line.quantity, 0),
@@ -878,8 +879,8 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                                 event.currentTarget.blur();
                                             }
                                         }}
-                                        aria-invalid={cashReceivedInvalid}
-                                        aria-describedby={cashReceivedInvalid ? "mobile-cash-change mobile-cash-error" : "mobile-cash-change"}
+                                        aria-invalid={cashReceivedInvalid || cashReceivedInsufficient}
+                                        aria-describedby={cashReceivedInvalid || cashReceivedInsufficient ? "mobile-cash-change mobile-cash-error" : "mobile-cash-change"}
                                         className="h-11 bg-white text-base md:text-base"
                                     />
                                     <p id="mobile-cash-change" role="status" className="mt-2 text-sm font-semibold tabular-nums text-gray-800">
@@ -887,9 +888,11 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                             ? "Faltan $" + (-changeCents / 100).toFixed(2)
                                             : "Cambio a entregar: " + (changeCents === null ? "—" : "$" + (changeCents / 100).toFixed(2))}
                                     </p>
-                                    {cashReceivedInvalid && (
+                                    {(cashReceivedInvalid || cashReceivedInsufficient) && (
                                         <p id="mobile-cash-error" role="alert" className="mt-1 text-sm text-destructive">
-                                            Introduce un importe válido con hasta dos decimales, usando punto o coma.
+                                            {cashReceivedInvalid
+                                                ? "Introduce un importe válido con hasta dos decimales, usando punto o coma."
+                                                : "El monto recibido es menor al total del cobro. Ingresa un monto igual o mayor."}
                                         </p>
                                     )}
                                 </div>

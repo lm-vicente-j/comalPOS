@@ -347,8 +347,14 @@ test.describe("pos", () => {
         ] as const) {
             await received.fill(value);
             await expect(change).toHaveText(result);
-            await expect(received).toHaveAttribute("aria-invalid", "false");
-            await expect(cashDialog.getByRole("alert")).toHaveCount(0);
+            const insufficient = result.startsWith("Faltan");
+            await expect(received).toHaveAttribute("aria-invalid", String(insufficient));
+            if (insufficient) {
+                await expect(cashDialog.getByRole("alert")).toHaveText("El monto recibido es menor al total del cobro. Ingresa un monto igual o mayor.");
+                await expect(received).toHaveAttribute("aria-describedby", "mobile-cash-change mobile-cash-error");
+            } else {
+                await expect(cashDialog.getByRole("alert")).toHaveCount(0);
+            }
             if (canCharge) await expect(confirm).toBeEnabled();
             else await expect(confirm).toBeDisabled();
         }
@@ -400,10 +406,15 @@ test.describe("pos", () => {
             const received = cashDialog.getByLabel("Efectivo recibido", { exact: true });
             await received.fill(value);
             await expect(cashDialog.locator("#mobile-cash-change")).toHaveText(result);
+            if (value === "") await expect(cashDialog.getByRole("alert")).toHaveCount(0);
+            else await expect(cashDialog.getByRole("alert")).toHaveText("El monto recibido es menor al total del cobro. Ingresa un monto igual o mayor.");
             await expect(cashDialog.getByRole("button", { name: /^Cobrar \$/ })).toBeDisabled();
             await received.press("Enter");
             await expect(received).not.toBeFocused();
             await expect(cashDialog).toBeVisible();
+            await received.fill("25");
+            await expect(cashDialog.getByRole("alert")).toHaveCount(0);
+            await expect(received).toHaveAttribute("aria-invalid", "false");
             await chargeAccount(page, true, "$25.00");
             await expect(page.getByRole("button", { name: "Ver resumen de jornada" })).toBeVisible();
         });
@@ -539,6 +550,14 @@ test.describe("pos", () => {
             await expect(received).toHaveJSProperty("required", true);
             await expect(cashConfirm).toBeInViewport({ ratio: 1 });
             await expect(cashConfirm).toBeDisabled();
+            await received.fill("249");
+            await cashDialog.getByRole("alert").scrollIntoViewIfNeeded();
+            await expect(cashDialog.getByRole("alert")).toHaveText("El monto recibido es menor al total del cobro. Ingresa un monto igual o mayor.");
+            await expect(cashDialog.getByRole("alert")).toBeInViewport({ ratio: 1 });
+            await expect(cashDialog.locator("#mobile-cash-change")).toHaveText("Faltan $1.00");
+            await expect(cashConfirm).toBeInViewport({ ratio: 1 });
+            await expect(cashConfirm).toBeDisabled();
+            await capture("cash-dialog-insufficient");
             await received.fill("250.001");
             await cashDialog.getByRole("alert").scrollIntoViewIfNeeded();
             await expect(cashDialog.getByRole("alert")).toBeInViewport({ ratio: 1 });
