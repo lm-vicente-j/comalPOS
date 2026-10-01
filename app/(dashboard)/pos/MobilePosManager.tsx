@@ -855,7 +855,7 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                             </div>
 
                             <form
-                                onSubmit={(event) => { event.preventDefault(); void handleCloseAccount(); }}
+                                onSubmit={(event) => event.preventDefault()}
                                 className="flex min-h-0 flex-1 flex-col"
                             >
                                 <div role="region" aria-label="Datos del pago en efectivo" className="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
@@ -866,11 +866,18 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                         id="mobile-cash-received"
                                         type="text"
                                         inputMode="decimal"
+                                        enterKeyHint="done"
                                         autoComplete="off"
                                         autoFocus
                                         required
                                         value={cashReceived}
                                         onChange={(event) => setCashReceived(event.currentTarget.value)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
+                                                event.preventDefault();
+                                                event.currentTarget.blur();
+                                            }
+                                        }}
                                         aria-invalid={cashReceivedInvalid}
                                         aria-describedby={cashReceivedInvalid ? "mobile-cash-change mobile-cash-error" : "mobile-cash-change"}
                                         className="h-11 bg-white text-base md:text-base"
@@ -893,7 +900,8 @@ export default function MobilePosManager({ products, sales, customerList, jornad
                                         <span className="tabular-nums">${accountTotal.toFixed(2)}</span>
                                     </div>
                                     <Button
-                                        type="submit"
+                                        type="button"
+                                        onClick={() => void handleCloseAccount()}
                                         disabled={accountLines.length === 0 || settling || changeCents === null || changeCents < 0}
                                         className="h-12 w-full cursor-pointer text-base font-bold"
                                     >

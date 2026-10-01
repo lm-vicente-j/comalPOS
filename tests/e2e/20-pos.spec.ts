@@ -279,6 +279,41 @@ test.describe("pos", () => {
     });
 
 
+    test("mobile cash requires clicking charge and Enter only dismisses the keyboard", async ({ page }) => {
+        test.skip(test.info().project.name !== "mobile", "Mobile-only cash dialog");
+        await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
+        await expectTicketTotal(page, true, "25.00");
+        await openAccountSheet(page);
+        const cashDialog = await openCashDialog(page);
+        const received = cashDialog.getByLabel("Efectivo recibido", { exact: true });
+        const confirm = cashDialog.getByRole("button", { name: "Cobrar $25.00", exact: true });
+        await expect(received).toHaveAttribute("enterkeyhint", "done");
+
+        for (const value of ["25", "50"]) {
+            await received.fill(value);
+            await expect(received).toBeFocused();
+            await expect(confirm).toBeEnabled();
+            const unexpectedPost = page.waitForRequest(
+                request => request.method() === "POST" && new URL(request.url()).pathname === "/pos",
+                { timeout: 1_500 }
+            ).then(() => true, () => false);
+            await received.press("Enter");
+            await expect(received).not.toBeFocused();
+            expect(await unexpectedPost).toBe(false);
+            await expect(cashDialog).toBeVisible();
+            await expect(received).toHaveValue(value);
+            await expect(confirm).toBeEnabled();
+        }
+
+        const chargeRequest = page.waitForRequest(
+            request => request.method() === "POST" && new URL(request.url()).pathname === "/pos"
+        );
+        await confirm.click();
+        await chargeRequest;
+        await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 15_000 });
+        await expect(page.getByRole("button", { name: "Ver resumen de jornada" })).toBeVisible();
+    });
+
     test("mobile cash dialog requires a valid sufficient amount and accepts decimals", async ({ page }) => {
         test.skip(test.info().project.name !== "mobile", "Mobile-only cash dialog");
         const product = page.getByRole("button", { name: /Taco Pastor/ }).first();
@@ -326,6 +361,7 @@ test.describe("pos", () => {
             await expect(confirm).toBeDisabled();
         }
         await received.press("Enter");
+        await expect(received).not.toBeFocused();
         await expect(cashDialog).toBeVisible();
 
         // Cancelling returns to the same account; its changed total is used
@@ -366,6 +402,7 @@ test.describe("pos", () => {
             await expect(cashDialog.locator("#mobile-cash-change")).toHaveText(result);
             await expect(cashDialog.getByRole("button", { name: /^Cobrar \$/ })).toBeDisabled();
             await received.press("Enter");
+            await expect(received).not.toBeFocused();
             await expect(cashDialog).toBeVisible();
             await chargeAccount(page, true, "$25.00");
             await expect(page.getByRole("button", { name: "Ver resumen de jornada" })).toBeVisible();
