@@ -39,7 +39,7 @@ export default function HomePage() {
             <h2 className="font-semibold text-lg text-slate-900">Motor Estadístico</h2>
           </div>
           <p className="text-sm text-slate-600 mb-3">
-            El motor estadistico procesa modelos de regresión lineal para predecir la demanda:
+            Consulta estadísticas descriptivas y reportes de tu operación. Las predicciones están pendientes de contar con historial operativo.
           </p>
         </div>
 
