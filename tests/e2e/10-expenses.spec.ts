@@ -30,6 +30,32 @@ test.describe("expenses", () => {
         await expect(dialog).toBeVisible();
         await expect(dialog.getByText("Ingrese un monto válido mayor a 0.")).toBeVisible();
         await expect(dialog.getByText("Seleccione una categoría.")).toBeVisible();
+        await expect(dialog.getByRole("alert")).toHaveText("Ingresa una descripción del gasto.");
+        await expect(dialog.getByLabel("Descripción")).toHaveAttribute("aria-invalid", "true");
+    });
+
+
+    test("explains a missing description even when the other fields are valid", async ({ page }, testInfo) => {
+        await page.goto("/expenses");
+        await page.getByRole("button", { name: "Nuevo gasto" }).click();
+        const dialog = page.getByRole("dialog");
+        await dialog.locator('input[type="number"]').fill("25");
+        await dialog.getByText("Seleccionar categoría").click();
+        await page.getByRole("option", { name: "Otros", exact: true }).click();
+
+        for (const description of ["", "   "]) {
+            await dialog.getByLabel("Descripción").fill(description);
+            await dialog.getByRole("button", { name: "Guardar Gasto" }).click();
+            await expect(dialog).toBeVisible();
+            await expect(dialog.getByRole("alert")).toHaveText("Ingresa una descripción del gasto.");
+            await expect(dialog.getByLabel("Descripción")).toHaveAttribute("aria-describedby", "expense-description-error");
+        }
+        await page.screenshot({ path: testInfo.outputPath("expense-description-error.png") });
+        await testInfo.attach("expense-description-error", { path: testInfo.outputPath("expense-description-error.png"), contentType: "image/png" });
+        await dialog.getByLabel("Descripción").fill("Compra de insumos");
+        await expect(dialog.getByRole("alert")).toHaveCount(0);
+        await expect(dialog.getByLabel("Descripción")).toHaveAttribute("aria-invalid", "false");
+        await dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
     });
 
     test("loads more history when reaching the end of the scroll", async ({ page }) => {

@@ -2,6 +2,7 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { saveSupply } from "@/lib/actions/inventory"
@@ -10,12 +11,15 @@ import { PlusIcon, Edit2Icon } from "lucide-react"
 
 const measureUnits = [
     { value: "kg", label: "KILOG" },
+    { value: "g", label: "GRAMOS" },
     { value: "Lt", label: "LITRO" },
     { value: "piece", label: "PAQU./PIEZA" },
 ]
 
 export function MobileInventoryManager({ data }: { data: Supply[] }) {
     const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+    const [search, setSearch] = React.useState("");
+    const [stockFilter, setStockFilter] = React.useState("all");
     const [currentItem, setCurrentItem] = React.useState<Supply | null>(null);
     const [errors, setErrors] = React.useState<Record<string, string[]>>({});
     const [alert, setAlert] = React.useState<{ message: string, type: 'success' | 'error' } | null>(null);
@@ -66,6 +70,13 @@ export function MobileInventoryManager({ data }: { data: Supply[] }) {
         }
     };
 
+    const filtered = data.filter(item =>
+        (item.name || "").toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es")) &&
+        (stockFilter === "all" || (stockFilter === "in-stock"
+            ? Number(item.currentStock) > 0
+            : Number(item.currentStock) <= 0))
+    );
+
     return (
         <div className="flex flex-col w-full h-full p-4 space-y-4 bg-gray-50">
             <div className="flex justify-between items-center">
@@ -73,9 +84,28 @@ export function MobileInventoryManager({ data }: { data: Supply[] }) {
                 <Button onClick={openNew} size="sm"><PlusIcon className="w-4 h-4 mr-1" /> Nuevo</Button>
             </div>
 
+            <div className="flex flex-col gap-2">
+                <Input
+                    aria-label="Buscar insumo"
+                    placeholder="Buscar insumo..."
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                />
+                <Select value={stockFilter} onValueChange={setStockFilter}>
+                    <SelectTrigger aria-label="Filtrar por existencias" className="w-full">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="in-stock">Con stock</SelectItem>
+                        <SelectItem value="out-of-stock">Sin stock</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
             {/* Mobile List View */}
             <div className="flex-1 overflow-y-auto space-y-3 pb-20">
-                {data.map(item => (
+                {filtered.map(item => (
                     <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center">
                         <div>
                             <p className="font-bold text-gray-800">{item.name}</p>
@@ -89,6 +119,9 @@ export function MobileInventoryManager({ data }: { data: Supply[] }) {
                         </Button>
                     </div>
                 ))}
+                {filtered.length === 0 && (
+                    <p role="status" className="py-8 text-center text-sm text-muted-foreground">No hay insumos que coincidan.</p>
+                )}
             </div>
 
             {/* Form Dialog */}

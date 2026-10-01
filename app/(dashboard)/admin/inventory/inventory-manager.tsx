@@ -18,6 +18,7 @@ import { saveSupply, deleteSupply } from "@/lib/actions/inventory"
 import { type Supply } from "@/lib/actions/schemas"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
     Table,
     TableBody,
@@ -57,6 +58,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 
 const measureUnits = [
     { value: "kg", label: "KILOG" },
+    { value: "g", label: "GRAMOS" },
     { value: "Lt", label: "LITRO" },
     { value: "piece", label: "PAQU./PIEZA" },
 ]
@@ -97,6 +99,9 @@ export const columns: ColumnDef<Supply>[] = [
     {
         accessorKey: "currentStock",
         header: "Stock Actual",
+        filterFn: (row, columnId, value: string) => value === "in-stock"
+            ? Number(row.getValue(columnId)) > 0
+            : Number(row.getValue(columnId)) <= 0,
         cell: ({ row }) => <div className="text-right font-bold">{row.getValue("currentStock")}</div>,
     },
 ]
@@ -211,13 +216,27 @@ export function InventoryManager({ data }: { data: Supply[] }) {
     return (
         <div className="flex flex-row items-center justify-around w-full h-full gap-4 p-4">
             <div className="bg-white flex flex-col w-[70%] h-[90%] border rounded-md p-5 shadow-sm">
-                <div className="flex w-full items-center py-4">
+                <div className="flex w-full flex-wrap items-center gap-3 py-4">
                     <Input
+                        aria-label="Buscar insumo"
                         placeholder="Buscar insumo..."
                         value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
                         onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
                         className="max-w-sm"
                     />
+                    <Select
+                        value={(table.getColumn("currentStock")?.getFilterValue() as string) ?? "all"}
+                        onValueChange={(value) => table.getColumn("currentStock")?.setFilterValue(value === "all" ? undefined : value)}
+                    >
+                        <SelectTrigger aria-label="Filtrar por existencias" className="w-full sm:w-[180px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos</SelectItem>
+                            <SelectItem value="in-stock">Con stock</SelectItem>
+                            <SelectItem value="out-of-stock">Sin stock</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
                 <div className="rounded-md border flex-1 overflow-y-auto min-h-0">
                     <Table>
@@ -234,6 +253,13 @@ export function InventoryManager({ data }: { data: Supply[] }) {
                         </TableHeader>
 
                         <TableBody>
+                            {table.getRowModel().rows.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
+                                        No hay insumos que coincidan.
+                                    </TableCell>
+                                </TableRow>
+                            )}
                             {table.getRowModel().rows.map(row => (
                                 <TableRow
                                     key={row.id}

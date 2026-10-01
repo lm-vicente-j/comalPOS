@@ -93,6 +93,8 @@ export default function ExpensesPage() {
             localErrors.amount = ["Ingrese un monto válido mayor a 0."];
         if (!category)
             localErrors.category = ["Seleccione una categoría."];
+        if (!description.trim())
+            localErrors.description = ["Ingresa una descripción del gasto."];
 
         if (Object.keys(localErrors).length > 0) {
             setErrors(localErrors);
@@ -203,12 +205,26 @@ export default function ExpensesPage() {
                                 </div>
 
                                 <div className="flex flex-col gap-2">
-                                    <Label>Descripción</Label>
+                                    <Label htmlFor="expense-description">Descripción</Label>
                                     <Input
+                                        id="expense-description"
                                         value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
+                                        onChange={(e) => {
+                                            setDescription(e.target.value);
+                                            if (errors.description) {
+                                                setErrors((prev) => ({ ...prev, description: [] }));
+                                            }
+                                        }}
                                         placeholder="Detalle del gasto..."
+                                        aria-invalid={!!errors.description?.length}
+                                        aria-describedby={errors.description?.length ? "expense-description-error" : undefined}
+                                        className={errors.description?.length ? "border-red-500 focus-visible:ring-red-500" : ""}
                                     />
+                                    {errors.description?.length ? (
+                                        <p id="expense-description-error" role="alert" className="text-xs text-red-600">
+                                            {errors.description[0]}
+                                        </p>
+                                    ) : null}
                                 </div>
 
                                 <div className="flex flex-col gap-2">

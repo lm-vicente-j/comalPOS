@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useState, useEffect, ChangeEvent } from "react";
+import { useState, useEffect, useMemo, ChangeEvent } from "react";
 import {
     flexRender,
     getCoreRowModel,
@@ -38,6 +38,11 @@ import { Customer } from "@/lib/actions/schemas";
 import { saveUser } from "@/lib/actions/users";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ListFilter } from "lucide-react";
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 
 
 export const staffColumns: ColumnDef<User>[] = [
@@ -202,6 +207,7 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
     const [pin, setPin] = useState("");
     const [listEditing, setListEditing] = useState<"CUSTOMERS" | "STAFF">("CUSTOMERS");
 
+    const [customerOrder, setCustomerOrder] = useState<"recent" | "name">("recent");
     const [customerSorting, setCustomerSorting] = useState<SortingState>([]);
     const [customerFilters, setCustomerFilters] = useState<ColumnFiltersState>([]);
     const [staffSorting, setStaffSorting] = useState<SortingState>([]);
@@ -220,8 +226,19 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
         pin: "",
     });
 
+    const sortedCustomers = useMemo(() => [...customers].sort((a, b) => {
+        if (customerOrder === "name") {
+            return (a.customerName || "").localeCompare(b.customerName || "", "es", { sensitivity: "base" }) || a.id - b.id;
+        }
+        if (!a.registeredDate && b.registeredDate) return 1;
+        if (a.registeredDate && !b.registeredDate) return -1;
+        const dateDifference = new Date(b.registeredDate || 0).getTime() - new Date(a.registeredDate || 0).getTime();
+        return dateDifference || b.id - a.id;
+    }), [customers, customerOrder]);
+
     const customerTable = useReactTable({
-        data: customers,
+        data: sortedCustomers,
+        getRowId: (row) => String(row.id),
         columns: customerColumns,
         onSortingChange: setCustomerSorting,
         onColumnFiltersChange: setCustomerFilters,
@@ -347,7 +364,20 @@ export default function CRMManager({ customers, staff }: { customers: Customer[]
                         <TabsTrigger onClick={() => { setListEditing("STAFF"); resetForm(); }} className="cursor-pointer" value="STAFF">Empleados</TabsTrigger>
                     </TabsList>
                     <TabsContent value="customers" className="flex flex-col min-h-0">
-                        <div className="flex w-full items-center py-4">
+                        <div className="flex w-full items-center gap-2 py-4">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="icon" className="shrink-0" aria-label="Ordenar clientes">
+                                        <ListFilter className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                    <DropdownMenuRadioGroup value={customerOrder} onValueChange={(value) => setCustomerOrder(value as "recent" | "name")}>
+                                        <DropdownMenuRadioItem value="recent">Más recientes</DropdownMenuRadioItem>
+                                        <DropdownMenuRadioItem value="name">Nombre A–Z</DropdownMenuRadioItem>
+                                    </DropdownMenuRadioGroup>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                             <Input
                                 placeholder="Buscar cliente..."
                                 value={(customerTable.getColumn("customerName")?.getFilterValue() as string) ?? ""}
