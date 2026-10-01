@@ -231,66 +231,68 @@ function CloseJornadaDialog({ jornadaId, expectedCash, forced }: {
                     {forced ? "Cerrar y abrir nueva" : "Cerrar jornada"}
                 </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Cerrar jornada — conteo físico</AlertDialogTitle>
-                    <AlertDialogDescription asChild>
-                        <div className="space-y-3">
-                            <p>Cuenta el efectivo que hay físicamente en la caja en este momento e ingresa el total.</p>
-                            <p className="text-sm">
-                                Esperado según el sistema: <strong>${expectedCash.toFixed(2)}</strong>
-                            </p>
-                        </div>
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-
-                <div className="space-y-3 my-3">
-                    <Label htmlFor="actual">Efectivo contado</Label>
-                    <Input
-                        id="actual"
-                        type="number"
-                        inputMode="decimal"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={actual}
-                        onChange={(e) => setActual(e.target.value)}
-                    />
-                    {hasDiff && (
-                        <div className={`text-sm p-2 rounded ${diff === 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`}>
-                            {diff === 0
-                                ? "✓ La caja cuadra exactamente."
-                                : `Diferencia: ${diff > 0 ? "+" : ""}$${diff.toFixed(2)} ${diff < 0 ? "(faltante)" : "(sobrante)"}`
-                            }
-                        </div>
-                    )}
-                    {error && <p className="text-sm text-red-600">{error}</p>}
-
-                    {openAccounts.length > 0 && (
-                        <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-2">
-                            <div className="flex items-start gap-2">
-                                <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
-                                <p className="text-sm font-semibold text-red-800">
-                                    No se puede cerrar: hay cuentas abiertas sin cobrar.
+            <AlertDialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden">
+                <div role="region" aria-label="Contenido del cierre de jornada" className="min-h-0 flex-1 overflow-y-auto">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Cerrar jornada — conteo físico</AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                            <div className="space-y-3">
+                                <p>Cuenta el efectivo que hay físicamente en la caja en este momento e ingresa el total.</p>
+                                <p className="text-sm">
+                                    Esperado según el sistema: <strong>${expectedCash.toFixed(2)}</strong>
                                 </p>
                             </div>
-                            <ul className="text-sm text-red-800 divide-y divide-red-200">
-                                {openAccounts.map((acc) => (
-                                    <li key={acc.sourceType} className="py-1.5 flex items-center justify-between gap-2">
-                                        <span className="font-medium">{formatSourceType(acc.sourceType)}</span>
-                                        <span className="text-xs">
-                                            {acc.count} pedido{acc.count !== 1 ? "s" : ""} · ${acc.total.toFixed(2)}
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                            <p className="text-xs text-red-700">
-                                Resuelve cada cuenta en el POS (cerrar cuenta, enviar a deuda o cancelar) antes de intentar cerrar la jornada.
-                            </p>
-                        </div>
-                    )}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <div className="space-y-3 mt-7 mb-3">
+                        <Label htmlFor="actual">Efectivo contado</Label>
+                        <Input
+                            id="actual"
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={actual}
+                            onChange={(e) => setActual(e.target.value)}
+                        />
+                        {hasDiff && (
+                            <div className={`text-sm p-2 rounded ${diff === 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`}>
+                                {diff === 0
+                                    ? "✓ La caja cuadra exactamente."
+                                    : `Diferencia: ${diff > 0 ? "+" : ""}$${diff.toFixed(2)} ${diff < 0 ? "(faltante)" : "(sobrante)"}`
+                                }
+                            </div>
+                        )}
+                        {error && <p className="text-sm text-red-600">{error}</p>}
+
+                        {openAccounts.length > 0 && (
+                            <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-2">
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                                    <p className="text-sm font-semibold text-red-800">
+                                        No se puede cerrar: hay cuentas abiertas sin cobrar.
+                                    </p>
+                                </div>
+                                <ul className="text-sm text-red-800 divide-y divide-red-200">
+                                    {openAccounts.map((acc) => (
+                                        <li key={acc.sourceType} className="py-1.5 flex items-center justify-between gap-2">
+                                            <span className="min-w-0 flex-1 break-words font-medium">{formatSourceType(acc.sourceType)}</span>
+                                            <span className="shrink-0 text-right text-xs">
+                                                {acc.count} pedido{acc.count !== 1 ? "s" : ""} · ${acc.total.toFixed(2)}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="text-xs text-red-700">
+                                    Resuelve cada cuenta en el POS (cerrar cuenta, enviar a deuda o cancelar) antes de intentar cerrar la jornada.
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <AlertDialogFooter>
+                <AlertDialogFooter className="shrink-0">
                     <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
                     {/* preventDefault keeps the dialog open so validation errors
                         and the open-accounts list are actually visible; it only
