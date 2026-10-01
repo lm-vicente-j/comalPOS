@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import TransferConfirmationDialog from "@/components/Transfer-confirmation-dialog";
 
 import { toDebt } from "@/lib/actions/debts";
 
@@ -99,6 +100,7 @@ export default function SalesInputClient({ currentCustomerSales, sourceType, acc
     // How the account is being settled; asked in the close dialog since the
     // method is only known when the money actually changes hands.
     const [closeMethod, setCloseMethod] = useState<"CASH" | "TRANSFER">("CASH");
+    const [transferDialogOpen, setTransferDialogOpen] = useState(false);
 
     // Receipt shown in the close dialog: the open account's lines aggregated
     // by product (each tap is its own UNPAID sale) plus the grand total.
@@ -122,7 +124,7 @@ export default function SalesInputClient({ currentCustomerSales, sourceType, acc
     );
 
     const handleCloseAccount = async () => {
-        if (!sourceType) return;
+        if (!sourceType || (closeMethod === "TRANSFER" && !transferDialogOpen)) return false;
 
         const result = await trackAction(closeAccountAction(sourceType, closeMethod));
 
@@ -132,7 +134,9 @@ export default function SalesInputClient({ currentCustomerSales, sourceType, acc
             onAccountSettled();
             setDialogOpen(false);
             setCloseMethod("CASH");
+            setTransferDialogOpen(false);
         }
+        return result.success;
     };
 
     const handleToDebt = async (idCustomer: number, sales: Sale[]) => {
@@ -201,7 +205,7 @@ export default function SalesInputClient({ currentCustomerSales, sourceType, acc
                 {/* Leaves the current account (without settling it) and puts
                     the order list back on today's charged free sales. */}
                 <Button className="cursor-pointer flex-1 lg:flex-none" disabled={isAlreadyFreeSale} onClick={onFreeSaleView} ><span className="lg:hidden">Venta libre</span><span className="hidden lg:inline">Cambiar a venta libre</span></Button>
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <Dialog open={dialogOpen && !transferDialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
 
                         <Button variant="destructive" className="cursor-pointer flex-1 lg:flex-none" disabled={!sourceType}>Cerrar cuenta <span className="hidden lg:inline">{query}</span></Button>
@@ -290,19 +294,27 @@ export default function SalesInputClient({ currentCustomerSales, sourceType, acc
                                 </Button>
                             </DialogClose>
 
-                            <DialogClose asChild>
-                                <Button
-                                    className="cursor-pointer"
-                                    onClick={() => {
-                                        handleCloseAccount()
-                                    }}
-                                >
-                                    Confirmar y Cerrar
-                                </Button>
-                            </DialogClose>
+                            <Button
+                                type="button"
+                                className="cursor-pointer"
+                                onClick={() => {
+                                    if (closeMethod === "TRANSFER") setTransferDialogOpen(true);
+                                    else { void handleCloseAccount(); setDialogOpen(false); }
+                                }}
+                            >
+                                Confirmar y Cerrar
+                            </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+                {transferDialogOpen && (
+                    <TransferConfirmationDialog
+                        accountLabel={accountLabel}
+                        total={receiptTotal}
+                        onCancel={() => setTransferDialogOpen(false)}
+                        onConfirm={handleCloseAccount}
+                    />
+                )}
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <Button className="cursor-pointer flex-1 lg:flex-none bg-amber-500 text-black hover:bg-amber-400" disabled={!clientSelected}>A deuda <span className="hidden lg:inline truncate  max-w-24">{query}</span></Button>

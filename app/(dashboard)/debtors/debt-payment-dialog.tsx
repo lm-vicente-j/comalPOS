@@ -6,6 +6,7 @@ import { payAccount, type Debtor } from "@/lib/actions/debts";
 import type { Sale } from "@/lib/actions/sales";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import TransferConfirmationDialog from "@/components/Transfer-confirmation-dialog";
 import {
   Dialog,
   DialogClose,
@@ -27,6 +28,7 @@ import {
 export default function DebtPaymentDialog({ debtor, onAccountClose }: { debtor: Debtor; onAccountClose: () => void }) {
   const [open, setOpen] = useState(false);
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
   const [cashReceived, setCashReceived] = useState("");
   const [settling, setSettling] = useState(false);
@@ -65,13 +67,15 @@ export default function DebtPaymentDialog({ debtor, onAccountClose }: { debtor: 
     if (!nextOpen) {
       setCashDialogOpen(false);
       setCashReceived("");
+      setTransferDialogOpen(false);
       setError("");
       onAccountClose();
     }
   };
 
   const handlePayAccount = async () => {
-    if (settling || (paymentMethod === PaymentMethod.CASH && (changeCents === null || changeCents < 0))) return;
+    if (settling || (paymentMethod === PaymentMethod.CASH && (changeCents === null || changeCents < 0))) return false;
+    if (paymentMethod === PaymentMethod.TRANSFER && !transferDialogOpen) return false;
     setSettling(true);
     setError("");
     try {
@@ -80,7 +84,9 @@ export default function DebtPaymentDialog({ debtor, onAccountClose }: { debtor: 
         setOpen(false);
         setCashDialogOpen(false);
         setCashReceived("");
+        setTransferDialogOpen(false);
         onAccountClose();
+        return true;
       } else {
         setError("No se pudo registrar el cobro. Revisa la cuenta e inténtalo de nuevo.");
       }
@@ -89,10 +95,12 @@ export default function DebtPaymentDialog({ debtor, onAccountClose }: { debtor: 
     } finally {
       setSettling(false);
     }
+    return false;
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <>
+    <Dialog open={open && !transferDialogOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground w-full">
         Cobrar
       </DialogTrigger>
@@ -208,7 +216,7 @@ export default function DebtPaymentDialog({ debtor, onAccountClose }: { debtor: 
                   disabled={settling}
                   onClick={() => {
                     if (paymentMethod === PaymentMethod.CASH) setCashDialogOpen(true);
-                    else void handlePayAccount();
+                    else setTransferDialogOpen(true);
                   }}
                   className="h-11 flex-1"
                 >
@@ -220,5 +228,14 @@ export default function DebtPaymentDialog({ debtor, onAccountClose }: { debtor: 
         )}
       </DialogContent>
     </Dialog>
+    {transferDialogOpen && (
+      <TransferConfirmationDialog
+        accountLabel={customerName}
+        total={totalCents / 100}
+        onCancel={() => setTransferDialogOpen(false)}
+        onConfirm={handlePayAccount}
+      />
+    )}
+    </>
   );
 }

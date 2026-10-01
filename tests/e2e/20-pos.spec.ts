@@ -1,4 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Request } from "@playwright/test";
+import { Pool } from "pg";
+import { E2E_DATABASE_URL } from "../../playwright.config";
 
 // Every sale now lands in an account and waits there as UNPAID until it is
 // charged, so each test settles what it opens: an unpaid leftover would make
@@ -77,6 +79,10 @@ test.describe("pos", () => {
                 await cashDialog.getByLabel("Efectivo recibido", { exact: true }).fill(total.replace("$", ""));
                 await cashDialog.getByRole("button", { name: /^Cobrar \$/ }).click();
             }
+            const transfer = page.getByRole("dialog", { name: "Confirmar transferencia recibida", exact: true });
+            if ((await transfer.count()) > 0) {
+                await transfer.getByRole("button", { name: "Confirmar transferencia recibida", exact: true }).click();
+            }
             await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 15_000 });
         } else {
             await page.getByRole("button", { name: /Cerrar cuenta/ }).click();
@@ -94,6 +100,82 @@ test.describe("pos", () => {
         page.on("dialog", (d) => d.dismiss().catch(() => {}));
         await page.goto("/pos");
     });
+
+
+    for (const account of ["ticket", "table", "customer", "no-clabe"]) {
+        test("requires received-transfer confirmation for " + account, async ({ page }) => {
+            test.setTimeout(120_000);
+            const isMobile = test.info().project.name === "mobile";
+            if (isMobile) await page.setViewportSize({ width: 320, height: 480 });
+            const pool = new Pool({ connectionString: E2E_DATABASE_URL });
+            const previous = (await pool.query<{ value: string | null }>("SELECT value FROM setting WHERE key = $1", ["CLABE"])).rows[0];
+            const clabe = account === "no-clabe" ? "" : "123456789012345678";
+            try {
+                await pool.query('INSERT INTO setting (key, value, "updatedAt") VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', ["CLABE", clabe]);
+                if (account === "table") {
+                    if (isMobile) await page.getByRole("button", { name: "Mesas", exact: true }).click();
+                    await page.getByRole("button", { name: "9", exact: true }).click();
+                } else if (account === "customer") {
+                    if (isMobile) await page.getByRole("button", { name: "Cliente", exact: true }).click();
+                    await page.getByRole("combobox").filter({ hasText: "Nombre de cliente" }).click();
+                    await page.getByRole("option", { name: /Cliente Uno E2E/ }).click();
+                }
+                const lastId = (await pool.query<{ id: number }>("SELECT COALESCE(MAX(id), 0) AS id FROM sales")).rows[0].id;
+                await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
+                await expect(page.getByRole("button", { name: /Taco Pastor/ }).first()).toBeEnabled();
+                if (isMobile) await openAccountSheet(page);
+                else await page.getByRole("button", { name: /Cerrar cuenta/ }).click();
+                const summary = page.getByRole("dialog", { name: isMobile ? /^Cuenta/ : /^Pago de cuenta/ });
+                await expect(summary).toContainText("$25.00");
+                const sale = (await pool.query<{ id: number; source_type: string }>("SELECT id, source_type FROM sales WHERE id > $1 ORDER BY id LIMIT 1", [lastId])).rows[0];
+                const payments: Request[] = [];
+                page.on("request", request => {
+                    if (request.method() === "POST" && request.headers()["next-action"] && request.postData()?.includes('"TRANSFER"') && request.postData()?.includes(sale.source_type)) payments.push(request);
+                });
+                await summary.getByRole("button", { name: "Transferencia", exact: true }).click();
+                const start = summary.getByRole("button", { name: isMobile ? /^Cobrar \$/ : "Confirmar y Cerrar", exact: !isMobile });
+                await start.click();
+                const transfer = page.getByRole("dialog", { name: "Confirmar transferencia recibida", exact: true });
+                const confirm = transfer.getByRole("button", { name: "Confirmar transferencia recibida", exact: true });
+                await expect(transfer).toBeVisible();
+                if (clabe) await expect(transfer.getByLabel("CLABE de transferencia", { exact: true })).toHaveText("1234 5678 9012 3456 78");
+                else await expect(transfer.getByRole("status")).toHaveText("No hay una CLABE configurada.");
+                await expect(transfer).toContainText("$25.00");
+                await expect(confirm).toBeEnabled();
+                await expect(confirm).toBeInViewport({ ratio: 1 });
+                await expect(transfer.getByRole("button", { name: "Cancelar", exact: true })).toBeInViewport({ ratio: 1 });
+                await expect(page.getByLabel("Efectivo recibido", { exact: true })).toHaveCount(0);
+                expect(payments).toHaveLength(0);
+                expect((await pool.query<{ status: string }>("SELECT status FROM sales WHERE id = $1", [sale.id])).rows[0].status).toBe("UNPAID");
+                if (account === "ticket" || account === "no-clabe") {
+                    const screenshot = test.info().outputPath("transfer-" + account + ".png");
+                    await page.screenshot({ path: screenshot, animations: "disabled" });
+                    await test.info().attach("transfer-" + account, { path: screenshot, contentType: "image/png" });
+                }
+                await transfer.getByRole("button", { name: "Cancelar", exact: true }).click();
+                await expect(summary).toBeVisible();
+                expect(payments).toHaveLength(0);
+                expect((await pool.query<{ status: string }>("SELECT status FROM sales WHERE id = $1", [sale.id])).rows[0].status).toBe("UNPAID");
+                if (clabe) await pool.query("UPDATE setting SET value = $1 WHERE key = $2", ["876543210987654321", "CLABE"]);
+                await start.click();
+                if (clabe) await expect(transfer.getByLabel("CLABE de transferencia", { exact: true })).toHaveText("8765 4321 0987 6543 21");
+                else await expect(transfer.getByRole("status")).toHaveText("No hay una CLABE configurada.");
+                await confirm.click();
+                await expect(transfer).toHaveCount(0, { timeout: 30_000 });
+                if (isMobile) await expect(page.getByRole("button", { name: "Abrir cuenta" })).toHaveCount(0);
+                else await expect(page.getByRole("button", { name: /Cerrar cuenta/ })).toBeDisabled();
+                expect(payments).toHaveLength(1);
+                expect(payments[0].postData()).not.toContain("clabe");
+                const paid = (await pool.query<{ status: string; payment_method: string }>("SELECT status, payment_method FROM sales WHERE id = $1", [sale.id])).rows[0];
+                expect(paid.status).toBe("PAID");
+                expect(paid.payment_method).toBe("TRANSFER");
+            } finally {
+                if (previous) await pool.query("UPDATE setting SET value = $1 WHERE key = $2", [previous.value, "CLABE"]);
+                else await pool.query("DELETE FROM setting WHERE key = $1", ["CLABE"]);
+                await pool.end();
+            }
+        });
+    }
 
     test("a free sale opens a walk-in ticket and is charged from it", async ({ page }) => {
         const isMobile = test.info().project.name === "mobile";
@@ -217,24 +299,37 @@ test.describe("pos", () => {
 
     test("cancelling a sale removes it from the recent orders list", async ({ page }) => {
         const isMobile = test.info().project.name === "mobile";
+        const pool = new Pool({ connectionString: E2E_DATABASE_URL });
+        try {
+            const lastId = (await pool.query<{ id: number }>("SELECT COALESCE(MAX(id), 0) AS id FROM sales")).rows[0].id;
+            await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
+            await expectTicketTotal(page, isMobile, "25.00");
+            const sale = (await pool.query<{ id: number }>("SELECT id FROM sales WHERE id > $1 ORDER BY id LIMIT 1", [lastId])).rows[0];
+            const cancellation = page.waitForResponse(response =>
+                response.request().method() === "POST" &&
+                Boolean(response.request().headers()["next-action"]) &&
+                response.request().postData() === JSON.stringify([sale.id]));
 
-        await page.getByRole("button", { name: /Taco Pastor/ }).first().click();
-        await expectTicketTotal(page, isMobile, "25.00");
+            if (isMobile) {
+                await openAccountSheet(page);
+                const lines = accountLines(page, true);
+                await expect(lines).toHaveCount(1);
+                await lines.first().getByRole("button", { name: "Eliminar línea" }).click();
+            } else {
+                const rows = accountLines(page, false);
+                await expect(rows).toHaveCount(1);
+                await rows.first().getByRole("button").nth(2).click();
+            }
 
-        if (isMobile) {
-            await openAccountSheet(page);
-            const lines = accountLines(page, true);
-            await expect(lines).toHaveCount(1);
-            await lines.first().getByRole("button", { name: "Eliminar línea" }).click();
-        } else {
-            const rows = accountLines(page, false);
-            await expect(rows).toHaveCount(1);
-            await rows.first().getByRole("button").nth(2).click();
+            // Wait for the persisted cancellation, not only the optimistic UI.
+            await cancellation;
+            await expect.poll(async () =>
+                (await pool.query<{ status: string }>("SELECT status FROM sales WHERE id = $1", [sale.id])).rows[0].status
+            ).toBe("CANCELLED");
+            await expect(accountLines(page, isMobile)).toHaveCount(0, { timeout: 15_000 });
+        } finally {
+            await pool.end();
         }
-
-        // The sale stays in the DB as CANCELLED but leaves the ticket, which
-        // is left empty and so has nothing to charge.
-        await expect(accountLines(page, isMobile)).toHaveCount(0, { timeout: 15_000 });
     });
 
     test("closing a table returns to venta libre and clears its history", async ({ page }) => {

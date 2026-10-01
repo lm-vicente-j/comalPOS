@@ -1,5 +1,6 @@
 "use client"
 import { useState } from "react"
+import type { Debtor } from "@/lib/actions/debts"
 import {
     ColumnDef,
     ColumnFiltersState,
@@ -22,12 +23,12 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 
-interface DebtorsTableProps<TData, TValue> {
+interface DebtorsTableProps<TData extends Debtor, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
 }
 
-export default function DebtorsTable<TData, TValue>({ columns, data }: DebtorsTableProps<TData, TValue>) {
+export default function DebtorsTable<TData extends Debtor, TValue>({ columns, data }: DebtorsTableProps<TData, TValue>) {
     const [sorting, setSorting] = useState<SortingState>([])
 
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
@@ -36,6 +37,7 @@ export default function DebtorsTable<TData, TValue>({ columns, data }: DebtorsTa
     const table = useReactTable({
         data,
         columns,
+        getRowId: (row) => String(row.customerID ?? row.id),
         getCoreRowModel: getCoreRowModel(),
         onColumnFiltersChange: setColumnFilters,
         getFilteredRowModel: getFilteredRowModel(),
