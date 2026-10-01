@@ -1,47 +1,70 @@
 # Authentication and permissions
 
-Auth.js (NextAuth v5) with the Credentials provider. Sessions are encrypted
-JWTs in HTTP-only cookies. Tokens carry the user id and role and expire
-after **eight hours** (`AUTH_SESSION_MAX_AGE` in
-[`app/auth.config.ts`](../app/auth.config.ts)).
+Auth.js 5 uses the Credentials provider in [`lib/auth.ts`](../lib/auth.ts).
+Shared callbacks/session configuration live in
+[`app/auth.config.ts`](../app/auth.config.ts). Auth handlers are exported by
+[`app/api/auth/route.ts`](../app/api/auth/route.ts).
 
-Generate `AUTH_SECRET` with `npx auth secret` before running the app.
+## Login and session
 
-## Login
-
-| Role | Identifier | Secret |
+| Login mode | Identifier | Secret |
 | --- | --- | --- |
-| ADMIN | email | password (bcrypt) |
-| STAFF | username | 4-digit PIN (bcrypt) |
+| ADMIN | Trimmed valid email | Password |
+| STAFF | Trimmed nonempty username | Exactly four numeric PIN digits |
 
-Implementation: [`lib/auth.ts`](../lib/auth.ts). Inactive users
-(`users.active === false`) cannot sign in. After a successful login the
-proxy sends the user to `/pos`.
+The provider finds a user and compares the bcrypt credential. A missing credential,
+bad comparison or `active === false` rejects sign-in. The stored normalized role
+becomes the session role; the selected form mode does not grant ADMIN.
 
-## Route protection
+`login` in [`auth_action.ts`](../lib/actions/auth_action.ts) validates a UserSchema
+subset, chooses mode from whether email is present and redirects to `/pos` after
+sign-in. `logout` redirects to `/login`.
 
-Page navigations are gated by the Next.js 16 proxy
-([`proxy.ts`](../proxy.ts)). Matcher, `authorized` flow, Edge limits, and
-what the proxy does **not** cover (Server Actions) are in
-[middleware.md](middleware.md).
+Sessions use encrypted JWT cookies and an eight-hour `AUTH_SESSION_MAX_AGE`.
+The callbacks store `token.sub` as user ID and the normalized role, then expose them
+on `session.user`. Legacy `token.id` is a fallback for ID. Non-ADMIN roles normalize
+to STAFF.
 
-`lib/permissions.ts` is the single ACL. The sidebar and mobile nav use the
-same module so hidden links match server enforcement.
+Generate `AUTH_SECRET` and put it in `.env` as described in
+[Getting started](getting-started.md). Login checks user activity/credentials;
+subsequent session callbacks do not requery role/activity. An existing session
+is not automatically revoked by editing the database user.
 
-Rules are first-prefix-wins:
+## Page permissions
 
-| Prefix | Roles |
+[`lib/permissions.ts`](../lib/permissions.ts) defines the ACL used by the proxy,
+desktop sidebar and mobile navigation.
+
+| Exact prefix or descendant path | Allowed roles |
 | --- | --- |
 | `/admin` | ADMIN |
 | `/pos` | ADMIN, STAFF |
 | `/expenses` | ADMIN, STAFF |
 | `/debtors` | ADMIN, STAFF |
 
-Any other authenticated path is allowed (the middleware still requires a
-session).
+Rules are first-match-wins. Prefix matching uses whole path segments:
+`/admin` and `/admin/menu` match, `/administrator` does not.
+An authenticated path matching no rule is allowed by the ACL, though it may have
+no page. Guests require login for matched routes. See
+[Request interception](middleware.md).
 
-## Server Actions
+## Action permissions
 
-Actions call `auth()` themselves. Do not trust role or user id from the
-form body; derive them from the session
-([TECHNICAL.md](../TECHNICAL.md)).
+Every domain action checks for a session or an ADMIN role; login/logout are
+authentication entry points. Route restrictions and hidden links are not
+substitutes for function-level authorization.
+
+| Operation group | Actual action check |
+| --- | --- |
+| Sales creation/edit/cancel/closure, debts, expenses | Session; selected operations also require an OPEN jornada |
+| Customer create/edit | Session, despite ADMIN-only CRM page |
+| User, product and supply writes | ADMIN |
+| Salary writes, jornada open/close | ADMIN |
+| Savings writes and settings writes | ADMIN |
+| Statistics, reports and exports | ADMIN for every query |
+| Most other reads/searches | Session; not generally ADMIN-only |
+
+Use the per-function [Action reference](actions.md) for empty/error defaults and
+exceptions. Sale/expense/savings attribution is taken from the session.
+Typed input alone does not validate ownership, role or status. Existing business
+checks and gaps are detailed in [Business rules](business-rules.md).
