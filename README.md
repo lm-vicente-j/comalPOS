@@ -21,10 +21,13 @@ PostgreSQL. Desktop and mobile browsers use the same backend.
 
 ## Quick start
 
+> You also need PostgreSQL > 18 running when developing. See [Getting started](docs/getting-started.md) for a full setup.
+
+
 Create the database named in `.env.example` first. These commands work in PowerShell:
 
-```powershell
-Copy-Item .env.example .env
+```bash
+cp .env.example .env
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 ```
 
@@ -70,6 +73,3 @@ identifier; the POS does not implement a receipt-printer integration.
 | [docs/testing.md](docs/testing.md) | Integration and browser suites, platform requirements |
 | [docs/deploy.md](docs/deploy.md) | Build, migrations and deployment configuration |
 
-Documentation describes the checked-in implementation as of 2026-10-01, including
-its limitations. Feature names in the UI are Spanish; code identifiers and this
-developer documentation remain in English.
