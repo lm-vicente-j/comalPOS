@@ -1,22 +1,14 @@
 /**
- * SEED de gran volumen para ComalPOS
+ * SEED of demo data for ComalPOS
  * ----------------------------------------------------------------
- * Pobla TODOS los esquemas con datos realistas para probar
- * rendimiento de la aplicación bajo carga.
+ * 
+ * Populate all schemas with realistic data to test 
+ * application performance under load.
  *
- * Productos basados en el menú real del negocio (taquería mexicana).
- * Insumos y recetas mapeados de forma verídica al menú.
+ * The products, supplies, and recipes are based on a real Mexican taquería menu.
  *
- * Consistencias garantizadas:
- *   - currentBalance del cliente = suma de sus deudas UNPAID en debtors
- *   - lastConsumption del cliente = fecha de su última venta
- *   - Solo UNA jornada queda en estado OPEN (la más reciente)
- *   - Cada venta y gasto cae dentro del rango de su jornada
- *   - Cada sale con status=DEBT genera su registro en debtors (saleID es @unique)
- *   - sale_items.unitPrice respeta el precio del producto
- *
- * Volúmenes configurables vía variables de entorno (ver SEED_* abajo).
- * Valores por defecto producen ~100k ventas y ~300k sale_items.
+ * Configurable volumes via environment variables (see SEED_* below).
+ * Defaults: ~100k sales and ~300k sale_items.
  */
 
 import {
@@ -37,22 +29,22 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter })
 
 // =========================================================================
-// CONFIGURACIÓN DE VOLUMEN (override vía env vars: SEED_USERS, SEED_SALES, etc.)
+// CONFIGURATION OF DATA VOLUMES
 // =========================================================================
 const cfg = {
   USERS:        Number(process.env.SEED_USERS        ?? 25),
   CUSTOMERS:    Number(process.env.SEED_CUSTOMERS    ?? 5_000),
-  SUPPLIES:     Number(process.env.SEED_SUPPLIES     ?? 80),   // base + relleno
-  JORNADAS:     Number(process.env.SEED_JORNADAS     ?? 365),  // un año
+  SUPPLIES:     Number(process.env.SEED_SUPPLIES     ?? 80),   // base + auxiliares
+  JORNADAS:     Number(process.env.SEED_JORNADAS     ?? 365),  // 1 year of daily jornadas
   SALES:        Number(process.env.SEED_SALES        ?? 100_000),
   BILLS:        Number(process.env.SEED_BILLS        ?? 3_000),
   SAVINGS_MOVS: Number(process.env.SEED_SAVINGS_MOVS ?? 1_000),
   SAVINGS_GOALS:Number(process.env.SEED_SAVINGS_GOALS?? 10),
   CONTRIB_PER_GOAL: Number(process.env.SEED_CONTRIB_PER_GOAL ?? 20),
-  SALARY_PERIODS:   Number(process.env.SEED_SALARY_PERIODS   ?? 24), // ~1 año quincenal
+  SALARY_PERIODS:   Number(process.env.SEED_SALARY_PERIODS   ?? 24), // 1 year of biweekly salaries
   CHUNK_SALES:      Number(process.env.SEED_CHUNK_SALES      ?? 2_000),
   CHUNK_ITEMS:      Number(process.env.SEED_CHUNK_ITEMS      ?? 5_000),
-  // Rango temporal de los datos
+  // Data range for sales and jornadas
   START_DATE:  new Date(process.env.SEED_START_DATE ?? "2025-05-27"),
   END_DATE:    new Date(process.env.SEED_END_DATE   ?? "2026-05-27"),
 }
@@ -60,10 +52,8 @@ const cfg = {
 // =========================================================================
 // HELPERS
 // =========================================================================
-const rand = (min: number, max: number) =>
-  Math.floor(Math.random() * (max - min + 1)) + min
-const randFloat = (min: number, max: number, d = 2) =>
-  parseFloat((Math.random() * (max - min) + min).toFixed(d))
+const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
+const randFloat = (min: number, max: number, d = 2) => parseFloat((Math.random() * (max - min) + min).toFixed(d))
 const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)]
 const chance = (p: number) => Math.random() < p
 
@@ -72,7 +62,7 @@ function timeAgoDate(start: Date, end: Date) {
 }
 
 // =========================================================================
-// CATÁLOGOS REALISTAS
+// DATA SOURCES
 // =========================================================================
 const FIRST_NAMES = [
   "María", "José", "Juan", "Guadalupe", "Francisco", "Antonio", "Margarita",
@@ -98,7 +88,7 @@ const ALIASES = [
 
 const fullName = () => `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)} ${pick(LAST_NAMES)}`
 
-// --- MENÚ REAL (basado en MENU_Hoja1_.csv) ---------------------------------
+// --- Real Menu
 const MENU: { name: string; price: number; supplies: { key: string; qty: number }[] }[] = [
   // Tacos
   { name: "Taco Arrachera",            price: 55, supplies: [{key:"tortilla",qty:1},{key:"arrachera",qty:0.08},{key:"cebolla",qty:0.01},{key:"cilantro",qty:0.005}] },
@@ -156,7 +146,7 @@ const MENU: { name: string; price: number; supplies: { key: string; qty: number 
   { name: "Café con Leche",            price: 28, supplies: [{key:"cafe",qty:0.015},{key:"leche",qty:0.15},{key:"azucar",qty:0.02}] },
 ]
 
-// --- INSUMOS BASE ---------------------------------------------------------
+// --- Supplies base ---------------------------------------------------------
 const SUPPLIES_BASE: { key: string; name: string; unit: string; cost: number }[] = [
   { key: "tortilla",       name: "Tortilla",                  unit: "pza",   cost: 1.2  },
   { key: "masa",           name: "Masa de maíz",              unit: "kg",    cost: 28   },
@@ -225,8 +215,8 @@ async function main() {
   console.log("🌱 Iniciando seed de gran volumen...")
   console.log("📊 Configuración:", cfg)
 
-  // ---------- LIMPIEZA ----------
-  console.log("\n🧹 Limpiando registros existentes...")
+  // ---------- CLEANING ----------
+  console.log("\nClening existing data...")
   await prisma.sale_items.deleteMany({})
   await prisma.debtors.deleteMany({})
   await prisma.sales.deleteMany({})
@@ -243,11 +233,12 @@ async function main() {
   await prisma.users.deleteMany({})
 
   // ---------- USERS ----------
-  console.log(`\n👥 Generando ${cfg.USERS} usuarios...`)
+  console.log(`\nGenerating ${cfg.USERS} users...`)
   const passHash = await bcrypt.hash("demopass123", 10)
   const pinHash = await bcrypt.hash("1234", 10)
 
   const usersData: any[] = [
+    // Admin user demo
     {
       id: 1,
       email: "admin@demo.com",
@@ -260,6 +251,7 @@ async function main() {
       active: true,
     },
   ]
+  // Staff users demo
   for (let i = 2; i <= cfg.USERS; i++) {
     usersData.push({
       id: i,
@@ -276,7 +268,7 @@ async function main() {
   await prisma.users.createMany({ data: usersData })
 
   // ---------- CUSTOMERS ----------
-  console.log(`👤 Generando ${cfg.CUSTOMERS} clientes...`)
+  console.log(`Generating ${cfg.CUSTOMERS} customers...`)
   const customersData = []
   for (let i = 1; i <= cfg.CUSTOMERS; i++) {
     customersData.push({
@@ -295,7 +287,7 @@ async function main() {
   }
 
   // ---------- SUPPLIES ----------
-  console.log(`🥩 Generando insumos (base: ${SUPPLIES_BASE.length}, total: ${cfg.SUPPLIES})...`)
+  console.log(`Generating supplies (base: ${SUPPLIES_BASE.length}, total: ${cfg.SUPPLIES})...`)
   const supplyKeyToId = new Map<string, number>()
   const suppliesData: any[] = []
   SUPPLIES_BASE.forEach((s, i) => {
@@ -310,7 +302,7 @@ async function main() {
       active: true,
     })
   })
-  // Relleno hasta SUPPLIES para tener volumen extra
+  // Fill with auxiliary supplies if needed
   for (let i = SUPPLIES_BASE.length + 1; i <= cfg.SUPPLIES; i++) {
     suppliesData.push({
       id: i,
@@ -324,7 +316,7 @@ async function main() {
   await prisma.supplies.createMany({ data: suppliesData })
 
   // ---------- PRODUCTS ----------
-  console.log(`🌮 Generando ${MENU.length} productos del menú...`)
+  console.log(`Generating ${MENU.length} menu items...`)
   const productsData = MENU.map((m, i) => ({
     id: i + 1,
     name: m.name,
@@ -333,7 +325,7 @@ async function main() {
   await prisma.products.createMany({ data: productsData })
 
   // ---------- RECIPES ----------
-  console.log("📋 Generando recetas (producto → insumo)...")
+  console.log("Generating recipes (product → supply)...")
   const recipesData: { productID: number; supplyID: number; quantityUsed: number }[] = []
   MENU.forEach((m, i) => {
     const productID = i + 1
@@ -346,7 +338,7 @@ async function main() {
   await prisma.recipes.createMany({ data: recipesData })
 
   // ---------- JORNADAS ----------
-  console.log(`🕐 Generando ${cfg.JORNADAS} jornadas (1 día c/u)...`)
+  console.log(`Generating ${cfg.JORNADAS} jornadas (1 day each)...`)
   const totalDays = Math.ceil(
     (cfg.END_DATE.getTime() - cfg.START_DATE.getTime()) / (1000 * 60 * 60 * 24)
   )
@@ -390,7 +382,7 @@ async function main() {
   }))
 
   // ---------- SALES + SALE_ITEMS + DEBTORS (bloque pesado) ----------
-  console.log(`💰 Generando ${cfg.SALES.toLocaleString()} ventas + sale_items + debtors...`)
+  console.log(`Generating ${cfg.SALES.toLocaleString()} sales + sale_items + debtors...`)
   const sales: any[] = []
   const saleItems: any[] = []
   const debtorsData: any[] = []
@@ -400,23 +392,23 @@ async function main() {
   let saleItemId = 1
   let debtorId = 1
 
-  // distribución: 50 ventas por día × 365 ≈ 18k. Para llegar a 100k usamos más por día.
+  // distribution: 50 sales per day × 365 ≈ 18k. To reach 100k we use more per day.
   const salesPerJornada = Math.floor(cfg.SALES / cfg.JORNADAS)
   let saleId = 1
 
   for (const j of jornadaRange) {
-    // factor por día (algunos días con más ventas)
+    // factor per day (some days with more sales)
     const factor = chance(0.2) ? randFloat(1.3, 2.0) : randFloat(0.6, 1.2)
     const count = Math.max(1, Math.round(salesPerJornada * factor))
 
     for (let k = 0; k < count && saleId <= cfg.SALES; k++) {
-      // fecha dentro del rango de la jornada
+      // Day inside the range of jornada
       const createdAt = timeAgoDate(j.start, j.end)
       const placedBy = rand(1, cfg.USERS)
-      // 70% tienen cliente asociado, 30% venta libre
+      // 70% with customer, 30% with free sale (no customer)
       const customerID = chance(0.7) ? rand(1, cfg.CUSTOMERS) : null
 
-      // Composición de la venta: 1-6 items
+      // Sales of 1 to 6 items
       const numItems = rand(1, 6)
       const itemsForSale: { productID: number; quantity: number; unitPrice: number; subtotal: number }[] = []
       const usedProductIds = new Set<number>()
@@ -450,7 +442,7 @@ async function main() {
         paymentMethod = null
       }
 
-      // si es DEBT pero no hay customer, lo asignamos
+      // if is debt but no customer, assign a random customer to track the debt
       const finalCustomerID = (status === SaleStatus.DEBT && !customerID) ? rand(1, cfg.CUSTOMERS) : customerID
 
       sales.push({
@@ -476,7 +468,7 @@ async function main() {
         })
       }
 
-      // si es deuda, registrar en debtors (saleID es @unique)
+      // if is debt, register in debtors (saleID is @unique)
       if (status === SaleStatus.DEBT && finalCustomerID) {
         debtorsData.push({
           id: debtorId++,
@@ -489,7 +481,7 @@ async function main() {
         customerBalance.set(finalCustomerID, (customerBalance.get(finalCustomerID) ?? 0) + saleTotal)
       }
 
-      // tracking de última consumición
+      // tracking of last consumption
       if (finalCustomerID) {
         const prev = customerLastConsumption.get(finalCustomerID)
         if (!prev || createdAt > prev) {
@@ -501,7 +493,7 @@ async function main() {
     }
   }
 
-  console.log(`   📦 Insertando ${sales.length.toLocaleString()} ventas en chunks de ${cfg.CHUNK_SALES}...`)
+  console.log(`    Inserting ${sales.length.toLocaleString()} sales in chunks of ${cfg.CHUNK_SALES}...`)
   for (let i = 0; i < sales.length; i += cfg.CHUNK_SALES) {
     await prisma.sales.createMany({ data: sales.slice(i, i + cfg.CHUNK_SALES) })
     if (i % (cfg.CHUNK_SALES * 10) === 0) {
@@ -510,7 +502,7 @@ async function main() {
   }
   console.log(`      → ${sales.length.toLocaleString()}/${sales.length.toLocaleString()} ✓        `)
 
-  console.log(`   📦 Insertando ${saleItems.length.toLocaleString()} sale_items en chunks de ${cfg.CHUNK_ITEMS}...`)
+  console.log(`    Inserting ${saleItems.length.toLocaleString()} sale_items in chunks of ${cfg.CHUNK_ITEMS}...`)
   for (let i = 0; i < saleItems.length; i += cfg.CHUNK_ITEMS) {
     await prisma.sale_items.createMany({ data: saleItems.slice(i, i + cfg.CHUNK_ITEMS) })
     if (i % (cfg.CHUNK_ITEMS * 10) === 0) {
@@ -520,21 +512,21 @@ async function main() {
   console.log(`      → ${saleItems.length.toLocaleString()}/${saleItems.length.toLocaleString()} ✓        `)
 
   if (debtorsData.length > 0) {
-    console.log(`   📦 Insertando ${debtorsData.length.toLocaleString()} registros de debtors...`)
+    console.log(`    Inserting ${debtorsData.length.toLocaleString()} debtors records...`)
     for (let i = 0; i < debtorsData.length; i += cfg.CHUNK_SALES) {
       await prisma.debtors.createMany({ data: debtorsData.slice(i, i + cfg.CHUNK_SALES) })
     }
   }
 
-  // Actualizar balance y last_consumption en cada cliente afectado
-  console.log(`   🔄 Actualizando balance y lastConsumption de clientes...`)
+
+  // Update current balance and last_consumption for each affected customer
+  console.log(`    Updating balance and lastConsumption of customers...`)
   const affected = new Set<number>([
     ...customerBalance.keys(),
     ...customerLastConsumption.keys(),
   ])
 
-  // Hacemos chunked con raw SQL para velocidad (Prisma updateMany no soporta different values).
-  // Usamos UPDATE … FROM (VALUES …) para batch eficiente.
+
   const balanceUpdates = Array.from(customerBalance.entries())
   const lastConsumptionUpdates = Array.from(customerLastConsumption.entries())
   const BATCH_UPDATE = 1000
@@ -542,6 +534,7 @@ async function main() {
   for (let i = 0; i < balanceUpdates.length; i += BATCH_UPDATE) {
     const chunk = balanceUpdates.slice(i, i + BATCH_UPDATE)
     const values = chunk.map(([id, bal]) => `(${id}, ${bal})`).join(",")
+    // Use $executeRawUnsafe to perform a bulk update with a VALUES clause
     await prisma.$executeRawUnsafe(
       `UPDATE "customer" AS c SET "currentBalance" = v.bal::numeric
        FROM (VALUES ${values}) AS v(id, bal)
@@ -551,16 +544,17 @@ async function main() {
   for (let i = 0; i < lastConsumptionUpdates.length; i += BATCH_UPDATE) {
     const chunk = lastConsumptionUpdates.slice(i, i + BATCH_UPDATE)
     const values = chunk.map(([id, d]) => `(${id}, '${d.toISOString().slice(0,10)}'::date)`).join(",")
+    // Use $executeRawUnsafe to perform a bulk update with a VALUES clause
     await prisma.$executeRawUnsafe(
       `UPDATE "customer" AS c SET "lastConsumption" = v.dt
        FROM (VALUES ${values}) AS v(id, dt)
        WHERE c.id = v.id;`
     )
   }
-  console.log(`      → ${affected.size.toLocaleString()} clientes actualizados ✓`)
+  console.log(`      → ${affected.size.toLocaleString()}  Updated customers`)
 
   // ---------- BILLS ----------
-  console.log(`\n🧾 Generando ${cfg.BILLS} gastos...`)
+  console.log(`\n🧾 Generating ${cfg.BILLS} bills...`)
   const bills: any[] = []
   for (let i = 1; i <= cfg.BILLS; i++) {
     const j = jornadaRange[rand(0, jornadaRange.length - 1)]
@@ -581,15 +575,15 @@ async function main() {
   }
 
   // ---------- SALARY ----------
-  console.log(`💵 Generando salarios (${cfg.SALARY_PERIODS} períodos × ${cfg.USERS - 1} staff)...`)
+  console.log(`Generating salaries (${cfg.SALARY_PERIODS} periods × ${cfg.USERS - 1} staff)...`)
   const salaries: any[] = []
   let salId = 1
-  // quincenas dentro del rango
+  // Biweekly periods in the range
   const totalMs = cfg.END_DATE.getTime() - cfg.START_DATE.getTime()
   const periodMs = totalMs / cfg.SALARY_PERIODS
   for (let p = 0; p < cfg.SALARY_PERIODS; p++) {
     const payDate = new Date(cfg.START_DATE.getTime() + periodMs * (p + 1))
-    const label = `Quincena ${String(p + 1).padStart(2, "0")} ${payDate.getFullYear()}`
+    const label = `Biweekly ${String(p + 1).padStart(2, "0")} ${payDate.getFullYear()}`
     for (let u = 2; u <= cfg.USERS; u++) {
       salaries.push({
         id: salId++,
@@ -605,9 +599,9 @@ async function main() {
   }
 
   // ---------- SAVINGS MOVEMENTS ----------
-  console.log(`🐷 Generando ${cfg.SAVINGS_MOVS} movimientos de ahorro...`)
-  // Estrategia: empezamos con depósitos para tener balance, después mezclamos.
-  // Aseguramos balance ≥ 0 al insertar withdraws.
+  console.log(`Generating ${cfg.SAVINGS_MOVS} savings movements...`)
+  // We start with deposits to have a balance, then we mix them.
+  // We ensure the balance is ≥ 0 when inserting withdrawals.
   const savingsData: any[] = []
   let runningBalance = 0
   for (let i = 1; i <= cfg.SAVINGS_MOVS; i++) {
@@ -634,7 +628,7 @@ async function main() {
   }
 
   // ---------- SAVINGS GOALS + CONTRIBUTIONS ----------
-  console.log(`🎯 Generando ${cfg.SAVINGS_GOALS} metas de ahorro + contribuciones...`)
+  console.log(`Generating ${cfg.SAVINGS_GOALS} savings goals + contributions...`)
   const goalsData: any[] = []
   for (let i = 1; i <= cfg.SAVINGS_GOALS; i++) {
     const target = randFloat(5000, 80000)
@@ -655,7 +649,8 @@ async function main() {
   let cId = 1
   for (const g of goalsData) {
     const num = cfg.CONTRIB_PER_GOAL
-    // contribuciones acumulables hasta cerca del target
+  
+    // Contributions accumulate up to near the target
     const accumTarget = Number(g.targetAmount) * (g.status === GoalStatus.COMPLETED ? 1.05 : randFloat(0.1, 0.8))
     const perContrib = accumTarget / num
     for (let i = 0; i < num; i++) {
@@ -672,10 +667,10 @@ async function main() {
     await prisma.goal_contribution.createMany({ data: contribsData.slice(i, i + 1000) })
   }
 
-  // ---------- AJUSTE STOCK DE INSUMOS ----------
-  // Recalcula stock realista: stock inicial alto y restamos consumo aproximado
-  // (no es exacto, pero refleja desgaste tras 1 año de operación).
-  console.log("\n📦 Ajustando stock de insumos para reflejar consumo histórico...")
+  // ---------- Adjust stock supplies ----------
+  // Recalculate realistic stock: high initial stock and subtract approximate consumption
+  // (is not exact, but reflects wear after 1 year of operation).
+  console.log("\n Adjusting supply stock to reflect historical consumption...")
   await prisma.$executeRawUnsafe(`
     UPDATE "supplies" SET "currentStock" = GREATEST(
       "currentStock" - (RANDOM() * "currentStock" * 0.6),
@@ -683,8 +678,8 @@ async function main() {
     );
   `)
 
-  // ---------- SECUENCIAS ----------
-  console.log("\n🔧 Sincronizando secuencias de PostgreSQL...")
+  // ---------- Sequences ----------
+  console.log("\n Synchronizing PostgreSQL sequences...")
   const tables = [
     "users","customer","products","supplies","jornada","sales","sale_items",
     "bill","debtors","salary","savings_movement","savings_goal","goal_contribution",
@@ -695,16 +690,16 @@ async function main() {
     )
   }
 
-  // ---------- RESUMEN ----------
+  // ---------- SUMMARY ----------
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1)
-  console.log(`\n✅ Seed finalizado en ${elapsed}s`)
-  console.log("📈 Resumen:")
+  console.log(`\n Finished in ${elapsed}s`)
+  console.log(" Summary:")
   console.log(`   • users:             ${cfg.USERS}`)
   console.log(`   • customers:         ${cfg.CUSTOMERS}`)
   console.log(`   • supplies:          ${cfg.SUPPLIES}`)
   console.log(`   • products:          ${MENU.length}`)
   console.log(`   • recipes:           ${recipesData.length}`)
-  console.log(`   • jornadas:          ${cfg.JORNADAS} (1 OPEN, ${cfg.JORNADAS - 1} cerradas)`)
+  console.log(`   • jornadas:          ${cfg.JORNADAS} (1 OPEN, ${cfg.JORNADAS - 1} closed)`)
   console.log(`   • sales:             ${sales.length.toLocaleString()}`)
   console.log(`   • sale_items:        ${saleItems.length.toLocaleString()}`)
   console.log(`   • debtors:           ${debtorsData.length.toLocaleString()}`)
@@ -713,12 +708,12 @@ async function main() {
   console.log(`   • savings_movement:  ${cfg.SAVINGS_MOVS}`)
   console.log(`   • savings_goal:      ${cfg.SAVINGS_GOALS}`)
   console.log(`   • goal_contribution: ${contribsData.length}`)
-  console.log(`\n🔐 Credenciales: admin / demopass123   (PIN: 1234)`)
+  console.log(`\n Demo Credentials: admin / demopass123   (PIN: 1234)`)
 }
 
 main()
   .catch(e => {
-    console.error("❌ Error durante el seed:", e)
+    console.error("ERROR WHILE SEEDING", e)
     process.exit(1)
   })
   .finally(async () => {
