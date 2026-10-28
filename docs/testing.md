@@ -28,15 +28,13 @@ Both suites also check the database themselves before running anything. This che
 | --- | --- |
 | Server unreachable, database missing, or tables missing | Aborts before any test with `#:ERR:: TEST DATABASE NOT READY`, the reason, and `Run: npm run test:setup` |
 | Ready and empty | Runs |
-| Ready and holding rows | Prints `#:WARN::` that the tests will delete all data in that database (with the row count) and asks `Continue? [y/N]`. Anything but `y` aborts with `#:ERR:: CANCELLED BY USER` and modifies nothing |
-| Holding rows, run not interactive (piped stdin, or `vitest --watch`) | Aborts with `#:ERR:: CONFIRMATION REQUIRED` unless `TEST_DB_CONFIRM=yes` is in the environment |
+| Ready and holding rows | Prints `#:WARN::` that the tests will delete all data in that database (with the row count), waits 2 seconds, then runs. Ctrl+C during the wait cancels without modifying anything |
 
 The tests leave their fixtures behind, so every run after the first finds rows and
-asks again; `TEST_DB_CONFIRM=yes npm test` answers yes in advance. The variable is
-read only from the inherited environment, never from `.env`, so the confirmation
-cannot be disabled permanently by accident. The check verifies that the tables exist,
-not that their columns match the current schema: after a schema change, reset with
-`npm run test:setup` option 1.
+repeats the warning. It never prompts, so it behaves the same with piped stdin or
+`vitest --watch`. The check verifies that the tables exist, not that their columns
+match the current schema: after a schema change, reset with `npm run test:setup`
+option 1.
 
 ## Integration tests
 

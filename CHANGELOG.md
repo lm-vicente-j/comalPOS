@@ -28,9 +28,9 @@ dated checkpoint is recorded.
   name does not end in `_test` / `_test_e2e` before deleting data.
 - `npm test` and `npm run test:e2e` now check the database before running: they abort
   with `#:ERR:: TEST DATABASE NOT READY` (and point to `npm run test:setup`) when it is
-  unreachable, missing or has no schema, and ask for confirmation before deleting the
-  data of a database that holds rows. `TEST_DB_CONFIRM=yes` answers for
-  non-interactive runs.
+  unreachable, missing or has no schema, and warn that the data of a database that
+  holds rows is about to be deleted, then wait 2 seconds before running (Ctrl+C
+  cancels). They never prompt.
 - `npm run test:db` is now `npm run test:setup`, documented as the step to run before
   the tests. It no longer boots a PostgreSQL cluster. It takes the `psql`
   directory from `LOCAL_POSTGRES`. When a database is missing it reports

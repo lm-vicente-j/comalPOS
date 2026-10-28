@@ -1,4 +1,4 @@
-import { createInterface } from "node:readline/promises";
+import { setTimeout as sleep } from "node:timers/promises";
 import { Client } from "pg";
 import { assertTestDatabase } from "./test-env";
 
@@ -8,17 +8,18 @@ const DOMAIN_TABLES = [
     "recipes", "products", "supplies", "salary", "bill", "jornada", "customer", "users",
 ];
 
+const WARNING_DELAY_MS = 2000;
+
 function notReady(reason: string): never {
     throw new Error(`#:ERR:: TEST DATABASE NOT READY\n       ${reason}\n       Run: npm run test:setup`);
 }
 
 /**
  * Runs once before a suite: the database must be reachable with its schema applied
- * (otherwise `npm run test:setup` is needed), and if it holds data the user must
- * confirm that the suite is about to delete it. TEST_DB_CONFIRM=yes, read only from
- * the inherited environment, answers for non-interactive runs.
+ * (otherwise `npm run test:setup` is needed), and if it holds data the user is warned
+ * that the suite is about to delete it, with a short pause to cancel (Ctrl+C).
  */
-export async function ensureTestDatabaseReady(url: string | undefined, { interactive = true } = {}) {
+export async function ensureTestDatabaseReady(url: string | undefined) {
     assertTestDatabase(url);
     const target = new URL(url);
     const name = decodeURIComponent(target.pathname.slice(1));
@@ -49,20 +50,9 @@ export async function ensureTestDatabaseReady(url: string | undefined, { interac
         await client.end().catch(() => {});
     }
 
-    if (rows === 0 || process.env.TEST_DB_CONFIRM === "yes") return;
+    if (rows === 0) return;
 
-    const warning = `The tests will DELETE ALL DATA in database "${name}" on ${target.host} (${rows} rows now).`;
-    if (!interactive || !process.stdin.isTTY) {
-        throw new Error(
-            `#:ERR:: CONFIRMATION REQUIRED\n       ${warning}\n` +
-            "       This run is not interactive: set TEST_DB_CONFIRM=yes to allow it.",
-        );
-    }
-    const prompt = createInterface({ input: process.stdin, output: process.stdout });
-    try {
-        const answer = await prompt.question(`\n#:WARN:: ${warning}\nContinue? [y/N] `);
-        if (!/^y(es)?$/i.test(answer.trim())) throw new Error("#:ERR:: CANCELLED BY USER. Nothing was modified.");
-    } finally {
-        prompt.close();
-    }
+    console.warn(`\n#:WARN:: The tests will DELETE ALL DATA in database "${name}" on ${target.host} (${rows} rows now).`);
+    console.warn(`       Starting in ${WARNING_DELAY_MS / 1000} seconds. Press Ctrl+C to cancel.\n`);
+    await sleep(WARNING_DELAY_MS);
 }
