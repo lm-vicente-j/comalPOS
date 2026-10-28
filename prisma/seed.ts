@@ -212,8 +212,8 @@ const SAVINGS_GOAL_NAMES = [
 // =========================================================================
 async function main() {
   const t0 = Date.now()
-  console.log("🌱 Iniciando seed de gran volumen...")
-  console.log("📊 Configuración:", cfg)
+  console.log("Starting large-volume seed...")
+  console.log("Configuration:", cfg)
 
   // ---------- CLEANING ----------
   console.log("\nClening existing data...")
@@ -325,7 +325,7 @@ async function main() {
   await prisma.products.createMany({ data: productsData })
 
   // ---------- RECIPES ----------
-  console.log("Generating recipes (product → supply)...")
+  console.log("Generating recipes (product to supply)...")
   const recipesData: { productID: number; supplyID: number; quantityUsed: number }[] = []
   MENU.forEach((m, i) => {
     const productID = i + 1
@@ -374,7 +374,7 @@ async function main() {
   for (let i = 0; i < jornadasData.length; i += 500) {
     await prisma.jornada.createMany({ data: jornadasData.slice(i, i + 500) })
   }
-  console.log(`   ✓ Jornada activa (OPEN): #${lastJornadaId}`)
+  console.log(`   Active jornada (OPEN): #${lastJornadaId}`)
 
   // índice rápido jornada -> [openedAt, closedAt]
   const jornadaRange = jornadasData.map(j => ({
@@ -497,19 +497,19 @@ async function main() {
   for (let i = 0; i < sales.length; i += cfg.CHUNK_SALES) {
     await prisma.sales.createMany({ data: sales.slice(i, i + cfg.CHUNK_SALES) })
     if (i % (cfg.CHUNK_SALES * 10) === 0) {
-      process.stdout.write(`      → ${i.toLocaleString()}/${sales.length.toLocaleString()}\r`)
+      process.stdout.write(`      ${i.toLocaleString()}/${sales.length.toLocaleString()}\r`)
     }
   }
-  console.log(`      → ${sales.length.toLocaleString()}/${sales.length.toLocaleString()} ✓        `)
+  console.log(`      ${sales.length.toLocaleString()}/${sales.length.toLocaleString()}        `)
 
   console.log(`    Inserting ${saleItems.length.toLocaleString()} sale_items in chunks of ${cfg.CHUNK_ITEMS}...`)
   for (let i = 0; i < saleItems.length; i += cfg.CHUNK_ITEMS) {
     await prisma.sale_items.createMany({ data: saleItems.slice(i, i + cfg.CHUNK_ITEMS) })
     if (i % (cfg.CHUNK_ITEMS * 10) === 0) {
-      process.stdout.write(`      → ${i.toLocaleString()}/${saleItems.length.toLocaleString()}\r`)
+      process.stdout.write(`      ${i.toLocaleString()}/${saleItems.length.toLocaleString()}\r`)
     }
   }
-  console.log(`      → ${saleItems.length.toLocaleString()}/${saleItems.length.toLocaleString()} ✓        `)
+  console.log(`      ${saleItems.length.toLocaleString()}/${saleItems.length.toLocaleString()}        `)
 
   if (debtorsData.length > 0) {
     console.log(`    Inserting ${debtorsData.length.toLocaleString()} debtors records...`)
@@ -551,10 +551,10 @@ async function main() {
        WHERE c.id = v.id;`
     )
   }
-  console.log(`      → ${affected.size.toLocaleString()}  Updated customers`)
+  console.log(`      ${affected.size.toLocaleString()}  Updated customers`)
 
   // ---------- BILLS ----------
-  console.log(`\n🧾 Generating ${cfg.BILLS} bills...`)
+  console.log(`\nGenerating ${cfg.BILLS} bills...`)
   const bills: any[] = []
   for (let i = 1; i <= cfg.BILLS; i++) {
     const j = jornadaRange[rand(0, jornadaRange.length - 1)]
@@ -670,7 +670,7 @@ async function main() {
   // ---------- Adjust stock supplies ----------
   // Recalculate realistic stock: high initial stock and subtract approximate consumption
   // (is not exact, but reflects wear after 1 year of operation).
-  console.log("\n Adjusting supply stock to reflect historical consumption...")
+  console.log("\nAdjusting supply stock to reflect historical consumption...")
   await prisma.$executeRawUnsafe(`
     UPDATE "supplies" SET "currentStock" = GREATEST(
       "currentStock" - (RANDOM() * "currentStock" * 0.6),
@@ -679,7 +679,7 @@ async function main() {
   `)
 
   // ---------- Sequences ----------
-  console.log("\n Synchronizing PostgreSQL sequences...")
+  console.log("\nSynchronizing PostgreSQL sequences...")
   const tables = [
     "users","customer","products","supplies","jornada","sales","sale_items",
     "bill","debtors","salary","savings_movement","savings_goal","goal_contribution",
@@ -692,8 +692,8 @@ async function main() {
 
   // ---------- SUMMARY ----------
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1)
-  console.log(`\n Finished in ${elapsed}s`)
-  console.log(" Summary:")
+  console.log(`\nFinished in ${elapsed}s`)
+  console.log("Summary:")
   console.log(`   • users:             ${cfg.USERS}`)
   console.log(`   • customers:         ${cfg.CUSTOMERS}`)
   console.log(`   • supplies:          ${cfg.SUPPLIES}`)
@@ -708,7 +708,7 @@ async function main() {
   console.log(`   • savings_movement:  ${cfg.SAVINGS_MOVS}`)
   console.log(`   • savings_goal:      ${cfg.SAVINGS_GOALS}`)
   console.log(`   • goal_contribution: ${contribsData.length}`)
-  console.log(`\n Demo Credentials: admin / demopass123   (PIN: 1234)`)
+  console.log(`\nDemo Credentials: admin / demopass123   (PIN: 1234)`)
 }
 
 main()
