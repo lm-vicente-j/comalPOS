@@ -1,8 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
+import { testEnv } from "./tests/test-env";
 
 const PORT = 3100;
-export const E2E_DATABASE_URL =
-    process.env.E2E_DATABASE_URL ?? "postgresql://postgres@localhost:5433/comalpos_test_e2e";
+// From the environment or .env; global setup refuses it if empty or not a test database.
+export const E2E_DATABASE_URL = testEnv("E2E_DATABASE_URL") ?? "";
 
 // Use the installed Edge on Windows; keep the CI Chromium path on Linux.
 const chromium = process.platform === "win32"
