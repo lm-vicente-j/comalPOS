@@ -94,7 +94,7 @@ export async function saveMovement(
         });
 
         revalidatePath("/admin/savings");
-        revalidatePath("/admin/jornadas", "layout");  // 👈 afecta el banner
+        revalidatePath("/admin/jornadas", "layout");  // afecta el banner
         return { success: true };
     } catch (e) {
         return { success: false, message: "INTERNAL ERROR" };
