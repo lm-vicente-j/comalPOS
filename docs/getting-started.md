@@ -44,7 +44,9 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 | `DIRECT_URL` | Optional locally; configure for deployment | Prisma CLI/migrations; falls back to `DATABASE_URL` |
 | `AUTH_SECRET` | Yes | Auth.js session encryption |
 | `AUTH_TRUST_HOST` | Deployment-dependent | Host trust setting; enabled for the Playwright server |
-| `E2E_DATABASE_URL` | Only for tests | Separate database selected by Playwright |
+| `TEST_DATABASE_URL` | Only for tests | Integration database used by Vitest; its name must end in `_test` |
+| `E2E_DATABASE_URL` | Only for tests | Separate database selected by Playwright; its name must end in `_test_e2e` |
+| `LOCAL_POSTGRES` | Only for `npm run test:setup` | Directory with the PostgreSQL client binaries (`psql`) |
 
 For one local PostgreSQL instance, `DATABASE_URL` and `DIRECT_URL` can point to the
 same database. Production connection choices are explained in
@@ -130,8 +132,9 @@ See [Modules](modules.md) for the rest of the screens.
 | `npm run lint` | ESLint |
 | `npm test` | Vitest with a real test database |
 | `npm run test:e2e` | Playwright, separate database and dev server on port 3100 |
-| `npm run test:db` | Bash/Linux PostgreSQL helper |
+| `npm run test:setup` | Run before the tests: bash helper that offers to create missing test databases and asks before resetting existing ones |
 
-See [Testing](testing.md) before running tests; their fixtures delete test data.
+Run `npm run test:setup` once before `npm test` or `npm run test:e2e`, and see
+[Testing](testing.md) first: their fixtures delete test data.
 `prisma/sequence_fix.ts` is an existing manual sequence-repair utility, not a
 normal setup step; the demo seed already resets its inserted tables' sequences.

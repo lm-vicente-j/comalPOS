@@ -23,6 +23,19 @@ dated checkpoint is recorded.
 - Clarify payment confirmation boundaries, cash formulas, historical reporting
   limits, destructive demo/test seeds and Prisma environment/connection handling.
 - Refresh this changelog with recent functionality and linked historical checkpoints.
+- Test suites now read `TEST_DATABASE_URL` / `E2E_DATABASE_URL` from the environment
+  or `.env` instead of hardcoded port-5433 defaults, and refuse any database whose
+  name does not end in `_test` / `_test_e2e` before deleting data.
+- `npm test` and `npm run test:e2e` now check the database before running: they abort
+  with `#:ERR:: TEST DATABASE NOT READY` (and point to `npm run test:setup`) when it is
+  unreachable, missing or has no schema, and ask for confirmation before deleting the
+  data of a database that holds rows. `TEST_DB_CONFIRM=yes` answers for
+  non-interactive runs.
+- `npm run test:db` is now `npm run test:setup`, documented as the step to run before
+  the tests. It no longer boots a PostgreSQL cluster. It takes the `psql`
+  directory from `LOCAL_POSTGRES`. When a database is missing it reports
+  `#:ERR:: TEST DATABASE NOT FOUND` and offers to create it; when it exists it asks
+  whether to reset and reseed it, use it as is, or cancel.
 
 ## [2026-10-01] - 2026-10-01
 
