@@ -10,7 +10,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:db": "bash scripts/test-db.sh"
+    "test:setup": "bash scripts/test-db.sh"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
